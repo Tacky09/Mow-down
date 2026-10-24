@@ -186,6 +186,11 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 .scard.on .sprice{background:#ffd23f;color:#2a2208}
 
 #setTabs{display:flex;gap:6px;justify-content:center}
+#tlBar{position:fixed;left:50%;top:calc(12vh + 14px);transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.55);padding:8px 14px;border-radius:999px;color:#fff}
+#tlBar b{font:400 20px 'Anton',Impact,sans-serif;letter-spacing:.2em;color:#ffd23f;animation:upgpulse .6s ease-in-out infinite alternate}
+#tlBar span{font:800 13px var(--font-b);min-width:3ch;font-variant-numeric:tabular-nums}
+#tlBar .bar{width:min(220px,30vw);margin:0}
+#tlBar button{font:800 12px var(--font-b);border:0;border-radius:999px;padding:6px 12px;background:rgba(255,255,255,.18);color:#fff;cursor:pointer}
 #hudMain{position:relative;padding-left:34px;pointer-events:auto}
 .xbtn{position:absolute;left:8px;top:8px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(255,255,255,.16);color:#fff;font:800 17px/24px var(--font-b);padding:0;cursor:pointer;display:grid;place-items:center;z-index:2}
 .xbtn:hover{background:rgba(255,107,91,.85)} .xbtn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -310,6 +315,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
   <button type="button" data-s="4" aria-label="Weapon" id="gunSlot" hidden><kbd>5</kbd><svg viewBox="0 0 24 24"><path d="M3 9h15l3 2-3 2H9l-2 6H4l1-6H3z" fill="currentColor"/></svg><span id="gunName">Blaster</span></button>
 </div>
 <div id="speedo" hidden><b>0</b><span>MPH</span><i>N</i></div>
+<div id="tlBar" hidden><b>TIMELAPSE</b><span id="tlPct">0%</span><div class="bar"><i id="tlFill"></i></div><button type="button" id="tlSkip">Skip (Space)</button></div>
 <div id="toast"></div>
 <div id="banner"></div>
 
@@ -2025,11 +2031,46 @@ function regrowFree(){
 }
 function stripeFor(heading){const s=Math.sin(heading), c=Math.cos(heading); return Math.abs(c)>=Math.abs(s)?(c>0?STRIPE_A:STRIPE_B):(s>0?STRIPE_A:STRIPE_B);}
 let myCuts=[];
+const TLREC={cuts:[],path:[],t:0};
+const mowAnim={pull:1,rum:0};
+const TL={on:false,t:0,dur:7,done:null,ang:0};
+function tlReset(){ TLREC.cuts.length=0; TLREC.path.length=0; TLREC.t=0; }
+function startTimelapse(done){
+  const n=TLREC.cuts.length/4; if(n<20||TLREC.path.length<4){ done(); return; }
+  TL.on=true; TL.t=0; TL.done=done; TL.idx=0; TL.ang=0; TL.dur=Math.min(9,Math.max(5,n/700));
+  for(let k=0;k<n;k++){ const idx=TLREC.cuts[k*4], i=idx%W, j=(idx/W)|0, [x,z]=cellXZ(i,j); tallColor(); setCell(idx,x,z,0.34+Math.random()*0.22,col); }
+  grass.instanceMatrix.needsUpdate=true; grass.instanceColor.needsUpdate=true;
+  TL.endPos=pos.clone(); TL.endH=h; TL.wasVis=player.visible; player.visible=true; if(pushP) pushP.g.visible=!lv.ride; if(rideP) rideP.g.visible=!!lv.ride; pushGroup.visible=!lv.ride; rideGroup.visible=!!lv.ride;
+  $('cine').classList.add('on'); $('tlBar').hidden=false; $('hud').style.visibility='hidden'; for(const b of bots) b.g.visible=false;
+}
+function endTimelapse(){ if(!TL.on) return; TL.on=false;
+  const n=TLREC.cuts.length/4;
+  for(let k=TL.idx;k<n;k++){ const idx=TLREC.cuts[k*4], i=idx%W, j=(idx/W)|0, [x,z]=cellXZ(i,j); col.setRGB(TLREC.cuts[k*4+1],TLREC.cuts[k*4+2],TLREC.cuts[k*4+3]); setCell(idx,x,z,0.012,col); }
+  grass.instanceMatrix.needsUpdate=true; grass.instanceColor.needsUpdate=true;
+  pos.copy(TL.endPos); h=TL.endH; player.position.copy(pos); player.rotation.y=h;
+  $('cine').classList.remove('on'); $('tlBar').hidden=true; $('hud').style.visibility=''; for(const b of bots) b.g.visible=true;
+  const d=TL.done; TL.done=null; if(d) d(); }
+function tlUpdate(dt){
+  TL.t+=dt; const k=Math.min(1,TL.t/TL.dur), n=TLREC.cuts.length/4, upto=Math.floor(k*n);
+  for(;TL.idx<upto;TL.idx++){ const q=TL.idx*4, idx=TLREC.cuts[q], i=idx%W, j=(idx/W)|0, [x,z]=cellXZ(i,j); col.setRGB(TLREC.cuts[q+1],TLREC.cuts[q+2],TLREC.cuts[q+3]); setCell(idx,x,z,0.012,col); }
+  grass.instanceMatrix.needsUpdate=true; grass.instanceColor.needsUpdate=true;
+  const P=TLREC.path, f=k*(P.length/3-1), a=Math.floor(f), b=Math.min(P.length/3-1,a+1), u=f-a;
+  const px=P[a*3]+(P[b*3]-P[a*3])*u, pz=P[a*3+1]+(P[b*3+1]-P[a*3+1])*u; let dh=P[b*3+2]-P[a*3+2]; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2;
+  player.position.set(px,0,pz); player.rotation.y=P[a*3+2]+dh*u;
+  for(const w of (lv.ride?rideWheels:pushWheels)) w.rotation.x+=dt*25;
+  if(Math.random()<0.5) FX.clip.spawn(px+Math.sin(player.rotation.y)*0.8,0.3,pz+Math.cos(player.rotation.y)*0.8,Math.cos(player.rotation.y),-Math.sin(player.rotation.y),3,3);
+  TL.ang+=dt*0.35; const R2=HALF*1.25, hgt=HALF*1.15;
+  camera.position.set(Math.sin(TL.ang)*R2, hgt, Math.cos(TL.ang)*R2+HALF*0.15); camera.lookAt(0,0,0);
+  $('tlFill').style.width=(k*100)+'%'; $('tlPct').textContent=Math.round(k*100)+'%';
+  if(Math.floor(TL.t*6)!==TL.beat){ TL.beat=Math.floor(TL.t*6); thunk([523,659,784,1046,784,659][TL.beat%6],0.08,0.05,'triangle'); }
+  if(k>=1&&TL.t>TL.dur+0.6) endTimelapse();
+}
 function cutCell(idx,stripe,mine){
   if(state[idx]!==0) return false;
   const i=idx%W, j=(idx/W)|0, [x,z]=cellXZ(i,j);
   state[idx]=1; cut++;
   col.copy(stripe).offsetHSL(0,0,(Math.random()-0.5)*0.03);
+  TLREC.cuts.push(idx,col.r,col.g,col.b);
   setCell(idx,x,z,0.012,col);
   if(mine){myCuts.push(idx); if(myCuts.length>260) myCuts.shift();
     if(lv.catcher&&isFinite(timeLeft)&&++catchCount>=100){catchCount=0; timeLeft+=2*lv.catcher; toast('+'+(2*lv.catcher)+' seconds from the grass catcher');}}
@@ -2092,6 +2133,7 @@ addEventListener('keydown',e=>{
   keys[e.code]=true;
   if(/^Arrow|Space/.test(e.code)) e.preventDefault();
   if(e.repeat) return;
+  if(TL.on){ if(e.code==='Space'||e.code==='Escape'||e.code==='Enter'){ e.preventDefault(); endTimelapse(); } return; }
   if(choosing&&e.code==='Escape'){ closeUpgrade(); return; }
   if(e.code==='KeyU'&&upgPending>0&&playing&&!choosing){ offerUpgrade(); return; }
   if(e.code==='KeyP') toggleMount();
@@ -3650,7 +3692,7 @@ function toggleMount(){
   if(carrying){toast('Drop that in the truck first');return;}
   const mc=mowerCenter();
   if(dist(wpos,mc)>mc.r+1.6){toast('Walk back to the mower');return;}
-  mode='mow'; walker.visible=false; swingT=-1;
+  mode='mow'; walker.visible=false; swingT=-1; mowAnim.pull=0;
   engineLevel=0.05; setSound(true); applyStats();
 }
 function jump(){ if(!playing||mode!=='foot'||swimming) return; if(sitting){standUp();return;} if(wy>floorY()+0.01) return; vy=7.2; thunk(260,0.12,0.08,'sine'); }
@@ -3820,7 +3862,8 @@ function buildLevel(n){
   grow();
 }
 function startLevel(n){
-  level=n; buildLevel(n);
+  if(TL.on){ TL.done=null; endTimelapse(); }
+  level=n; buildLevel(n); tlReset();
   hauled=0; fuel=0; truckState='parked'; truck.visible=true; truck.position.set(TX,0,TZ); truck.rotation.y=0; tSpeed=0; DRV.vx=DRV.vz=0; truck.rotation.x=truck.rotation.z=0;
   truckFuel=35; mowerFuel=70; energy=0; catchCount=0; rideOf=null; sitting=false; cookT=-1; foodReady=false; panCake.visible=false; plateFood.visible=false;
   mode='mow'; carrying=null; tool=null; slot=0; upstairs=false; inStore=null; inApt=false; swimDive=0; swimming=false; grabHide=false; elevMusic(false); $('cine').classList.remove('on'); renderHotbar(); walker.visible=false; swingT=-1; wy=0; vy=0; engineLevel=0.05; showHeld();
@@ -3967,9 +4010,12 @@ function winLevel(){
   $('stars').querySelectorAll('span').forEach((s,i)=>s.classList.toggle('on',stars[i]));
   try{const all=JSON.parse(localStorage.getItem('mowStars')||'{}')||{}; const got=stars.filter(Boolean).length; if(!(all[level]>=got)){all[level]=got; localStorage.setItem('mowStars',JSON.stringify(all));}}catch(e){}
   $('winmsg').textContent='Lawn '+level+' mowed'+(isFinite(levelTime)?' with '+fmtClock(timeLeft)+' to spare':'')+'. Stars: mowed the lawn'+(yardClear?', cleared the whole yard':'')+(fast?', finished fast':'')+'. Lawn '+(level+1)+' has more to clear and less time.';
+  startTimelapse(()=>{
   $('win').hidden=false; $('nextbtn').focus();
   clearInterval(winLevel.t); let left=4; $('nextbtn').textContent='Next lawn in '+left+'…';
   winLevel.t=setInterval(()=>{ if($('win').hidden){ clearInterval(winLevel.t); return; } left--; if(left<=0){ clearInterval(winLevel.t); $('nextbtn').click(); } else $('nextbtn').textContent='Next lawn in '+left+'…'; },1000);
+  thunk(660,0.3,0.2,'sine'); setTimeout(()=>thunk(880,0.4,0.2,'sine'),180);
+  });
   try{ if(level+1>savedLevel){savedLevel=level+1;localStorage.setItem('mowLevel',String(savedLevel));} }catch(e){}
   thunk(660,0.3,0.2,'sine'); setTimeout(()=>thunk(880,0.4,0.2,'sine'),180);
 }
@@ -4155,6 +4201,7 @@ $('tvgYtGo').onclick=()=>{ const id=ytIdFrom($('tvgYt').value); if(!id){ toast('
 $('tvgFile').onclick=()=>$('tvgPick').click(); $('tvgPick').onchange=e=>{ loadMyVideo(e.target.files[0]); e.target.value=''; };
 $('tvgPause').onclick=()=>{ if(!MV.el) return; if(MV.el.paused){ if(MV.el.ended) MV.el.currentTime=0; MV.el.play().catch(()=>{}); } else MV.el.pause(); renderTvGuide(); };
 $('tvgClose').onclick=closeTvGuide;
+$('tlSkip').onclick=()=>endTimelapse();
 function setHudMini(on){ $('hudMain').classList.toggle('mini',on); $('hudX').textContent=on?'+':'×'; $('hudX').setAttribute('aria-label',on?'Show stats':'Hide stats'); try{localStorage.setItem('mowHudMini',on?'1':'0');}catch(e){} }
 $('hudX').onclick=()=>setHudMini(!$('hudMain').classList.contains('mini'));
 try{ if(localStorage.getItem('mowHudMini')==='1') setHudMini(true); }catch(e){} $('tvgOff').onclick=()=>{ setTvCh(0); closeTvGuide(); };
@@ -4308,6 +4355,7 @@ function frame(now){
       { const wl=riding?rideWheels:pushWheels; for(const w of wl) w.rotation.x+=speed*dt/w.userData.r;
         (riding?rideGroup:pushGroup).position.y=mowerFuel>0?Math.sin(clock*95)*0.006:0;
         if(mowerFuel>0&&Math.random()<0.06){ const mf=(riding?rideDeck:pushDeck).userData.muffler; player.updateMatrixWorld(); const mp=player.localToWorld(_rv.set(mf.x,mf.y,mf.z)); FX.smoke.spawn(mp.x,mp.y,mp.z,0,0,1,0.3); } }
+      TLREC.t+=dt; if(TLREC.t>0.12){ TLREC.t=0; TLREC.path.push(pos.x,pos.z,h); }
       const dOff=riding?0.35:0.78;
       const chew=mowAt(pos.x+fx*dOff,pos.z+fz*dOff,reach,dt);
       if(chew){ speed*=Math.pow(0.45,dt); if(Math.random()<0.4) FX.clip.spawn(pos.x+fx*dOff,0.3,pos.z+fz*dOff,Math.cos(h),-Math.sin(h),2,2.5); }
@@ -4317,6 +4365,14 @@ function frame(now){
       const amp=Math.min(1,Math.abs(speed)/3)*0.6;
       pushP.legs[0].rotation.x=Math.sin(walk)*amp; pushP.legs[1].rotation.x=-Math.sin(walk)*amp;
       setEngine(mowerFuel>0?Math.min(1,Math.abs(speed)/6):0,chew?1:0.3,'mow');
+      { const G2=riding?rideGroup:pushGroup, on=mowerFuel>0, cutting=cut>(mowAnim.lastCut||0); mowAnim.lastCut=cut;
+        mowAnim.rum=lerp(mowAnim.rum,on?(cutting||chew?1:0.45):0,1-Math.pow(0.01,dt));
+        G2.rotation.z=Math.sin(clock*71)*0.006*mowAnim.rum; G2.rotation.x=Math.sin(clock*53)*0.004*mowAnim.rum-(Math.abs(speed)>0.3?Math.min(0.03,Math.abs(speed)*0.004)*Math.sign(speed):0);
+        if(cutting&&Math.random()<0.75){ const off=riding?0.95:0.45, c2=Math.cos(h), s2=Math.sin(h); FX.clip.spawn(pos.x+s2*dOff+c2*off,0.25,pos.z+c2*dOff-s2*off,c2,-s2,4,3.6); }
+        if(mowAnim.pull<1){ mowAnim.pull=Math.min(1,mowAnim.pull+dt*1.6); const pk=mowAnim.pull;
+          if(!riding&&pushP){ const yank=pk<0.35?Math.sin(pk/0.35*Math.PI):0; pushP.arms[1].rotation.x=-1.05+yank*0.9; pushP.g.rotation.y=yank*-0.25; }
+          if(pk>0.3&&!mowAnim.fired){ mowAnim.fired=true; thunk(70,0.35,0.3,'sawtooth'); setTimeout(()=>thunk(110,0.25,0.2,'sawtooth'),90); for(let q=0;q<10;q++){ const mf=(riding?rideDeck:pushDeck).userData.muffler; player.updateMatrixWorld(); const mp=player.localToWorld(_rv.set(mf.x,mf.y,mf.z)); FX.smoke.spawn(mp.x,mp.y,mp.z,0,0,1,0.6); } }
+          if(pk>=1){ mowAnim.fired=false; if(pushP){ pushP.arms[1].rotation.x=-1.05; pushP.g.rotation.y=0; } } } }
     }else if(mode==='truck'){
       driveTruck(dt,th,tu); seatWalkerIn(truck,-0.5);
     }else if(mode==='ride'){
@@ -4430,7 +4486,8 @@ function frame(now){
   const indoors=(onFoot||mode==='elev'||mode==='sleep'||mode==='pcsit'||(typeof arc!=='undefined'&&arc.open))&&inHouse(wpos);
   const cd=onFoot?(indoors?3.4:5):inCar?Math.max(11,6+(carObj.userData.len||5)*1.05):(lv.ride?7.4:6.2), ch=onFoot?(indoors?2.5+wy:3.3+(upstairs?wy:wy*0.5)):inCar?Math.max(5.8,3+(carObj.userData.len||5)*0.5):(lv.ride?4.8:4.2);
   houseLight.intensity=indoors&&wy<3?1.6:0; houseLight2.intensity=indoors&&wy>=3?1.6:0;
-  if(mode==='elev'){ elevCam(); }
+  if(TL.on){ tlUpdate(dt); }
+  else if(mode==='elev'){ elevCam(); }
   else if(mode==='sleep'){ sleepCam(); }
   else if(mode==='pcsit'){ pcCam(); }
   else if(firstPerson&&$('start').hidden){
@@ -4440,7 +4497,7 @@ function frame(now){
     else if(lv.ride){ex=pos.x-fx*0.42;ez=pos.z-fz*0.42;ey=1.95;}
     else{ const back=typeof MOWER_META!=='undefined'?1.5:0.6; ex=pos.x-fx*back;ez=pos.z-fz*back;ey=1.62;}
     const pushFP=!onFoot&&!inCar&&!lv.ride;
-    camera.position.set(ex+fx*0.14,ey,ez+fz*0.14);
+    camera.position.set(ex+fx*0.14,ey+(pushFP||(!onFoot&&!inCar)?Math.sin(clock*63)*0.006*mowAnim.rum:0),ez+fz*0.14);
     look.set(ex+fx*(pushFP?4:6),ey-(inCar?(carObj.userData.eye&&mode==='truck'?0.12:0.8):pushFP?2.4:1.3),ez+fz*(pushFP?4:6));
     camera.lookAt(look);
     if(mode==='mow'&&pushP.g.visible&&!lv.ride) pushP.g.visible=false;
