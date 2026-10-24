@@ -4438,11 +4438,14 @@ function frame(now){
     if(onFoot){ex=wpos.x;ez=wpos.z;ey=1.74+wy;}
     else if(inCar){carObj.updateMatrixWorld(); const ep=(mode==='truck'&&carObj.userData.eye)?carObj.localToWorld(_rv.copy(carObj.userData.eye)):carObj.localToWorld(_rv.set(mode==='ride'?0.55:-0.5,1.72,-0.9)); ex=ep.x;ey=ep.y;ez=ep.z;}
     else if(lv.ride){ex=pos.x-fx*0.42;ez=pos.z-fz*0.42;ey=1.95;}
-    else{ex=pos.x-fx*0.6;ez=pos.z-fz*0.6;ey=1.76;}
+    else{ const back=typeof MOWER_META!=='undefined'?1.5:0.6; ex=pos.x-fx*back;ez=pos.z-fz*back;ey=1.62;}
+    const pushFP=!onFoot&&!inCar&&!lv.ride;
     camera.position.set(ex+fx*0.14,ey,ez+fz*0.14);
-    look.set(ex+fx*6,ey-(inCar?(carObj.userData.eye&&mode==='truck'?0.12:0.8):1.3),ez+fz*6);
+    look.set(ex+fx*(pushFP?4:6),ey-(inCar?(carObj.userData.eye&&mode==='truck'?0.12:0.8):pushFP?2.4:1.3),ez+fz*(pushFP?4:6));
     camera.lookAt(look);
+    if(mode==='mow'&&pushP.g.visible&&!lv.ride) pushP.g.visible=false;
   }else{
+    if(mode==='mow'&&!pushP.g.visible&&!lv.ride) pushP.g.visible=true;
     camTarget.set(fp.x-fx*cd,ch,fp.z-fz*cd);
     if(indoors){ const hz=houseZ(); camTarget.x=Math.max(-7.3,Math.min(7.3,camTarget.x)); camTarget.z=Math.max(hz-3.4,Math.min(hz+3.4,camTarget.z)); camTarget.y=Math.min(wy>3?11.6:5.5,camTarget.y); }
     if(inApt&&onFoot) aptCam();
