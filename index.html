@@ -2030,7 +2030,7 @@ function cutCell(idx,stripe,mine){
   const i=idx%W, j=(idx/W)|0, [x,z]=cellXZ(i,j);
   state[idx]=1; cut++;
   col.copy(stripe).offsetHSL(0,0,(Math.random()-0.5)*0.03);
-  setCell(idx,x,z,0.14,col);
+  setCell(idx,x,z,0.012,col);
   if(mine){myCuts.push(idx); if(myCuts.length>260) myCuts.shift();
     if(lv.catcher&&isFinite(timeLeft)&&++catchCount>=100){catchCount=0; timeLeft+=2*lv.catcher; toast('+'+(2*lv.catcher)+' seconds from the grass catcher');}}
   return true;
@@ -3844,7 +3844,7 @@ function newGame(n){
 }
 $('go').addEventListener('click',()=>newGame(1));
 $('cont').addEventListener('click',()=>newGame(savedLevel));
-$('nextbtn').addEventListener('click',()=>startLevel(level+1));
+$('nextbtn').addEventListener('click',()=>{ clearInterval(winLevel.t); $('nextbtn').textContent='Next lawn'; if(!$('win').hidden) startLevel(level+1); });
 $('retry').addEventListener('click',()=>startLevel(level));
 const CLOCKS=[{id:'relaxed',name:'Relaxed',mult:1.6,note:'60% more time on every lawn.'},{id:'normal',name:'Normal',mult:1,note:'The regular clock.'},{id:'speedy',name:'Speedy',mult:0.75,note:'25% less time. For pros.'},{id:'none',name:'No timer',mult:Infinity,note:'Take as long as you want. No "finished fast" star.'}];
 let clockMode='normal'; try{const c=localStorage.getItem('mowClock'); if(CLOCKS.some(k=>k.id===c)) clockMode=c;}catch(e){}
@@ -3968,6 +3968,8 @@ function winLevel(){
   try{const all=JSON.parse(localStorage.getItem('mowStars')||'{}')||{}; const got=stars.filter(Boolean).length; if(!(all[level]>=got)){all[level]=got; localStorage.setItem('mowStars',JSON.stringify(all));}}catch(e){}
   $('winmsg').textContent='Lawn '+level+' mowed'+(isFinite(levelTime)?' with '+fmtClock(timeLeft)+' to spare':'')+'. Stars: mowed the lawn'+(yardClear?', cleared the whole yard':'')+(fast?', finished fast':'')+'. Lawn '+(level+1)+' has more to clear and less time.';
   $('win').hidden=false; $('nextbtn').focus();
+  clearInterval(winLevel.t); let left=4; $('nextbtn').textContent='Next lawn in '+left+'…';
+  winLevel.t=setInterval(()=>{ if($('win').hidden){ clearInterval(winLevel.t); return; } left--; if(left<=0){ clearInterval(winLevel.t); $('nextbtn').click(); } else $('nextbtn').textContent='Next lawn in '+left+'…'; },1000);
   try{ if(level+1>savedLevel){savedLevel=level+1;localStorage.setItem('mowLevel',String(savedLevel));} }catch(e){}
   thunk(660,0.3,0.2,'sine'); setTimeout(()=>thunk(880,0.4,0.2,'sine'),180);
 }
