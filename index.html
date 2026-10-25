@@ -276,6 +276,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
     <div class="card">
       <div class="label">Time left</div>
       <div class="big" id="time">0:00</div>
+      <div class="sub" id="dayClock">☀️ 8:00 AM</div>
     </div>
     <div class="card" id="players" hidden><div class="label" id="plabel">Party</div><ul id="plist"></ul></div>
     <div class="btnrow"><button id="menuBtn" type="button">Menu</button><button id="mute" type="button" aria-pressed="false">Mute</button></div>
@@ -328,6 +329,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
     <div class="section"><div class="label">Vehicle to haul your stuff</div><div class="seg" id="vehStart"></div><p class="small" id="vehNote"></p></div>
     <div class="section"><div class="label">Graphics</div><div class="seg" id="gfxOpts"></div><p class="small" id="gfxNote"></p></div>
     <div class="section"><div class="label">How much time</div><div class="seg" id="clockOpts"></div><p class="small" id="clockNote"></p></div>
+    <div class="section"><div class="label">Day and night</div><div class="seg" id="dayOpts"><button type="button" data-d="1">Turns night over time</button><button type="button" data-d="0">Always daytime</button></div></div>
     <div class="namebox"><label for="nick">Your name</label><input id="nick" maxlength="14" autocomplete="off" spellcheck="false"></div>
     <div class="row"><button class="btn" id="go" type="button">Start at lawn 1</button><button class="btn ghost" id="cont" type="button" hidden>Continue</button><button class="btn ghost" id="pickLvl" type="button">Choose a lawn</button></div>
     <div class="keys">
@@ -502,11 +504,11 @@ const CHARS=[
 ];
 const hex=c=>'#'+c.toString(16).padStart(6,'0');
 const THEMES=[
-  {name:'Sunny morning',dir:[0.55,0.5,0.4],sun:0xfff0d8,si:2.4,top:[0.22,0.47,0.84],hor:[0.80,0.88,0.93],hemi:0.35,house:0xffffff,roof:0xffffff,exp:1.0},
-  {name:'Hot noon',dir:[0.15,0.95,0.25],sun:0xffffff,si:2.7,top:[0.16,0.42,0.86],hor:[0.78,0.87,0.95],hemi:0.3,house:0xd9e6f5,roof:0xb9b9c4,exp:0.95},
-  {name:'Golden hour',dir:[-0.6,0.26,0.35],sun:0xffb36b,si:2.4,top:[0.30,0.45,0.75],hor:[0.98,0.82,0.62],hemi:0.32,house:0xf5dcc8,roof:0xffffff,exp:1.05},
-  {name:'Cloudy day',dir:[0.3,0.75,0.3],sun:0xdde6f0,si:1.3,top:[0.55,0.62,0.70],hor:[0.80,0.83,0.86],hemi:0.6,house:0xdcecd2,roof:0xb0a8a0,exp:1.1},
-  {name:'Sunset',dir:[0.75,0.16,-0.45],sun:0xff8a50,si:2.1,top:[0.25,0.30,0.60],hor:[0.98,0.62,0.42],hemi:0.35,house:0xf3e0ae,roof:0xffffff,exp:1.1}
+  {p:0.35,name:'Sunny morning',dir:[0.55,0.5,0.4],sun:0xfff0d8,si:2.4,top:[0.22,0.47,0.84],hor:[0.80,0.88,0.93],hemi:0.35,house:0xffffff,roof:0xffffff,exp:1.0},
+  {p:0.5,name:'Hot noon',dir:[0.15,0.95,0.25],sun:0xffffff,si:2.7,top:[0.16,0.42,0.86],hor:[0.78,0.87,0.95],hemi:0.3,house:0xd9e6f5,roof:0xb9b9c4,exp:0.95},
+  {p:0.66,name:'Golden hour',dir:[-0.6,0.26,0.35],sun:0xffb36b,si:2.4,top:[0.30,0.45,0.75],hor:[0.98,0.82,0.62],hemi:0.32,house:0xf5dcc8,roof:0xffffff,exp:1.05},
+  {p:0.45,name:'Cloudy day',dir:[0.3,0.75,0.3],sun:0xdde6f0,si:1.3,top:[0.55,0.62,0.70],hor:[0.80,0.83,0.86],hemi:0.6,house:0xdcecd2,roof:0xb0a8a0,exp:1.1},
+  {p:0.74,name:'Sunset',dir:[0.75,0.16,-0.45],sun:0xff8a50,si:2.1,top:[0.25,0.30,0.60],hor:[0.98,0.62,0.42],hemi:0.35,house:0xf3e0ae,roof:0xffffff,exp:1.1}
 ];
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 let rng=Math.random;
@@ -2595,7 +2597,7 @@ function elevUpdate(dt){
   if(s.t>5&&!s.dinged){ s.dinged=true; thunk(1046,0.5,0.12,'sine'); setTimeout(()=>thunk(784,0.7,0.12,'sine'),260); }
   if(s.t>6.3){ mode='foot'; upstairs=s.dir>0; wy=s.to; wpos.set(-1.65,0,houseZ()+1.1); elevMusic(false); $('cine').classList.remove('on'); banner(upstairs?'Second floor':'Ground floor',upstairs?'Check out the balcony and the pool':''); showHeld(); }
 }
-const SUNRISE={name:'Sunrise',dir:[-0.7,0.14,0.55],sun:0xffa65c,si:2.2,top:[0.32,0.45,0.78],hor:[1.0,0.74,0.55],hemi:0.36,house:0xf7e3cf,roof:0xffffff,exp:1.08};
+const SUNRISE={p:0.27,name:'Sunrise',dir:[-0.7,0.14,0.55],sun:0xffa65c,si:2.2,top:[0.32,0.45,0.78],hor:[1.0,0.74,0.55],hemi:0.36,house:0xf7e3cf,roof:0xffffff,exp:1.08};
 function startSleep(){
   mode='sleep'; sleepS={t:0}; swingT=-1; wspeed=0; wh=Math.PI; wpos.set(-4.5,0,houseZ()+1.55); wy=6.92; sleepBlanket.visible=true;
   banner('Good night','Zzz…'); thunk(300,0.6,0.06,'sine');
@@ -3824,6 +3826,7 @@ function levelConfig(n){
   };
 }
 function setTheme(th){
+  if(th.p!=null&&typeof DAY!=='undefined'){ DAY.p=th.p; DAY.acc=0; DAY.envT=0; }
   SUN_DIR.set(th.dir[0],th.dir[1],th.dir[2]).normalize();
   skyU.top.value.set(th.top[0],th.top[1],th.top[2]); skyU.hor.value.set(th.hor[0],th.hor[1],th.hor[2]);
   const sc=new THREE.Color(th.sun); skyU.sunCol.value.set(sc.r,sc.g,sc.b);
@@ -3834,6 +3837,43 @@ function setTheme(th){
   if(envRT) envRT.dispose(); { const was=skyU.uLin.value; skyU.uLin.value=0; envRT=pmrem.fromScene(envScene,0.04,1,1000); skyU.uLin.value=was; } scene.environment=envRT.texture;
   renderer.toneMappingExposure=th.exp*(post.on?1.06:1);
 }
+// ---------- day and night: the sun moves across the sky and it turns night, then morning again ----------
+const NIGHT={dir:[0.35,0.62,-0.45],sun:0x9fb4ff,si:0.32,top:[0.015,0.025,0.07],hor:[0.05,0.07,0.14],hemi:0.16,house:0x8a93a8,roof:0x8a93a8,exp:0.95,n:1};
+const DUSK={dir:[0.9,0.03,-0.3],sun:0xff6a3d,si:0.9,top:[0.10,0.12,0.32],hor:[0.55,0.32,0.30],hemi:0.24,house:0xc9a99a,roof:0xc9a99a,exp:1.0,n:0.55};
+const DAWN={dir:[-0.9,0.03,0.4],sun:0xff9a6a,si:0.8,top:[0.12,0.16,0.36],hor:[0.62,0.45,0.42],hemi:0.24,house:0xcdb3a8,roof:0xcdb3a8,exp:1.0,n:0.55};
+const DAY_KEYS=()=>[[0,NIGHT],[0.19,NIGHT],[0.23,DAWN],[0.27,SUNRISE],[0.35,THEMES[0]],[0.5,THEMES[1]],[0.66,THEMES[2]],[0.74,THEMES[4]],[0.78,DUSK],[0.83,NIGHT],[1,NIGHT]];
+const DAY={p:0.35,len:360,acc:0,envT:0,on:true};
+try{ if(localStorage.getItem('mowDayCycle')==='0') DAY.on=false; }catch(e){}
+const _dc1=new THREE.Color(), _dc2=new THREE.Color();
+function dayBlend(p){ const K=DAY_KEYS(); let i=0; while(i<K.length-2&&p>K[i+1][0]) i++;
+  const [p0,a]=K[i], [p1,b]=K[i+1], t=Math.max(0,Math.min(1,(p-p0)/Math.max(1e-6,p1-p0))), u=t*t*(3-2*t), L=(x,y)=>x+(y-x)*u, LA=(x,y)=>x.map((v,k)=>L(v,y[k]));
+  const C=(x,y)=>'#'+_dc1.set(x).lerp(_dc2.set(y),u).getHexString();
+  return {dir:LA(a.dir,b.dir),sun:C(a.sun,b.sun),si:L(a.si,b.si),top:LA(a.top,b.top),hor:LA(a.hor,b.hor),hemi:L(a.hemi,b.hemi),house:C(a.house,b.house),roof:C(a.roof,b.roof),exp:L(a.exp,b.exp),n:L(a.n||0,b.n||0)}; }
+const stars=(()=>{ const n=1400, P=new Float32Array(n*3); for(let i=0;i<n;i++){ const u=Math.random()*2-1, a=Math.random()*Math.PI*2, y=Math.abs(u)*0.95+0.05, r=Math.sqrt(1-y*y); P[i*3]=Math.cos(a)*r*400; P[i*3+1]=y*400; P[i*3+2]=Math.sin(a)*r*400; }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(P,3));
+  const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:1.6,sizeAttenuation:false,transparent:true,opacity:0,depthWrite:false,fog:false})); m.renderOrder=0; m.frustumCulled=false; scene.add(m); return m; })();
+const moon=new THREE.Mesh(new THREE.SphereGeometry(9,20,14),new THREE.MeshBasicMaterial({color:0xf2f0e6,transparent:true,opacity:0,fog:false,depthWrite:false})); moon.frustumCulled=false; scene.add(moon);
+function applyDay(th,withEnv){
+  SUN_DIR.set(th.dir[0],th.dir[1],th.dir[2]).normalize();
+  skyU.top.value.set(th.top[0],th.top[1],th.top[2]); skyU.hor.value.set(th.hor[0],th.hor[1],th.hor[2]);
+  const sc=new THREE.Color(th.sun); skyU.sunCol.value.set(sc.r*(1-th.n*0.85),sc.g*(1-th.n*0.85),sc.b*(1-th.n*0.85));
+  const fogC=linA(th.hor); scene.fog.color.copy(fogC); scene.background=fogC;
+  sun.color=lin(th.sun); sun.intensity=th.si; hemi.intensity=th.hemi;
+  houseMat.color=lin(th.house); roofMat.color=lin(th.roof);
+  renderer.toneMappingExposure=th.exp*(post.on?1.06:1);
+  stars.material.opacity=Math.max(0,(th.n-0.35)/0.65); moon.material.opacity=Math.max(0,(th.n-0.3)/0.7);
+  if(withEnv){ if(envRT) envRT.dispose(); const was=skyU.uLin.value; skyU.uLin.value=0; envRT=pmrem.fromScene(envScene,0.04,1,1000); skyU.uLin.value=was; scene.environment=envRT.texture; }
+}
+function dayTick(dt){
+  if(!DAY.on||typeof cfg==='undefined'||!cfg) return;
+  DAY.p=(DAY.p+dt/DAY.len)%1; DAY.acc+=dt; DAY.envT-=dt;
+  stars.position.copy(camera.position); moon.position.copy(camera.position).addScaledVector(_dc_v.set(-0.35,0.55,0.45).normalize(),380);
+  if(DAY.acc<0.2) return; DAY.acc=0;
+  const th=dayBlend(DAY.p), env=DAY.envT<=0; if(env) DAY.envT=3; applyDay(th,env);
+  const hr=(DAY.p*24+24)%24, hh=Math.floor(hr), mm=Math.floor((hr-hh)*60/15)*15, el=$('dayClock');
+  if(el) el.textContent=(th.n>0.6?'🌙 ':'☀️ ')+((hh%12)||12)+':'+String(mm).padStart(2,'0')+(hh<12?' AM':' PM');
+}
+const _dc_v=new THREE.Vector3();
 function clearLevel(){
   for(const o of levelObjs) scene.remove(o);
   for(const f of falling) scene.remove(f.group);
@@ -4201,6 +4241,9 @@ $('tvgYtGo').onclick=()=>{ const id=ytIdFrom($('tvgYt').value); if(!id){ toast('
 $('tvgFile').onclick=()=>$('tvgPick').click(); $('tvgPick').onchange=e=>{ loadMyVideo(e.target.files[0]); e.target.value=''; };
 $('tvgPause').onclick=()=>{ if(!MV.el) return; if(MV.el.paused){ if(MV.el.ended) MV.el.currentTime=0; MV.el.play().catch(()=>{}); } else MV.el.pause(); renderTvGuide(); };
 $('tvgClose').onclick=closeTvGuide;
+function renderDayOpts(){ for(const b of $('dayOpts').querySelectorAll('button')) b.setAttribute('aria-pressed',String((b.dataset.d==='1')===DAY.on)); $('dayClock').hidden=!DAY.on; }
+$('dayOpts').addEventListener('click',e=>{ const b=e.target.closest('button[data-d]'); if(!b) return; DAY.on=b.dataset.d==='1'; try{localStorage.setItem('mowDayCycle',DAY.on?'1':'0');}catch(_){} renderDayOpts(); if(!DAY.on&&cfg){ setTheme(cfg.theme); stars.material.opacity=0; moon.material.opacity=0; } });
+renderDayOpts();
 $('tlSkip').onclick=()=>endTimelapse();
 function setHudMini(on){ $('hudMain').classList.toggle('mini',on); $('hudX').textContent=on?'+':'×'; $('hudX').setAttribute('aria-label',on?'Show stats':'Hide stats'); try{localStorage.setItem('mowHudMini',on?'1':'0');}catch(e){} }
 $('hudX').onclick=()=>setHudMini(!$('hudMain').classList.contains('mini'));
@@ -4331,6 +4374,7 @@ function readInput(){
 function frame(now){
   const dt=Math.min(0.05,(now-last)/1000); last=now; clock+=dt;
   if(playing) botsUpdate(dt);
+  if(playing) dayTick(dt);
   if(playing){
     const [th,tu]=readInput();
     const riding=lv.ride>0;
