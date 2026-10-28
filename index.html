@@ -225,7 +225,9 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 .sprice{font:800 10px var(--font-b);letter-spacing:.16em;padding:3px 9px;border-radius:999px;background:rgba(124,255,160,.18);color:#9dffb8}
 .scard.on .sprice{background:#ffd23f;color:#2a2208}
 
-#setTabs{display:flex;gap:6px;justify-content:center}
+#setTabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.volrow{display:flex;align-items:center;gap:8px;max-width:260px;width:100%} .volrow input{flex:1} .volrow b{font:800 12px var(--font-b);min-width:4ch;text-align:right;font-variant-numeric:tabular-nums}
+.setrow span{display:flex;align-items:center;gap:8px}
 #xhair{position:fixed;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none;z-index:3}
 #xhair::before,#xhair::after{content:"";position:absolute;background:rgba(255,255,255,.9);box-shadow:0 0 2px #000}
 #xhair::before{left:8px;top:0;width:2px;height:18px} #xhair::after{top:8px;left:0;height:2px;width:18px}
@@ -1373,6 +1375,12 @@ function lowpolyGeos(key){
     geo=geo.toNonIndexed(); geo.computeVertexNormals(); geo.computeBoundingSphere(); return {r:rl.r,geo}; });
   return LP_GEOS[key];
 }
+const TRAILER_GEOS={};
+function trailerGeos(key,hz){ if(TRAILER_GEOS[key]) return TRAILER_GEOS[key]; const out=[];
+  for(const it of lowpolyGeos(key)){ const P=it.geo.attributes.position.array, A=[], B=[];
+    for(let t=0;t<P.length;t+=9){ const cz=(P[t+2]+P[t+5]+P[t+8])/3, tr=cz>hz, dst=tr?B:A; for(let k=0;k<9;k++) dst.push(P[t+k]-(tr&&k%3===2?hz:0)); }
+    for(const [arr,tr] of [[A,false],[B,true]]){ if(!arr.length) continue; const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3)); g.computeVertexNormals(); g.computeBoundingSphere(); out.push({r:it.r,geo:g,t:tr}); } }
+  return TRAILER_GEOS[key]=out; }
 function viperGeos(){
   if(VIPER_GEOS) return VIPER_GEOS;
   const raw=atob(VIPER_B64), u8=new Uint8Array(raw.length); for(let i=0;i<raw.length;i++) u8[i]=raw.charCodeAt(i);
@@ -1463,7 +1471,10 @@ function buildTruckModel(g){
       R:new THREE.MeshStandardMaterial({color:lin(0xa00000),emissive:lin(0x500000),roughness:0.3}),
       O:new THREE.MeshStandardMaterial({color:lin(0xff8f00),emissive:lin(0x5a2a00),roughness:0.3})
     };
-    for(const it of lowpolyGeos(key)){ const m=new THREE.Mesh(it.geo,LM[it.r]||LM.D); m.castShadow=true; m.receiveShadow=true; m.userData.shared=true; g.add(m); }
+    const HITCH={trailerpickup:-1.25,tractortrailer:-0.3}[key];
+    let tpv=null; if(HITCH!=null){ tpv=new THREE.Group(); tpv.position.set(0,0,HITCH); g.add(tpv); }
+    for(const it of (HITCH!=null?trailerGeos(key,HITCH):lowpolyGeos(key).map(x=>({r:x.r,geo:x.geo,t:false})))){ const m=new THREE.Mesh(it.geo,LM[it.r]||LM.D); m.castShadow=true; m.receiveShadow=true; m.userData.shared=true; (it.t?tpv:g).add(m); }
+    g.userData.trailer=tpv?{pv:tpv,ang:0,L:{trailerpickup:4.3,tractortrailer:4.0}[key]}:null;
     g.userData.len=info.len; g.userData.w=info.w; g.userData.seatX=sp2.seat[0]; g.userData.seatY=sp2.seat[1]; g.userData.seatZ=sp2.seat[2]; g.userData.bed=sp2.bed;
     g.userData.eye=new THREE.Vector3(sp2.seat[0],sp2.seat[1]+1.7,sp2.seat[2]-0.1);
     const offs=[]; for(let z=-info.len/2+1.2; z<=info.len/2-1.19; z+=2.2) offs.push(z); g.userData.cOffs=offs.length?offs:[0];
@@ -2587,6 +2598,7 @@ function driveTruck(dt,th,tu){
   if(hit){ if(Math.abs(vf)>8) thunk(80,0.25,0.25,'sawtooth'); D.vx*=Math.pow(0.02,dt); D.vz*=Math.pow(0.02,dt); vf*=Math.pow(0.02,dt); }
   clampBox(truck.position,WORLD);
   tSpeed=vf; drvTh=th; drvTu=D.st/0.62;
+  { const T=u.trailer; if(T&&T.pv){ const yawNow=truck.rotation.y-r; T.ang+=(-yawNow/Math.max(dt,1e-4)-vf/T.L*Math.sin(T.ang))*dt; T.ang=Math.max(-1.25,Math.min(1.25,T.ang)); T.pv.rotation.y=T.ang; } }
   // skids: smoke and squeal
   const slip=Math.abs(vs)+(th>0&&ratio<0.15&&sport?2.5:0)+(acc<-9&&Math.abs(vf)>6?2:0);
   D.skid=lerp(D.skid,slip>2.2?1:0,1-Math.pow(0.001,dt));
@@ -3263,9 +3275,12 @@ function musLoadFile(f){ if(!f) return; if(!MUS.el){ MUS.el=new Audio(); MUS.el.
 const ICONS={"sun": "M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4", "moon": "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z", "headphones": "M4 16v-4a8 8 0 0 1 16 0v4M4 15h3v6H4zM17 15h3v6h-3z", "search": "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4", "rewind": "M11 7 5 12l6 5zM19 7l-6 5 6 5z", "play": "M7 5v14l12-7z", "pause": "M8 5v14M16 5v14", "ff": "M13 7l6 5-6 5zM5 7l6 5-6 5z", "skip": "M6 5v14l9-7zM18 5v14", "bolt": "M13 2 4 14h7l-1 8 9-12h-7z", "tv": "M3 7h18v12H3zM8 3l4 4 4-4", "folder": "M3 6h6l2 2h10v11H3z", "bag": "M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0", "up": "M12 19V5M6 11l6-6 6 6", "music": "M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0", "star": "M12 3l2.8 5.8 6.2.9-4.5 4.4 1 6.3L12 17.5l-5.5 2.9 1-6.3L3 9.7l6.2-.9z", "gamepad": "M6 9h12a4 4 0 0 1 4 4v2a3 3 0 0 1-5.4 1.8L15 15H9l-1.6 1.8A3 3 0 0 1 2 15v-2a4 4 0 0 1 4-4zM7 11v4M5 13h4M16 12h.01M18 14h.01", "speaker": "M4 9h4l5-4v14l-5-4H4zM17 9a4 4 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11", "mower": "M2 4l4 8M5 12h13l2 5H4zM7 20a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17 20a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z", "ruler": "M3 15 15 3l6 6L9 21zM7 11l2 2M10 8l2 2M13 5l2 2", "rocket": "M14 4c3 0 6 3 6 6l-8 8-6-6zM6 12l-3 1 1 3M12 18l-1 3-3-1M15 9h.01", "target": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01", "fuel": "M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M7 8h6M15 10l3 2v6a1.5 1.5 0 0 0 3 0V9l-3-3", "scissors": "M8 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM8 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM7.5 7.5 20 19M7.5 16.5 20 5", "basket": "M4 10h16l-2 10H6zM8 10l4-6 4 6", "tire": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 3v6M12 15v6M3 12h6M15 12h6", "flame": "M12 22c4 0 7-3 7-7 0-5-5-7-5-12-3 2-5 5-5 8-1-1-2-2-2-4-2 2-2 5-2 8 0 4 3 7 7 7z", "leaf": "M5 19C5 10 10 5 20 4c0 10-5 15-14 15zM5 19l8-8", "robot": "M6 8h12v10H6zM12 4v4M9 12h.01M15 12h.01M9 15h6M3 11v4M21 11v4", "magnet": "M6 3v8a6 6 0 0 0 12 0V3h-4v8a2 2 0 0 1-4 0V3zM6 7h4M14 7h4", "light": "M8 3h8v5l-2 3h-4L8 8zM10 11v10h4V11", "crown": "M3 8l4 4 5-7 5 7 4-4-2 11H5z", "timer": "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l3 2M9 2h6", "x": "M6 6l12 12M18 6 6 18", "cap": "M3 15c0-5 4-8 9-8s9 3 9 8zM3 15h14l4 2", "shirt": "M8 3 3 6l2 4 3-1v12h8V9l3 1 2-4-5-3a4 4 0 0 1-8 0z", "phone": "M8 2h8v20H8zM11 18h2", "cube": "M12 2l9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10", "car": "M3 13l2-5h14l2 5v5H3zM6 18v2M18 18v2M3 13h18M7 15.5h.01M17 15.5h.01", "fish": "M3 12c3-5 9-6 14-2l4-3v10l-4-3c-5 4-11 3-14-2zM15 11h.01", "smile": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 14c1 2 2.5 3 4 3s3-1 4-3M9 9h.01M15 9h.01", "ball": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 3v18M3 12h18M5.6 5.6c3.7 3 9.1 3 12.8 0M5.6 18.4c3.7-3 9.1-3 12.8 0", "pan": "M3 11h13a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5zM16 12h5", "question": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7v.5M12 17h.01", "chart": "M3 20h18M6 16l4-5 4 3 5-7", "cloud": "M7 17a5 5 0 1 1 1-9.9A6 6 0 0 1 19 9a4 4 0 0 1-1 8zM8 21l1-2M12 21l1-2M16 21l1-2", "flag": "M5 21V3M5 4h12l-2 4 2 4H5", "paw": "M12 20c-3 0-5-2-5-4s2-4 5-4 5 2 5 4-2 4-5 4zM5.5 10.5h.01M9 6.5h.01M15 6.5h.01M18.5 10.5h.01", "wand": "M4 20 16 8M14 3v2M19 7h2M18 3l-1 2M21 11h-2", "ghost": "M5 21V11a7 7 0 0 1 14 0v10l-2.5-2-2.5 2-2-2-2 2-2.5-2zM9.5 11h.01M14.5 11h.01", "radar": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 12l6-6M12 7a5 5 0 1 0 5 5", "tree": "M12 3l6 9h-4l4 6H6l4-6H6zM12 18v3", "gem": "M6 3h12l4 6-10 12L2 9zM2 9h20M9 3l3 6 3-6M12 9v12", "hook": "M12 3v11a4 4 0 1 1-8 0M12 3h3", "brush": "M14 4l6 6-8 8-6-6zM6 12l-3 7 7-3", "mic": "M9 3h6v9a3 3 0 0 1-6 0zM5 11a7 7 0 0 0 14 0M12 18v3", "bars": "M4 20V10M10 20V4M16 20v-8M22 20H2", "type": "M4 7V5h16v2M12 5v14M9 19h6", "list": "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01", "min": "M5 12h14", "max": "M4 4h16v16H4z", "restore": "M8 8h12v12H8zM4 16V4h12"};
 function ico(n,c){ const d=ICONS[n]||ICONS.star; return '<svg class="ic'+(c?' '+c:'')+'" viewBox="0 0 24 24" aria-hidden="true"><path d="'+d+'"/></svg>'; }
 let setTab='Controls';
+const GOPT={fov:58,shadows:true,tod:'cycle',dayLen:360}; try{ const st=localStorage.getItem('mowGfxOpt'); if(st) Object.assign(GOPT,JSON.parse(st)); else if(localStorage.getItem('mowDayCycle')==='0') GOPT.tod='day'; }catch(e){}
+function goptSave(){ try{ localStorage.setItem('mowGfxOpt',JSON.stringify(GOPT)); }catch(e){} }
+function applyGopt(){ camera.fov=GOPT.fov; camera.updateProjectionMatrix(); sun.castShadow=!!GOPT.shadows; if(typeof DAY!=='undefined'){ DAY.len=GOPT.dayLen; DAY.on=GOPT.tod==='cycle'; DAY.lock=GOPT.tod; } }
 async function renderSettings(){
   const tabs=$('setTabs'); tabs.textContent='';
-  for(const t of ['Controls','Audio','Music']){ const b=document.createElement('button'); b.type='button'; b.className='stab'; b.innerHTML=ico(t==='Controls'?'gamepad':t==='Music'?'music':'headphones')+' '+t; b.setAttribute('aria-pressed',String(t===setTab)); b.onclick=()=>{ setTab=t; renderSettings(); }; tabs.appendChild(b); }
+  for(const t of ['Controls','Graphics','Audio','Music']){ const b=document.createElement('button'); b.type='button'; b.className='stab'; b.innerHTML=ico(t==='Controls'?'gamepad':t==='Music'?'music':t==='Graphics'?'sun':'headphones')+' '+t; b.setAttribute('aria-pressed',String(t===setTab)); b.onclick=()=>{ setTab=t; renderSettings(); }; tabs.appendChild(b); }
   const body=$('setBody'); body.textContent=''; const list=document.createElement('div'); list.className='setlist'; body.appendChild(list);
   const row=(label,el)=>{ const r=document.createElement('div'); r.className='setrow'; const sp=document.createElement('span'); sp.textContent=label; r.append(sp,el); list.appendChild(r); };
   if(setTab==='Controls'){
@@ -3276,6 +3291,16 @@ async function renderSettings(){
     uiSel.value=UI_MODE; uiSel.onchange=()=>{ UI_MODE=uiSel.value; try{localStorage.setItem('mowUi',UI_MODE);}catch(e){} applyUi(typeof DAY!=='undefined'&&DAY.on&&cfg?dayBlend(DAY.p).n:0); }; row('Menu look',uiSel);
     const se=document.createElement('input'); se.type='range'; se.min=0.0008; se.max=0.006; se.step=0.0002; se.value=MLOOK.sens; se.oninput=()=>{ MLOOK.sens=+se.value; try{localStorage.setItem('mowSens',String(MLOOK.sens));}catch(e){} }; row('Mouse look speed',se);
     const nt=document.createElement('p'); nt.className='small'; nt.textContent='Click the game to turn on mouse look, then move the mouse to look up, down and around. Hold right-click and drag also works. Scroll to zoom in and out, and scroll all the way in for first person. Esc lets go of the mouse, and V puts the camera back to normal. Click a button, then press the key you want. Esc cancels. The arrow keys always work too.'; body.appendChild(nt);
+  }else if(setTab==='Graphics'){
+    const mk=(label,icon,opts,cur,on)=>{ const sel=document.createElement('select'); for(const [v,t] of opts){ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); } sel.value=String(cur); sel.onchange=()=>on(sel.value);
+      const lb=document.createElement('span'); lb.innerHTML=ico(icon)+' '+label; const rr=document.createElement('div'); rr.className='setrow'; rr.append(lb,sel); list.appendChild(rr); };
+    mk('Picture quality','star',GFX.map(g=>[g.id,g.name]),gfxMode,v=>{ gfxMode=v; try{localStorage.setItem('mowGfx',v);}catch(e){} applyGfx(); if(cfg) setTheme(cfg.theme); applyGopt(); });
+    mk('Shadows','sun',[['1','On'],['0','Off (faster)']],GOPT.shadows?'1':'0',v=>{ GOPT.shadows=v==='1'; goptSave(); applyGopt(); });
+    { const r=document.createElement('input'); r.type='range'; r.min=45; r.max=95; r.step=1; r.value=GOPT.fov; const w=document.createElement('div'); w.className='volrow'; const b=document.createElement('b'); b.textContent=GOPT.fov+'°'; r.oninput=()=>{ GOPT.fov=+r.value; b.textContent=r.value+'°'; goptSave(); applyGopt(); }; w.append(r,b);
+      const lb=document.createElement('span'); lb.innerHTML=ico('target')+' Field of view'; const rr=document.createElement('div'); rr.className='setrow'; rr.append(lb,w); list.appendChild(rr); }
+    mk('Time of day in the game','moon',[['cycle','Day turns into night'],['day','Always day'],['sunset','Always sunset'],['night','Always night']],GOPT.tod,v=>{ GOPT.tod=v; goptSave(); applyGopt(); setTodNow(); });
+    mk('How long a day lasts','timer',[['180','3 minutes'],['360','6 minutes'],['720','12 minutes'],['1200','20 minutes']],GOPT.dayLen,v=>{ GOPT.dayLen=+v; goptSave(); applyGopt(); });
+    mk('Menu look','sun',[['auto','Auto (matches day and night)'],['light','Day (light)'],['dark','Night (dark)']],UI_MODE,v=>{ UI_MODE=v; try{localStorage.setItem('mowUi',v);}catch(e){} applyUi(typeof DAY!=='undefined'&&cfg?dayBlend(DAY.p).n:0); });
   }else if(setTab==='Music'){
     startAudio(); musStart();
     const on=document.createElement('button'); on.type='button'; on.className='keybtn'+(MUS.on?' wait':''); on.textContent=MUS.on?'On':'Off'; on.onclick=()=>{ MUS.on=!MUS.on; musSave(); renderSettings(); }; row('Music',on);
@@ -3806,9 +3831,9 @@ function underwaterFx(dt){
 function cockpitFx(dt){
   const vw=truck.userData.viperWheels; if(vw){ const st=mode==='truck'?drvTu:0; for(const W of vw){ W.sp.rotation.x-=tSpeed*dt/0.34; if(W.front) W.w.rotation.y=lerp(W.w.rotation.y,st*0.45,1-Math.pow(0.001,dt)); } }
   const ckp=truck.userData.cockpit; if(!ckp) return;
-  const on=firstPerson&&mode==='truck'; ckp.ck.visible=on; if(!on){ if(camera.fov!==58){ camera.fov=58; camera.updateProjectionMatrix(); } return; }
+  const on=firstPerson&&mode==='truck'; ckp.ck.visible=on; if(!on){ if(camera.fov!==GOPT.fov){ camera.fov=GOPT.fov; camera.updateProjectionMatrix(); } return; }
   walker.visible=false; ckSteer=lerp(ckSteer,drvTu,1-Math.pow(0.002,dt));
-  { const tf=58+Math.min(16,Math.abs(tSpeed)*0.45); if(Math.abs(camera.fov-tf)>0.05){ camera.fov=lerp(camera.fov,tf,1-Math.pow(0.05,dt)); camera.updateProjectionMatrix(); } } ckp.spin.rotation.z=ckSteer*1.9;
+  { const tf=GOPT.fov+Math.min(16,Math.abs(tSpeed)*0.45); if(Math.abs(camera.fov-tf)>0.05){ camera.fov=lerp(camera.fov,tf,1-Math.pow(0.05,dt)); camera.updateProjectionMatrix(); } } ckp.spin.rotation.z=ckSteer*1.9;
   truck.updateMatrixWorld(); for(let i=0;i<2;i++){ ckp.hands[i].getWorldPosition(_hv); truck.worldToLocal(_hv); placeLimb(ckp.arms[i],ckp.shoulders[i],_hv); }
   ckp.pedals[1].rotation.x=-0.55*Math.max(0,drvTh); ckp.pedals[0].rotation.x=-0.55*Math.max(0,-drvTh);
   const spd=Math.min(1,Math.abs(tSpeed)/36); if(ckp.needles.length){ ckp.needles[0].rotation.z=1.2-spd*2.4; ckp.needles[1].rotation.z=1.0-Math.min(1,0.25+spd*0.7+Math.max(0,drvTh)*0.15)*2.2; }
@@ -4044,7 +4069,7 @@ function levelConfig(n){
   };
 }
 function setTheme(th){
-  if(th.p!=null&&typeof DAY!=='undefined'){ DAY.p=th.p; DAY.acc=0; DAY.envT=0; }
+  if(th.p!=null&&typeof DAY!=='undefined'){ DAY.p=th.p; DAY.acc=0; DAY.envT=0; if(DAY.lock&&DAY.lock!=='cycle') setTimeout(setTodNow,0); }
   SUN_DIR.set(th.dir[0],th.dir[1],th.dir[2]).normalize(); SKY_SUN.copy(SUN_DIR); skyU.glow.value=0;
   skyU.top.value.set(th.top[0],th.top[1],th.top[2]); skyU.hor.value.set(th.hor[0],th.hor[1],th.hor[2]);
   const sc=new THREE.Color(th.sun); skyU.sunCol.value.set(sc.r,sc.g,sc.b);
@@ -4086,7 +4111,9 @@ function applyDay(th,withEnv){
   stars.material.opacity=Math.max(0,(th.n-0.35)/0.65); moon.material.opacity=Math.max(0,(th.n-0.3)/0.7);
   if(withEnv){ if(envRT) envRT.dispose(); const was=skyU.uLin.value; skyU.uLin.value=0; envRT=pmrem.fromScene(envScene,0.04,1,1000); skyU.uLin.value=was; scene.environment=envRT.texture; }
 }
+function setTodNow(){ if(!DAY.lock||DAY.lock==='cycle'||!cfg) return; DAY.p=DAY.lock==='day'?0.42:DAY.lock==='sunset'?0.735:0.05; DAY.acc=1; DAY.envT=0; const th=dayBlend(DAY.p); applyDay(th,true); applyUi(th.n); }
 function dayTick(dt){
+  if(!DAY.on&&DAY.lock&&DAY.lock!=='cycle'&&typeof cfg!=='undefined'&&cfg){ DAY.acc+=dt; if(DAY.acc>=0.5){ DAY.acc=0; stars.position.copy(camera.position); moon.position.copy(camera.position).addScaledVector(_dc_v.set(-0.35,0.55,0.45).normalize(),380); } return; }
   if(!DAY.on||typeof cfg==='undefined'||!cfg) return;
   DAY.p=(DAY.p+dt/DAY.len)%1; DAY.acc+=dt; DAY.envT-=dt;
   stars.position.copy(camera.position); moon.position.copy(camera.position).addScaledVector(_dc_v.set(-0.35,0.55,0.45).normalize(),380);
@@ -4478,8 +4505,8 @@ $('spotPlay').onclick=()=>{ try{ SPOT.ctl&&SPOT.ctl.togglePlay(); }catch(e){} };
 $('spotBack').onclick=()=>{ try{ SPOT.ctl&&SPOT.ctl.seek(Math.max(0,(SPOT.pos||0)/1000-15)); }catch(e){} };
 $('spotFwd').onclick=()=>{ try{ SPOT.ctl&&SPOT.ctl.seek(((SPOT.pos||0)/1000)+15); }catch(e){} };
 function renderDayOpts(){ for(const b of $('dayOpts').querySelectorAll('button')) b.setAttribute('aria-pressed',String((b.dataset.d==='1')===DAY.on)); $('dayClock').hidden=!DAY.on; }
-$('dayOpts').addEventListener('click',e=>{ const b=e.target.closest('button[data-d]'); if(!b) return; DAY.on=b.dataset.d==='1'; try{localStorage.setItem('mowDayCycle',DAY.on?'1':'0');}catch(_){} renderDayOpts(); if(!DAY.on&&cfg){ setTheme(cfg.theme); stars.material.opacity=0; moon.material.opacity=0; } });
-renderDayOpts();
+$('dayOpts').addEventListener('click',e=>{ const b=e.target.closest('button[data-d]'); if(!b) return; DAY.on=b.dataset.d==='1'; GOPT.tod=DAY.on?'cycle':'day'; goptSave(); DAY.lock=GOPT.tod; try{localStorage.setItem('mowDayCycle',DAY.on?'1':'0');}catch(_){} renderDayOpts(); if(!DAY.on&&cfg){ setTheme(cfg.theme); stars.material.opacity=0; moon.material.opacity=0; } });
+renderDayOpts(); applyGopt();
 $('tlSkip').onclick=()=>endTimelapse();
 function setHudMini(on){ $('hudMain').classList.toggle('mini',on); $('hudX').textContent=on?'+':'×'; $('hudX').setAttribute('aria-label',on?'Show stats':'Hide stats'); try{localStorage.setItem('mowHudMini',on?'1':'0');}catch(e){} }
 $('hudX').onclick=()=>setHudMini(!$('hudMain').classList.contains('mini'));
