@@ -1022,6 +1022,7 @@ mesh(new THREE.CylinderGeometry(0.04,0.04,2.4,8),0xc0c5cb,16.6,1.2,HZ-3.7); cons
 for(const lx of [17.7,18.1]){ HB(0.05,0.9,0.05,0xc0c5cb,lx,0.45,HZ+2.45); HB(0.05,0.05,0.3,0xc0c5cb,lx,0.9,HZ+2.6); }
 const houseLight2=new THREE.PointLight(0xfff1d6,0,18,2); houseLight2.position.set(0,11,HZ); scene.add(houseLight2);
 const houseLight=new THREE.PointLight(0xfff1d6,0,18,2); houseLight.position.set(0,5,HZ); scene.add(houseLight);
+const SWINGS=[]; let swingRide=null;
 // back patio like a real backyard: concrete slab, grill, chairs, pots, flower bed, kids' swing set
 { const PZ=HZ-5.5;
   HB(9,0.06,2.6,0xb9b4aa,4.5,0.03,PZ);
@@ -1034,11 +1035,14 @@ const houseLight=new THREE.PointLight(0xfff1d6,0,18,2); houseLight.position.set(
   HB(6,0.08,1.0,0x3b2a1e,-4,0.04,PZ+0.9);
   for(let i=0;i<14;i++){ const bx=-6.7+i*0.4; mesh(new THREE.SphereGeometry(0.22+Math.random()*0.1,9,7),i%3?0x3f7f2c:0x2f6b25,bx,0.25,PZ+0.9+(Math.random()-0.5)*0.4);
     if(i%2) mesh(new THREE.SphereGeometry(0.09,6,5),flowerC[i%5],bx,0.45,PZ+0.8); }
-  const SX=-11, SZ=PZ-0.2, wood=0xa77b4f;
-  for(const sx of [-1.4,1.4]){ const a=HB(0.12,2.4,0.12,wood,SX+sx,1.15,SZ-0.5); a.rotation.x=0.2; const b=HB(0.12,2.4,0.12,wood,SX+sx,1.15,SZ+0.5); b.rotation.x=-0.2; }
-  HB(3.0,0.14,0.14,wood,SX,2.3,SZ);
-  for(const sx of [-0.6,0.6]){ HB(0.02,1.6,0.02,0x777777,SX+sx-0.2,1.5,SZ); HB(0.02,1.6,0.02,0x777777,SX+sx+0.2,1.5,SZ); HB(0.5,0.05,0.22,sx<0?0x2e7d32:0xfbc02d,SX+sx,0.7,SZ); }
-  HB(1.2,1.4,1.2,wood,SX+2.6,0.7,SZ); HB(1.4,0.08,1.4,0x2e7d32,SX+2.6,1.6,SZ); const sl=HB(0.5,0.05,1.8,0xfbc02d,SX+2.6,0.75,SZ-1.3); sl.rotation.x=-0.6;
+  // swing set by the pool: the top bar runs along x, the swings swing along z (toward and away from the pool)
+  const SX=23.4, SZ=HZ-0.8, wood=0xa77b4f;
+  for(const sx of [-1.6,1.6]){ const a=HB(0.12,2.5,0.12,wood,SX+sx,1.2,SZ-0.55); a.rotation.x=0.22; const b=HB(0.12,2.5,0.12,wood,SX+sx,1.2,SZ+0.55); b.rotation.x=-0.22; }
+  HB(3.4,0.14,0.14,wood,SX,2.4,SZ);
+  for(const [k,sx] of [[0,-0.7],[1,0.7]]){ const pv=new THREE.Group(); pv.position.set(SX+sx,2.33,SZ); scene.add(pv);
+    for(const cx of [-0.21,0.21]){ const ch=mesh(new THREE.BoxGeometry(0.02,1.62,0.02),0x777777,cx,-0.81,0,pv); ch.castShadow=false; }
+    mesh(new THREE.BoxGeometry(0.5,0.05,0.24),k?0xfbc02d:0x2e7d32,0,-1.63,0,pv);
+    SWINGS.push({pv,L:1.63,ang:0,vel:0}); }
 }
 const houseGroup=new THREE.Group(); for(const o of scene.children.slice(_houseStart)) houseGroup.add(o); scene.add(houseGroup);
 const houseZ=()=>HZ+houseGroup.position.z;
@@ -3933,8 +3937,18 @@ function standUp(){ if(!sitting) return; sitting=false; if(inApt&&aptStand){ wpo
 function eatFood(){ foodReady=false; plateFood.visible=false; panCake.visible=false; energy=45; thunk(520,0.15,0.12,'sine'); toast('Yum! Full of energy for 45 seconds'); updateChips(); }
 
 // ---------- on foot ----------
+function nearSwing(){ if(mode!=='foot'||swingRide) return -1; let best=-1,bd=1.1; for(let i=0;i<SWINGS.length;i++){ const p=SWINGS[i].pv.getWorldPosition(_rv); const d=Math.hypot(wpos.x-p.x,wpos.z-p.z); if(d<bd){ bd=d; best=i; } } return best; }
+function startSwing(i){ const S=SWINGS[i]; swingRide={i}; S.vel=0; sitting=false; wspeed=0; vy=0; toast('Swinging! W goes forward, S goes back · E or Space to hop off'); }
+function stopSwing(){ if(!swingRide) return; const S=SWINGS[swingRide.i]; swingRide=null; const p=S.pv.getWorldPosition(_rv); wpos.set(p.x,0,p.z+1.0); wy=0; vy=S.vel*0.6; wh=0; S.vel*=0.3; }
+function swingUpdate(dt,th){ const S=SWINGS[swingRide.i];
+  S.vel+=(th*2.4-9.8/S.L*Math.sin(S.ang)-0.18*S.vel)*dt; S.ang+=S.vel*dt; if(S.ang>1.25){ S.ang=1.25; S.vel*=-0.3; } if(S.ang<-1.25){ S.ang=-1.25; S.vel*=-0.3; }
+  S.pv.rotation.x=S.ang; S.pv.updateMatrixWorld(); const seat=S.pv.localToWorld(_rv.set(0,-S.L+0.05,0));
+  wpos.set(seat.x,0,seat.z); wy=seat.y-0.42; wh=0; walker.position.set(seat.x,seat.y-0.42,seat.z); walker.rotation.set(0,0,0); wP.g.rotation.set(S.ang,0,0); wP.g.position.y=0;
+  wP.legs.forEach(l=>l.rotation.x=-1.45+Math.max(-0.5,Math.min(0.5,S.vel*0.25))); wP.arms.forEach(a=>a.rotation.x=-2.7); }
+function idleSwings(dt){ for(let i=0;i<SWINGS.length;i++){ if(swingRide&&swingRide.i===i) continue; const S=SWINGS[i]; S.vel+=(-9.8/S.L*Math.sin(S.ang)-0.6*S.vel)*dt; S.ang+=S.vel*dt; S.pv.rotation.x=S.ang; } }
 function toggleMount(){
   if(!playing||mode==='elev'||mode==='sleep'||mode==='pcsit') return;
+  if(swingRide){ stopSwing(); return; }
   if(inApt&&mode==='foot'){ if(sitting) standUp(); exitApt(); return; }
   if(mode==='truck'){ exitTruck(); return; }
   if(mode==='ride'){ exitRide(); return; }
@@ -3955,7 +3969,7 @@ function toggleMount(){
   mode='mow'; walker.visible=false; swingT=-1; mowAnim.pull=0;
   engineLevel=0.05; setSound(true); applyStats();
 }
-function jump(){ if(!playing||mode!=='foot'||swimming) return; if(sitting){standUp();return;} if(wy>floorY()+0.01) return; vy=7.2; thunk(260,0.12,0.08,'sine'); }
+function jump(){ if(!playing||mode!=='foot'||swimming) return; if(swingRide){ stopSwing(); vy=6; return; } if(sitting){standUp();return;} if(wy>floorY()+0.01) return; vy=7.2; thunk(260,0.12,0.08,'sine'); }
 function nearestTarget(){
   let bestT=null, bd=1e9;
   for(const o of obstacles){ if(!o.kind) continue; const d=dist(wpos,o)-o.r; if(d<1.4&&d<bd){bd=d;bestT=o;} }
@@ -3967,6 +3981,8 @@ function nearestItem(){
   return bestI;
 }
 function action(){
+  if(playing&&mode==='foot'&&swingRide){ stopSwing(); return; }
+  if(playing&&mode==='foot'&&!carrying&&nearSwing()>=0){ startSwing(nearSwing()); return; }
   if(playing&&mode==='truck'&&VEHICLES[vehicle].name==='Tank'){ fireAny(); return; }
   if(!playing||mode!=='foot') return;
   if(sitting){ standUp(); return; }
@@ -4653,6 +4669,7 @@ function frame(now){
   const dt=Math.min(0.05,(now-last)/1000); last=now; clock+=dt;
   if(playing) botsUpdate(dt);
   if(playing) dayTick(dt);
+  idleSwings(dt);
   if(playing){
     const [th,tu]=readInput();
     const riding=lv.ride>0;
@@ -4705,6 +4722,8 @@ function frame(now){
       sleepUpdate(dt);
     }else if(mode==='pcsit'){
       if(!arc.open) pcSitUpdate(dt);
+    }else if(swingRide){
+      swingUpdate(dt,th);
     }else if(sitting){
       if(th!==0||tu!==0) standUp();
       walker.position.set(wpos.x,wy,wpos.z); walker.rotation.y=wh;
@@ -4890,6 +4909,8 @@ function frame(now){
     else if(!carrying&&nearAptSpot()){ hint='Press <kbd>E</kbd> to '+nearAptSpot().label(); }
     else if(nearAptInnerDoor()){ hint='Press <kbd>E</kbd> to '+(nearAptInnerDoor().hold?'close':'hold open')+' the door'; }
     else if(inApt&&!sitting){ hint='Follow the green EXIT sign or press <kbd>P</kbd> to leave · press <kbd>E</kbd> by things to use them'; }
+    else if(swingRide){ hint='Hold <kbd>W</kbd> to swing forward, <kbd>S</kbd> to swing back · <kbd>E</kbd> or <kbd>Space</kbd> to hop off'; }
+    else if(!carrying&&nearSwing()>=0){ hint='Press <kbd>E</kbd> to sit on the swing'; }
     else if(!carrying&&nearStoreDoor()){ hint='Press <kbd>E</kbd> to go inside the '+nearStoreDoor().name.toLowerCase(); }
     else if(swimming){ hint='Swimming! Hold <kbd>C</kbd> or <kbd>Shift</kbd> to dive under, <kbd>Space</kbd> to come up'; }
     else if(carrying==='gas'){
