@@ -186,6 +186,9 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 .scard.on .sprice{background:#ffd23f;color:#2a2208}
 
 #setTabs{display:flex;gap:6px;justify-content:center}
+#xhair{position:fixed;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none;z-index:3}
+#xhair::before,#xhair::after{content:"";position:absolute;background:rgba(255,255,255,.9);box-shadow:0 0 2px #000}
+#xhair::before{left:8px;top:0;width:2px;height:18px} #xhair::after{top:8px;left:0;height:2px;width:18px}
 #spotBox{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);width:300px;z-index:4;background:#121212;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 #spotBox .spotbar{display:flex;align-items:center;gap:6px;padding:6px 8px;background:#1db954;color:#04140a}
 #spotBox .spotbar b{flex:1;font:800 13px var(--font-b)}
@@ -326,6 +329,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 <div id="speedo" hidden><b>0</b><span>MPH</span><i>N</i></div>
 <div id="tlBar" hidden><b>TIMELAPSE</b><span id="tlPct">0%</span><div class="bar"><i id="tlFill"></i></div><button type="button" id="tlSkip">Skip (Space)</button></div>
 <div id="spotBox" hidden><div class="spotbar"><b>Spotify</b><button type="button" id="spotMin" aria-label="Shrink the player">–</button><button type="button" id="spotClose" aria-label="Close the player">×</button></div><iframe id="spotFrame" title="Spotify player" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe><div id="spotMsg" hidden></div></div>
+<div id="xhair" hidden></div>
 <div id="toast"></div>
 <div id="banner"></div>
 
@@ -3191,7 +3195,8 @@ async function renderSettings(){
     for(const [id,label,def] of BIND_DEFS){ const b=document.createElement('button'); b.type='button'; b.className='keybtn'+(bindWait===id?' wait':''); b.textContent=bindWait===id?'Press a key…':keyName(BINDS[id]||def);
       b.onclick=()=>{ bindWait=id; renderSettings(); }; row(label,b); }
     const rs=document.createElement('button'); rs.type='button'; rs.className='keybtn'; rs.textContent='Reset all keys'; rs.onclick=()=>{ BINDS={}; try{localStorage.removeItem('mowBinds');}catch(e){} rebuildRemap(); renderSettings(); }; row('Back to the normal keys',rs);
-    const nt=document.createElement('p'); nt.className='small'; nt.textContent='Click a button, then press the key you want. Esc cancels. The arrow keys always work too.'; body.appendChild(nt);
+    const se=document.createElement('input'); se.type='range'; se.min=0.0008; se.max=0.006; se.step=0.0002; se.value=MLOOK.sens; se.oninput=()=>{ MLOOK.sens=+se.value; try{localStorage.setItem('mowSens',String(MLOOK.sens));}catch(e){} }; row('Mouse look speed',se);
+    const nt=document.createElement('p'); nt.className='small'; nt.textContent='Click the game to turn on mouse look, then move the mouse to look up, down and around. Hold right-click and drag also works. Scroll to zoom in and out, and scroll all the way in for first person. Esc lets go of the mouse. Click a button, then press the key you want. Esc cancels. The arrow keys always work too.'; body.appendChild(nt);
   }else if(setTab==='Music'){
     startAudio(); musStart();
     const on=document.createElement('button'); on.type='button'; on.className='keybtn'+(MUS.on?' wait':''); on.textContent=MUS.on?'On':'Off'; on.onclick=()=>{ MUS.on=!MUS.on; musSave(); renderSettings(); }; row('Music',on);
@@ -3389,6 +3394,26 @@ function updateCombat(dt){
     if(houseDownT>20) rebuildHouse(); }
   if(shakeT>0){ shakeT=Math.max(0,shakeT-dt); const a=shakeT*0.35; camera.position.x+=(Math.random()-0.5)*a; camera.position.y+=(Math.random()-0.5)*a; }
 }
+// ---- mouse look (like Roblox): click the game to lock the mouse, move it to look around, scroll to zoom ----
+const MLOOK={yaw:0,pitch:0,zoom:1,idle:0,drag:false,lx:0,ly:0,sens:0.0026};
+try{ const v=parseFloat(localStorage.getItem('mowSens')); if(v>0) MLOOK.sens=v; }catch(e){}
+function anyOverlay(){ for(const o of document.querySelectorAll('.overlay')) if(!o.hidden) return true; return false; }
+function mouseLook(dx,dy){
+  MLOOK.idle=0; const k=MLOOK.sens;
+  if(mode==='foot'&&!sitting&&!swimming&&mode!=='pcsit'){ wh-=dx*k; } else MLOOK.yaw-=dx*k;
+  MLOOK.pitch=Math.max(-1.35,Math.min(1.35,MLOOK.pitch-dy*k)); }
+renderer.domElement.addEventListener('click',()=>{ if(playing&&!anyOverlay()&&!document.pointerLockElement&&renderer.domElement.requestPointerLock){ try{ const r=renderer.domElement.requestPointerLock(); if(r&&r.catch) r.catch(()=>{}); }catch(e){} } });
+document.addEventListener('pointerlockchange',()=>{ const on=document.pointerLockElement===renderer.domElement; $('xhair').hidden=!on; if(on) toast('Mouse look on · move the mouse to look · Esc to let go'); });
+document.addEventListener('mousemove',e=>{ if(document.pointerLockElement===renderer.domElement) mouseLook(e.movementX||0,e.movementY||0); else if(MLOOK.drag){ mouseLook(e.clientX-MLOOK.lx,e.clientY-MLOOK.ly); MLOOK.lx=e.clientX; MLOOK.ly=e.clientY; } });
+renderer.domElement.addEventListener('mousedown',e=>{ if(e.button===2){ MLOOK.drag=true; MLOOK.lx=e.clientX; MLOOK.ly=e.clientY; } });
+addEventListener('mouseup',e=>{ if(e.button===2) MLOOK.drag=false; });
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+renderer.domElement.addEventListener('wheel',e=>{ if(!playing) return; e.preventDefault(); const d=e.deltaY>0?1.12:1/1.12;
+  if(firstPerson){ if(d>1){ toggleView(); MLOOK.zoom=0.55; } return; }
+  MLOOK.zoom=Math.max(0.35,Math.min(2.6,MLOOK.zoom*d)); if(MLOOK.zoom<=0.36){ MLOOK.zoom=0.6; toggleView(); } },{passive:false});
+{ let tid=null,tx=0,ty=0; renderer.domElement.addEventListener('touchstart',e=>{ const t=e.changedTouches[0]; if(tid===null){ tid=t.identifier; tx=t.clientX; ty=t.clientY; } },{passive:true});
+  renderer.domElement.addEventListener('touchmove',e=>{ for(const t of e.changedTouches) if(t.identifier===tid){ mouseLook((t.clientX-tx)*1.4,(t.clientY-ty)*1.4); tx=t.clientX; ty=t.clientY; } },{passive:true});
+  const end=e=>{ for(const t of e.changedTouches) if(t.identifier===tid) tid=null; }; renderer.domElement.addEventListener('touchend',end); renderer.domElement.addEventListener('touchcancel',end); }
 renderer.domElement.addEventListener('pointerdown',e=>{ if(e.button===0&&playing&&((mode==='truck'&&VEHICLES[vehicle].name==='Tank')||(mode==='foot'&&tool==='gun'))) fireAny(); });
 function elevCam(){
   const hz=houseZ(), a=-0.9+1.8*Math.min(1,elevS.t/6.3);
@@ -4646,6 +4671,9 @@ function frame(now){
   let carObj=truck; if(mode==='ride'){ const ra=remotes.get(rideOf); if(ra) carObj=ra.tk; }
   const fp=onFoot?wpos:inCar?carObj.position:pos, fh=onFoot?wh:inCar?carObj.rotation.y+Math.PI:h;
   const fx=Math.sin(fh), fz=Math.cos(fh);
+  MLOOK.idle+=dt; if(onFoot) MLOOK.yaw=lerp(MLOOK.yaw,0,1-Math.pow(0.001,dt)); else if(MLOOK.idle>2.5&&Math.abs(mode==='truck'?tSpeed:speed)>1) MLOOK.yaw=lerp(MLOOK.yaw,0,1-Math.pow(0.3,dt));
+  if(document.pointerLockElement&&clock%0.25<dt&&(!playing||anyOverlay())) document.exitPointerLock();
+  const ch_=fh+MLOOK.yaw, cfx=Math.sin(ch_), cfz=Math.cos(ch_);
   const indoors=(onFoot||mode==='elev'||mode==='sleep'||mode==='pcsit'||(typeof arc!=='undefined'&&arc.open))&&inHouse(wpos);
   const cd=onFoot?(indoors?3.4:5):inCar?Math.max(11,6+(carObj.userData.len||5)*1.05):(lv.ride?7.4:6.2), ch=onFoot?(indoors?2.5+wy:3.3+(upstairs?wy:wy*0.5)):inCar?Math.max(5.8,3+(carObj.userData.len||5)*0.5):(lv.ride?4.8:4.2);
   houseLight.intensity=indoors&&wy<3?1.6:0; houseLight2.intensity=indoors&&wy>=3?1.6:0;
@@ -4661,17 +4689,19 @@ function frame(now){
     else{ const back=typeof MOWER_META!=='undefined'?1.5:0.6; ex=pos.x-fx*back;ez=pos.z-fz*back;ey=1.62;}
     const pushFP=!onFoot&&!inCar&&!lv.ride;
     camera.position.set(ex+fx*0.14,ey+(pushFP||(!onFoot&&!inCar)?Math.sin(clock*63)*0.006*mowAnim.rum:0),ez+fz*0.14);
-    look.set(ex+fx*(pushFP?4:6),ey-(inCar?(carObj.userData.eye&&mode==='truck'?0.12:0.8):pushFP?2.4:1.3),ez+fz*(pushFP?4:6));
+    const base=Math.atan2(-(inCar?(carObj.userData.eye&&mode==='truck'?0.12:0.8):pushFP?2.4:1.3),pushFP?4:6), pp=Math.max(-1.45,Math.min(1.45,base+MLOOK.pitch));
+    look.set(camera.position.x+cfx*Math.cos(pp)*6,camera.position.y+Math.sin(pp)*6,camera.position.z+cfz*Math.cos(pp)*6);
     camera.lookAt(look);
     if(mode==='mow'&&pushP.g.visible&&!lv.ride) pushP.g.visible=false;
   }else{
     if(mode==='mow'&&!pushP.g.visible&&!lv.ride) pushP.g.visible=true;
-    camTarget.set(fp.x-fx*cd,ch,fp.z-fz*cd);
+    const tp=Math.max(-0.45,Math.min(1.2,MLOOK.pitch)), cdz=cd*MLOOK.zoom;
+    camTarget.set(fp.x-cfx*cdz*Math.cos(tp),ch*(0.55+0.45*MLOOK.zoom)+cdz*Math.sin(tp)*0.9,fp.z-cfz*cdz*Math.cos(tp));
     if(indoors){ const hz=houseZ(); camTarget.x=Math.max(-7.3,Math.min(7.3,camTarget.x)); camTarget.z=Math.max(hz-3.4,Math.min(hz+3.4,camTarget.z)); camTarget.y=Math.min(wy>3?11.6:5.5,camTarget.y); }
     if(inApt&&onFoot) aptCam();
     if(inStore&&onFoot){ camTarget.x=Math.max(IC.x-7.5,Math.min(IC.x+7.5,camTarget.x)); camTarget.z=Math.max(IC.z-5.2,Math.min(IC.z+5.2,camTarget.z)); camTarget.y=Math.min(4.1,camTarget.y); }
     camera.position.lerp(camTarget,1-Math.pow(0.002,dt));
-    look.set(fp.x+fx*2.5,(inCar?1.2:0.9)+(onFoot?(upstairs?wy:wy*0.5):0),fp.z+fz*2.5);
+    look.set(fp.x+cfx*2.5,(inCar?1.2:0.9)+(onFoot?(upstairs?wy:wy*0.5):0)-Math.min(0,MLOOK.pitch)*2.2,fp.z+cfz*2.5);
     camera.lookAt(look);
   }
   syncScans(); animExtras(dt); updateCombat(dt);
