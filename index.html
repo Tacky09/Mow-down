@@ -4120,7 +4120,7 @@ function setTheme(th){
   renderer.toneMappingExposure=th.exp*(post.on?1.06:1);
 }
 // ---------- day and night: the sun moves across the sky and it turns night, then morning again ----------
-const NIGHT={dir:[0.35,0.62,-0.45],sun:0x9fb4ff,si:0.32,top:[0.015,0.025,0.07],hor:[0.05,0.07,0.14],hemi:0.16,house:0x8a93a8,roof:0x8a93a8,exp:0.95,n:1};
+const NIGHT={dir:[0.35,0.62,-0.45],sun:0xb4c6ff,si:0.85,top:[0.05,0.08,0.2],hor:[0.16,0.2,0.34],hemi:0.55,house:0xb8c0d4,roof:0xb0b8cc,exp:1.25,n:1};
 const DUSK={dir:[0.9,0.03,-0.3],sun:0xff6a3d,si:0.9,top:[0.10,0.12,0.32],hor:[0.55,0.32,0.30],hemi:0.24,house:0xc9a99a,roof:0xc9a99a,exp:1.0,n:0.55};
 const DAWN={dir:[-0.9,0.03,0.4],sun:0xff9a6a,si:0.8,top:[0.12,0.16,0.36],hor:[0.62,0.45,0.42],hemi:0.24,house:0xcdb3a8,roof:0xcdb3a8,exp:1.0,n:0.55};
 const DAY_KEYS=()=>[[0,NIGHT],[0.18,NIGHT],[0.215,DAWN],[0.25,SUNRISE],[0.3,SUNRISE],[0.37,THEMES[0]],[0.5,THEMES[1]],[0.63,THEMES[2]],[0.7,THEMES[4]],[0.75,THEMES[4]],[0.785,DUSK],[0.82,NIGHT],[1,NIGHT]];
