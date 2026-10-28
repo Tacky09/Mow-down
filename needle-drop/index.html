@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Needle Drop</title>
+<meta name="description" content="Guess the song from a tenth of a second. Every skip lets the needle play a little longer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one centered column — the "deck" (record + clip bar) on top, guess box, guess log, then settings. */
+:root{
+  --ink:#0d1220;        /* page */
+  --deck:#161d31;       /* raised panels */
+  --groove:#232c46;     /* lines, empty segments */
+  --label:#f2c14e;      /* accent: record-label yellow */
+  --hot:#ff6b5a;        /* wrong guesses */
+  --ok:#5ad19a;         /* correct */
+  --text:#eef1f8;
+  --mute:#8d97b3;
+  --display:"Syne", "Arial Black", system-ui, sans-serif;
+  --body:"DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ink);color:var(--text);font:15px/1.5 var(--body)}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--label);outline-offset:2px}
+.wrap{max-width:620px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:18px}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:-.02em;margin:0;line-height:1}
+.brand span{color:var(--label)}
+.streak{font-family:var(--mono);font-size:13px;color:var(--mute);display:flex;gap:14px}
+.streak b{color:var(--text);font-weight:700}
+
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--groove);background:transparent;border-radius:999px;padding:5px 12px;font-size:13px;color:var(--mute)}
+.chip[aria-pressed="true"]{background:var(--label);color:var(--ink);border-color:var(--label);font-weight:700}
+.filterrow{display:flex;flex-direction:column;gap:6px;width:100%}
+.flabel{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--mute)}
+
+/* The deck */
+.deck{background:var(--deck);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:20px;align-items:center}
+.record{position:relative;width:190px;max-width:60vw;aspect-ratio:1;border-radius:50%;
+  background:repeating-radial-gradient(circle at 50% 50%, #0a0e18 0 2px, #141a2b 2px 4px);
+  display:grid;place-items:center;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.record[data-disc="color"]{background:repeating-radial-gradient(circle,color-mix(in srgb,var(--label) 55%,#000) 0 2px,color-mix(in srgb,var(--label) 75%,#000) 2px 4px)}
+.record[data-disc="gold"]{background:repeating-radial-gradient(circle,#a87a22 0 2px,#e9c768 2px 4px)}
+.record[data-disc="splatter"]{background:
+  radial-gradient(circle at 25% 30%,var(--hot) 0 9%,transparent 10%),radial-gradient(circle at 70% 22%,var(--label) 0 7%,transparent 8%),
+  radial-gradient(circle at 78% 68%,var(--ok) 0 10%,transparent 11%),radial-gradient(circle at 30% 75%,var(--label) 0 6%,transparent 7%),
+  radial-gradient(circle at 55% 86%,var(--hot) 0 5%,transparent 6%),repeating-radial-gradient(circle,#f2f2f2 0 2px,#dedede 2px 4px)}
+.record[data-disc="cd"]{background:
+  radial-gradient(circle,transparent 0 22%,rgba(255,255,255,.55) 22% 23%,transparent 23% 30%,rgba(0,0,0,.08) 30% 31%,transparent 31% 96%,rgba(255,255,255,.7) 96%),
+  conic-gradient(from 20deg,#d9dde6,#f5c6e8,#c6e3f5,#d9f5c6,#f5ecc6,#d9dde6,#c9b8f5,#c6f5ee,#d9dde6)}
+.record[data-disc="picture"]{background:conic-gradient(from 0deg,var(--label),var(--hot),var(--deck),var(--ok),var(--label))}
+.record[data-disc="picture"]::before{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  background:repeating-radial-gradient(circle,rgba(0,0,0,.14) 0 1px,transparent 1px 4px)}
+.record[data-disc="neon"]{background:radial-gradient(circle,#06080f 0 62%,color-mix(in srgb,var(--label) 30%,#06080f) 63% 64%,#06080f 65%);
+  box-shadow:0 0 0 3px var(--label),0 0 26px var(--label)}
+.record.mini{width:54px;max-width:none;box-shadow:0 3px 8px rgba(0,0,0,.3)}
+.record.mini::after{content:"";width:30%;aspect-ratio:1;border-radius:50%;background:var(--label);position:relative}
+.record[data-disc="cd"].mini::after{background:transparent;border:2px solid rgba(255,255,255,.7)}
+.pickrow{display:flex;flex-wrap:wrap;gap:10px}
+.pick{display:flex;flex-direction:column;align-items:center;gap:6px;background:transparent;border:1px solid var(--groove);border-radius:12px;padding:10px;font-size:12px;color:var(--mute);min-width:76px}
+.pick[aria-pressed="true"]{border-color:var(--label);color:var(--text)}
+.swatch{width:54px;height:30px;border-radius:8px;display:flex;overflow:hidden}
+.swatch i{flex:1}
+.custom{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mute)}
+.custom input{width:44px;height:30px;border:1px solid var(--groove);border-radius:8px;background:transparent;padding:2px;cursor:pointer}
+.field{display:flex;flex-direction:column;gap:8px}
+.record.spin{animation:spin 1.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.record.spin{animation:none}}
+.record img{position:absolute;inset:28%;width:44%;height:44%;border-radius:50%;object-fit:cover}
+.play{position:relative;width:44%;aspect-ratio:1;border-radius:50%;border:0;background:var(--label);color:var(--ink);
+  display:grid;place-items:center;transition:transform .12s}
+.play:hover{transform:scale(1.05)}
+.play:disabled{opacity:.5;cursor:wait}
+.play svg{width:36%;height:36%}
+
+.clipbar{width:100%;display:flex;flex-direction:column;gap:6px}
+.segs{display:flex;gap:4px;height:12px}
+.seg{position:relative;background:var(--groove);border-radius:3px;overflow:hidden}
+.seg.open{background:#3b4566}
+.seg i{position:absolute;inset:0 auto 0 0;width:0;background:var(--label)}
+.ticks{display:flex;gap:4px;font-family:var(--mono);font-size:11px;color:var(--mute)}
+.ticks span{text-align:right}
+.ticks span.now{color:var(--label);font-weight:700}
+
+.status{font-size:14px;color:var(--mute);text-align:center;min-height:21px;margin:0}
+
+/* Guess box */
+.guess{position:relative;display:flex;gap:8px}
+.guess input{flex:1;min-width:0;background:var(--deck);border:1px solid var(--groove);border-radius:12px;padding:13px 14px;color:var(--text);font:inherit}
+.guess input:focus{border-color:var(--label);outline:none}
+.btn{border:1px solid var(--groove);background:var(--deck);border-radius:12px;padding:12px 16px;font-weight:700;white-space:nowrap}
+.btn.primary{background:var(--label);border-color:var(--label);color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.results{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--deck);border:1px solid var(--groove);border-radius:12px;
+  list-style:none;margin:0;padding:6px;z-index:5;max-height:300px;overflow:auto;box-shadow:0 14px 30px rgba(0,0,0,.4)}
+.results li{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;cursor:pointer}
+.results li[aria-selected="true"],.results li:hover{background:var(--groove)}
+.results img{width:36px;height:36px;border-radius:4px;flex:none}
+.results .t{font-weight:700;font-size:14px;line-height:1.2}
+.results .a{font-size:12px;color:var(--mute)}
+.results .empty{color:var(--mute);font-size:13px;cursor:default}
+
+/* Guess log */
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.log li{display:flex;align-items:center;gap:10px;border:1px solid var(--groove);border-radius:10px;padding:9px 12px;font-size:14px;min-height:42px}
+.log .when{font-family:var(--mono);font-size:12px;color:var(--mute);width:38px;flex:none}
+.log li.skip{color:var(--mute)}
+.log li.wrong{border-color:color-mix(in srgb,var(--hot) 50%,transparent)}
+.log li.wrong .what{color:var(--hot)}
+.log li.right{border-color:var(--ok)}
+.log li.right .what{color:var(--ok);font-weight:700}
+
+/* Reveal */
+.reveal{background:var(--deck);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.reveal .top{display:flex;gap:16px;align-items:center}
+.reveal img{width:96px;height:96px;border-radius:8px;flex:none}
+.reveal h2{font-family:var(--display);font-size:24px;line-height:1.1;margin:0 0 4px;text-wrap:balance}
+.reveal .meta{color:var(--mute);font-size:14px}
+.verdict{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.12em}
+.verdict.win{color:var(--ok)} .verdict.lose{color:var(--hot)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.actions .btn{flex:1 1 140px}
+.share{display:flex;gap:8px}
+.share input{flex:1;min-width:0;background:var(--ink);border:1px solid var(--groove);border-radius:10px;padding:9px 10px;color:var(--mute);font:12px var(--mono)}
+
+details.settings{border-top:1px solid var(--groove);padding-top:14px}
+details.settings summary{cursor:pointer;color:var(--mute);font-size:13px}
+.setgrid{display:grid;gap:14px;margin-top:14px}
+.vol{display:flex;align-items:center;gap:10px}
+.vol input{flex:1;accent-color:var(--label)}
+.help{color:var(--mute);font-size:13px;max-width:65ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="brand">Needle<span>Drop</span></h1>
+    <div class="streak">
+      <span>Streak <b id="streak">0</b></span>
+      <span>Best <b id="best">0</b></span>
+    </div>
+  </header>
+
+  <div class="filters">
+    <div class="filterrow"><span class="flabel">Genre</span><div class="chips" id="genreChips"></div></div>
+    <div class="filterrow"><span class="flabel">Era</span><div class="chips" id="eraChips"></div></div>
+    <div class="filterrow"><span class="flabel">Difficulty</span><div class="chips" id="diffChips"></div></div>
+  </div>
+
+  <section class="deck" aria-label="Player">
+    <div class="record" id="record" data-disc="vinyl">
+      <img id="recordArt" alt="" hidden>
+      <button class="play" id="playBtn" aria-label="Play clip" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>
+      </button>
+    </div>
+    <div class="clipbar">
+      <div class="segs" id="segs"></div>
+      <div class="ticks" id="ticks"></div>
+    </div>
+    <p class="status" id="status">Finding a song…</p>
+  </section>
+
+  <div id="playArea">
+    <div class="guess">
+      <input id="guessInput" type="text" placeholder="Type a song title or artist" autocomplete="off" aria-label="Your guess" role="combobox" aria-expanded="false" aria-controls="results">
+      <button class="btn" id="skipBtn">Skip</button>
+      <ul class="results" id="results" role="listbox" hidden></ul>
+    </div>
+  </div>
+
+  <section class="reveal" id="reveal" hidden aria-live="polite">
+    <span class="verdict" id="verdict"></span>
+    <div class="top">
+      <img id="revealArt" alt="">
+      <div style="min-width:0">
+        <h2 id="revealTitle"></h2>
+        <div class="meta" id="revealMeta"></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="fullBtn">Play 30 seconds</button>
+      <button class="btn primary" id="nextBtn">Next song</button>
+    </div>
+    <div class="share">
+      <input id="shareLink" readonly aria-label="Challenge link">
+      <button class="btn" id="copyBtn">Copy challenge</button>
+    </div>
+  </section>
+
+  <ol class="log" id="log" aria-label="Your guesses"></ol>
+
+  <details class="settings">
+    <summary>Settings: colors, disc, volume &amp; how to play</summary>
+    <div class="setgrid">
+      <div class="field"><span class="flabel">Colors</span><div class="pickrow" id="themePick"></div>
+        <label class="custom" for="accentPick">Your own accent color <input type="color" id="accentPick"></label></div>
+      <div class="field"><span class="flabel">Disc</span><div class="pickrow" id="discPick"></div></div>
+      <div class="vol"><span class="flabel">Volume</span><input type="range" id="vol" min="0" max="1" step="0.05" value="0.7"></div>
+      <p class="help">Press play to hear the first tenth of a second. Search for the song and pick it from the list. A skip or a wrong guess opens the next clip: 0.1s, 0.5s, 2s, 8s, then 15s. Get it right to keep your streak going. Headphones help a lot on the short clips.</p>
+      <p class="help">Easy plays the biggest hits. Hard mixes in deeper cuts. Impossible only gives you three clips.</p>
+    </div>
+  </details>
+</div>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+/* ---------- Song pool: [title, artist, genre, era, tier] ---------- */
+const SONGS = [
+ // Pop
+ ["Billie Jean","Michael Jackson","pop","classic",1],["Like a Prayer","Madonna","pop","classic",1],
+ ["...Baby One More Time","Britney Spears","pop","classic",1],["Wannabe","Spice Girls","pop","classic",1],
+ ["Dancing Queen","ABBA","pop","classic",1],["Take On Me","a-ha","pop","classic",1],
+ ["Girls Just Want to Have Fun","Cyndi Lauper","pop","classic",2],
+ ["Toxic","Britney Spears","pop","2000s",1],["Umbrella","Rihanna","pop","2000s",1],["Poker Face","Lady Gaga","pop","2000s",1],
+ ["Since U Been Gone","Kelly Clarkson","pop","2000s",2],["Hips Don't Lie","Shakira","pop","2000s",2],["Bad Romance","Lady Gaga","pop","2000s",2],
+ ["Rolling in the Deep","Adele","pop","2010s",1],["Shake It Off","Taylor Swift","pop","2010s",1],["Uptown Funk","Mark Ronson","pop","2010s",1],
+ ["Shape of You","Ed Sheeran","pop","2010s",1],["Call Me Maybe","Carly Rae Jepsen","pop","2010s",1],["Teenage Dream","Katy Perry","pop","2010s",2],
+ ["Green Light","Lorde","pop","2010s",3],["Dancing On My Own","Robyn","pop","2010s",3],["Midnight City","M83","pop","2010s",3],
+ ["Blinding Lights","The Weeknd","pop","2020s",1],["Levitating","Dua Lipa","pop","2020s",1],["As It Was","Harry Styles","pop","2020s",1],
+ ["drivers license","Olivia Rodrigo","pop","2020s",1],["Flowers","Miley Cyrus","pop","2020s",1],["Espresso","Sabrina Carpenter","pop","2020s",1],
+ ["Anti-Hero","Taylor Swift","pop","2020s",2],["Good Luck, Babe!","Chappell Roan","pop","2020s",2],
+ // Hip-Hop
+ ["Gangsta's Paradise","Coolio","hiphop","classic",1],["California Love","2Pac","hiphop","classic",1],["Still D.R.E.","Dr. Dre","hiphop","classic",1],
+ ["Juicy","The Notorious B.I.G.","hiphop","classic",2],["N.Y. State of Mind","Nas","hiphop","classic",3],
+ ["Lose Yourself","Eminem","hiphop","2000s",1],["In Da Club","50 Cent","hiphop","2000s",1],["Hey Ya!","Outkast","hiphop","2000s",1],
+ ["Gold Digger","Kanye West","hiphop","2000s",1],["Ms. Jackson","Outkast","hiphop","2000s",2],
+ ["HUMBLE.","Kendrick Lamar","hiphop","2010s",1],["God's Plan","Drake","hiphop","2010s",1],["SICKO MODE","Travis Scott","hiphop","2010s",1],
+ ["Old Town Road","Lil Nas X","hiphop","2010s",1],["Hotline Bling","Drake","hiphop","2010s",2],["Alright","Kendrick Lamar","hiphop","2010s",3],
+ ["Mo Bamba","Sheck Wes","hiphop","2010s",3],
+ ["Not Like Us","Kendrick Lamar","hiphop","2020s",1],["Rich Flex","Drake","hiphop","2020s",2],["Industry Baby","Lil Nas X","hiphop","2020s",2],
+ // Rock / Alternative
+ ["Bohemian Rhapsody","Queen","rock","classic",1],["Smells Like Teen Spirit","Nirvana","rock","classic",1],["Sweet Child O' Mine","Guns N' Roses","rock","classic",1],
+ ["Don't Stop Believin'","Journey","rock","classic",1],["Wonderwall","Oasis","rock","classic",1],["Creep","Radiohead","rock","classic",2],
+ ["Everlong","Foo Fighters","rock","classic",2],["Black Hole Sun","Soundgarden","rock","classic",3],
+ ["Mr. Brightside","The Killers","rock","2000s",1],["Seven Nation Army","The White Stripes","rock","2000s",1],["In the End","Linkin Park","rock","2000s",1],
+ ["Boulevard of Broken Dreams","Green Day","rock","2000s",2],["Take Me Out","Franz Ferdinand","rock","2000s",2],["Feel Good Inc.","Gorillaz","rock","2000s",2],
+ ["Last Nite","The Strokes","rock","2000s",3],
+ ["Do I Wanna Know?","Arctic Monkeys","rock","2010s",1],["Radioactive","Imagine Dragons","rock","2010s",1],["Pumped Up Kicks","Foster the People","rock","2010s",2],
+ ["Heat Waves","Glass Animals","rock","2020s",1],["Beggin'","Måneskin","rock","2020s",2],
+ // R&B
+ ["I Will Always Love You","Whitney Houston","rnb","classic",1],["No Scrubs","TLC","rnb","classic",1],["Waterfalls","TLC","rnb","classic",2],
+ ["Say My Name","Destiny's Child","rnb","classic",2],["Pony","Ginuwine","rnb","classic",3],
+ ["Crazy in Love","Beyoncé","rnb","2000s",1],["Yeah!","Usher","rnb","2000s",1],["We Belong Together","Mariah Carey","rnb","2000s",2],["No One","Alicia Keys","rnb","2000s",2],
+ ["Thinking Bout You","Frank Ocean","rnb","2010s",2],["Redbone","Childish Gambino","rnb","2010s",2],["Adorn","Miguel","rnb","2010s",3],
+ ["Kill Bill","SZA","rnb","2020s",1],["Leave the Door Open","Silk Sonic","rnb","2020s",2],["Snooze","SZA","rnb","2020s",2],["Water","Tyla","rnb","2020s",2],
+ // Country / Folk
+ ["Jolene","Dolly Parton","country","classic",1],["Ring of Fire","Johnny Cash","country","classic",1],["Take Me Home, Country Roads","John Denver","country","classic",1],
+ ["Man! I Feel Like a Woman!","Shania Twain","country","classic",1],["Friends in Low Places","Garth Brooks","country","classic",2],
+ ["Before He Cheats","Carrie Underwood","country","2000s",1],["Need You Now","Lady A","country","2000s",2],["Little Lion Man","Mumford & Sons","country","2000s",2],
+ ["The House That Built Me","Miranda Lambert","country","2000s",3],
+ ["Ho Hey","The Lumineers","country","2010s",1],["Cruise","Florida Georgia Line","country","2010s",2],["Tennessee Whiskey","Chris Stapleton","country","2010s",2],
+ ["Fast Car","Luke Combs","country","2020s",1],["Last Night","Morgan Wallen","country","2020s",1],["Texas Hold 'Em","Beyoncé","country","2020s",1],
+ ["A Bar Song (Tipsy)","Shaboozey","country","2020s",1],["Something in the Orange","Zach Bryan","country","2020s",2],
+ // K-Pop
+ ["Gee","Girls' Generation","kpop","2000s",2],["Gangnam Style","PSY","kpop","2010s",1],["DDU-DU DDU-DU","BLACKPINK","kpop","2010s",1],
+ ["Fantastic Baby","BIGBANG","kpop","2010s",2],["Fancy","TWICE","kpop","2010s",2],
+ ["Dynamite","BTS","kpop","2020s",1],["Butter","BTS","kpop","2020s",1],["How You Like That","BLACKPINK","kpop","2020s",1],["Hype Boy","NewJeans","kpop","2020s",1],
+ ["Seven","Jung Kook","kpop","2020s",1],["APT.","ROSÉ","kpop","2020s",1],["Super Shy","NewJeans","kpop","2020s",2],["Love Dive","IVE","kpop","2020s",2],
+ ["Next Level","aespa","kpop","2020s",2],["Antifragile","LE SSERAFIM","kpop","2020s",3],["God's Menu","Stray Kids","kpop","2020s",3],
+];
+
+const GENRES=[["all","All"],["pop","Pop"],["hiphop","Hip-Hop"],["rock","Rock/Alt"],["rnb","R&B"],["country","Country/Folk"],["kpop","K-Pop"]];
+const ERAS=[["any","Any era"],["classic","Before 2000"],["2000s","2000s"],["2010s","2010s"],["2020s","2020s"]];
+const DIFFS=[["easy","Easy",[1]],["medium","Medium",[1,2]],["hard","Hard",[1,2,3]],["expert","Expert",[2,3]],["impossible","Impossible",[2,3]]];
+const STAGES_FULL=[0.1,0.5,2,8,15], STAGES_IMP=[0.1,0.5,2];
+
+/* ---------- Storage (optional) ---------- */
+const store={get(k,d){try{const v=localStorage.getItem("nd_"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+             set(k,v){try{localStorage.setItem("nd_"+k,JSON.stringify(v))}catch(e){}}};
+
+const state={genre:store.get("genre","all"),era:store.get("era","any"),diff:store.get("diff","medium"),
+  stage:0,song:null,track:null,done:false,guesses:[],recent:[],streak:store.get("streak",0),best:store.get("best",0),playing:false};
+
+const $=id=>document.getElementById(id);
+const audio=$("audio");
+audio.volume=store.get("vol",0.7); $("vol").value=audio.volume;
+
+/* ---------- Music catalog: Apple (fetch, then JSONP), falling back to Deezer (JSONP) ---------- */
+let jsonpN=0;
+function jsonp(url,cbParam){
+  return new Promise((res,rej)=>{
+    const cb="ndcb"+(++jsonpN), s=document.createElement("script");
+    const t=setTimeout(()=>{cleanup();rej(new Error("timeout"))},7000);
+    function cleanup(){clearTimeout(t);window[cb]=()=>{};s.remove()}
+    window[cb]=d=>{cleanup();res(d)};
+    s.onerror=()=>{cleanup();rej(new Error("network"))};
+    s.src=url+(url.includes("?")?"&":"?")+cbParam+"="+cb; document.head.appendChild(s);
+  });
+}
+async function withTimeout(p,ms){let t;try{return await Promise.race([p,new Promise((_,r)=>t=setTimeout(()=>r(new Error("timeout")),ms))])}finally{clearTimeout(t)}}
+
+const appleUrl=(term,limit)=>"https://itunes.apple.com/search?"+new URLSearchParams({term,limit,media:"music",entity:"song",country:"US"});
+const fromDeezer=d=>(d.data||[]).map(x=>({trackId:"dz"+x.id,trackName:x.title,artistName:x.artist&&x.artist.name||"",
+  artworkUrl100:x.album&&(x.album.cover_medium||x.album.cover)||"",artworkUrl60:x.album&&x.album.cover_small||"",previewUrl:x.preview,releaseDate:""}));
+
+const PROVIDERS={
+  appleFetch:async(term,limit)=>{const r=await withTimeout(fetch(appleUrl(term,limit)),7000);if(!r.ok)throw new Error(r.status);return (await r.json()).results||[]},
+  appleJsonp:async(term,limit)=>(await jsonp(appleUrl(term,limit),"callback")).results||[],
+  deezer:async(term,limit)=>fromDeezer(await jsonp("https://api.deezer.com/search?"+new URLSearchParams({q:term,limit,output:"jsonp"}),"callback")),
+};
+let order=["appleFetch","appleJsonp","deezer"];
+async function itunes({term,limit}){
+  let lastErr;
+  for(const name of [...order]){
+    try{
+      const r=await PROVIDERS[name](term,limit);
+      if(order[0]!==name)order=[name,...order.filter(n=>n!==name)]; // stick with what works
+      return r;
+    }catch(e){lastErr=e}
+  }
+  throw lastErr||new Error("offline");
+}
+const norm=s=>(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase()
+  .replace(/\(.*?\)|\[.*?\]/g,"").replace(/\s-\s.*$/,"").replace(/\bfeat\..*$/,"").replace(/[^a-z0-9]/g,"");
+const artistKey=a=>norm(a.split(/,|&| x | feat|\bft\b/i)[0]).slice(0,6);
+
+const trackCache={};
+async function findTrack(song){
+  const key=song[0]+"|"+song[1]; if(trackCache[key]) return trackCache[key];
+  const results=await itunes({term:song[1]+" "+song[0],limit:10});
+  const ak=artistKey(song[1]), tk=norm(song[0]);
+  const withPrev=results.filter(r=>r.previewUrl);
+  const pick=withPrev.find(r=>norm(r.trackName)===tk&&norm(r.artistName).includes(ak))
+          ||withPrev.find(r=>norm(r.trackName).startsWith(tk)&&norm(r.artistName).includes(ak));
+  if(!pick) throw new Error("no preview");
+  return trackCache[key]=pick;
+}
+
+/* ---------- Filters ---------- */
+function chips(el,list,key){
+  el.innerHTML="";
+  list.forEach(([val,label])=>{
+    const b=document.createElement("button");b.className="chip";b.textContent=label;
+    b.setAttribute("aria-pressed",state[key]===val);
+    b.onclick=()=>{state[key]=val;store.set(key,val);renderFilters();newRound()};
+    el.appendChild(b);
+  });
+}
+function renderFilters(){chips($("genreChips"),GENRES,"genre");chips($("eraChips"),ERAS,"era");chips($("diffChips"),DIFFS,"diff");}
+const stages=()=>state.diff==="impossible"?STAGES_IMP:STAGES_FULL;
+
+function pool(){
+  const tiers=DIFFS.find(d=>d[0]===state.diff)[2];
+  let p=SONGS.map((s,i)=>({s,i})).filter(({s})=>(state.genre==="all"||s[2]===state.genre)
+     &&(state.era==="any"||s[3]===state.era||s[2]==="kpop"&&state.genre==="kpop"));
+  const byTier=p.filter(({s})=>tiers.includes(s[4]));
+  return byTier.length?byTier:p.length?p:SONGS.map((s,i)=>({s,i}));
+}
+
+/* ---------- Clip bar ---------- */
+function renderBar(){
+  const st=stages(), total=st[st.length-1];
+  $("segs").innerHTML="";$("ticks").innerHTML="";
+  let prev=0;
+  st.forEach((t,i)=>{
+    // widths on a sqrt scale so the 0.1s slice is still visible
+    const w=Math.sqrt(t)-Math.sqrt(prev);
+    const seg=document.createElement("div");seg.className="seg"+(i<=state.stage||state.done?" open":"");
+    seg.style.flex=w;seg.innerHTML="<i></i>";$("segs").appendChild(seg);
+    const tk=document.createElement("span");tk.style.flex=w;tk.textContent=t+"s";
+    if(i===state.stage&&!state.done)tk.className="now";$("ticks").appendChild(tk);
+    prev=t;
+  });
+}
+function fillBar(sec){
+  const st=stages();let prev=0;
+  [...$("segs").children].forEach((seg,i)=>{
+    const t=st[i];const f=Math.max(0,Math.min(1,(sec-prev)/(t-prev)));
+    seg.firstChild.style.width=(f*100)+"%";prev=t;
+  });
+}
+
+/* ---------- Playback ---------- */
+let raf=0,stopAt=0;
+function stop(){cancelAnimationFrame(raf);audio.pause();state.playing=false;$("record").classList.remove("spin");}
+function play(limit){
+  stop();
+  audio.currentTime=0;state.playing=true;$("record").classList.add("spin");
+  let t0=null;
+  const tick=()=>{
+    if(!state.playing)return;
+    if(t0===null&&!audio.paused&&audio.currentTime>0)t0=performance.now()-audio.currentTime*1000;
+    const el=t0===null?0:(performance.now()-t0)/1000;
+    fillBar(Math.min(el,limit));
+    if(el>=limit){stop();fillBar(0);return}
+    raf=requestAnimationFrame(tick);
+  };
+  audio.play().then(()=>{raf=requestAnimationFrame(tick)}).catch(()=>{stop();setStatus("Tap play again to start the audio.")});
+}
+$("playBtn").onclick=()=>{
+  if(state.playing){stop();fillBar(0);return}
+  play(state.done?30:stages()[state.stage]);
+};
+$("fullBtn").onclick=()=>{state.playing?(stop(),fillBar(0)):play(30)};
+$("vol").oninput=e=>{audio.volume=+e.target.value;store.set("vol",audio.volume)};
+
+function setStatus(t){$("status").textContent=t}
+
+/* ---------- Rounds ---------- */
+let roundId=0;
+async function newRound(forceIndex){
+  stop();const my=++roundId;
+  Object.assign(state,{stage:0,done:false,guesses:[],track:null});
+  $("reveal").hidden=true;$("playArea").hidden=false;$("recordArt").hidden=true;
+  $("guessInput").value="";closeResults();renderLog();renderBar();fillBar(0);
+  $("playBtn").disabled=true;setStatus("Finding a song…");
+  for(let attempt=0;attempt<6;attempt++){
+    let pick;
+    if(forceIndex!=null&&attempt===0&&SONGS[forceIndex]) pick={s:SONGS[forceIndex],i:forceIndex};
+    else{
+      const p=pool();let cands=p.filter(x=>!state.recent.includes(x.i));if(!cands.length){state.recent=[];cands=p}
+      pick=cands[Math.floor(Math.random()*cands.length)];
+    }
+    try{
+      const tr=await findTrack(pick.s);if(my!==roundId)return;
+      state.song=pick;state.track=tr;state.recent.push(pick.i);if(state.recent.length>40)state.recent.shift();
+      audio.src=tr.previewUrl;audio.load();
+      $("playBtn").disabled=false;setStatus(forceIndex!=null&&attempt===0?"A friend challenged you. Press play.":"Press play. You get "+stages()[0]+" seconds.");
+      return;
+    }catch(e){ if(my!==roundId)return; }
+  }
+  let framed=false;try{framed=window.top!==window}catch(e){framed=true}
+  setStatus(framed
+    ?"This preview blocks the music catalog. Download the file and open it in Chrome, Edge or Safari."
+    :"Couldn't reach the music catalog. Check your connection, then tap a filter to retry.");
+}
+
+function advance(entry){
+  state.guesses.push({...entry,at:stages()[state.stage]});
+  if(entry.type==="right"){finish(true);return}
+  if(state.stage>=stages().length-1){finish(false);return}
+  state.stage++;renderBar();fillBar(0);renderLog();
+  setStatus((entry.type==="skip"?"Skipped. ":"Not it. ")+"Now you get "+stages()[state.stage]+"s.");
+}
+$("skipBtn").onclick=()=>{if(!state.track||state.done)return;advance({type:"skip"})};
+
+function finish(win){
+  stop();state.done=true;
+  if(win){state.streak++;if(state.streak>state.best)state.best=state.streak}else state.streak=0;
+  store.set("streak",state.streak);store.set("best",state.best);updateStreak();
+  renderLog();renderBar();fillBar(0);
+  const tr=state.track, art=tr.artworkUrl100.replace("100x100","300x300");
+  $("recordArt").src=art;$("recordArt").hidden=false;
+  $("revealArt").src=art;$("revealTitle").textContent=tr.trackName;
+  $("revealMeta").textContent=tr.artistName+(tr.releaseDate?" · "+tr.releaseDate.slice(0,4):"");
+  const v=$("verdict");
+  v.className="verdict "+(win?"win":"lose");
+  v.textContent=win?"Got it in "+state.guesses[state.guesses.length-1].at+"s":"Out of clips";
+  $("shareLink").value=location.href.split(/[?#]/)[0]+"?c="+(state.song.i*7+3).toString(36);
+  $("copyBtn").textContent="Copy challenge";
+  $("playArea").hidden=true;$("reveal").hidden=false;
+  setStatus(win?"Streak: "+state.streak:"The streak resets. Try another one.");
+}
+$("nextBtn").onclick=()=>newRound();
+$("copyBtn").onclick=()=>{
+  const inp=$("shareLink");
+  const ok=()=>{$("copyBtn").textContent="Copied"};
+  try{navigator.clipboard.writeText(inp.value).then(ok,()=>{inp.select();})}catch(e){inp.select()}
+};
+function updateStreak(){$("streak").textContent=state.streak;$("best").textContent=state.best}
+
+function renderLog(){
+  const st=stages();$("log").innerHTML="";
+  st.forEach((t,i)=>{
+    const g=state.guesses[i];const li=document.createElement("li");
+    li.innerHTML='<span class="when">'+t+'s</span><span class="what"></span>';
+    const w=li.querySelector(".what");
+    if(g){li.className=g.type;w.textContent=g.type==="skip"?"Skipped":g.label}
+    $("log").appendChild(li);
+  });
+}
+
+/* ---------- Search + guess ---------- */
+let sTimer=0,sId=0,items=[],sel=-1;
+const input=$("guessInput"),list=$("results");
+function closeResults(){list.hidden=true;input.setAttribute("aria-expanded","false");sel=-1}
+input.addEventListener("input",()=>{
+  clearTimeout(sTimer);const q=input.value.trim();
+  if(q.length<2){closeResults();return}
+  sTimer=setTimeout(async()=>{
+    const my=++sId;
+    try{
+      const r=await itunes({term:q,limit:15});if(my!==sId)return;
+      const seen=new Set();items=[];
+      r.forEach(x=>{const k=norm(x.trackName)+"|"+artistKey(x.artistName);if(!seen.has(k)&&items.length<8){seen.add(k);items.push(x)}});
+      showResults();
+    }catch(e){}
+  },250);
+});
+function showResults(){
+  list.innerHTML="";sel=-1;
+  if(!items.length){list.innerHTML='<li class="empty">No songs found. Try the artist name.</li>'}
+  items.forEach((x,i)=>{
+    const li=document.createElement("li");li.setAttribute("role","option");li.id="opt"+i;
+    li.innerHTML='<img alt=""><div style="min-width:0"><div class="t"></div><div class="a"></div></div>';
+    li.querySelector("img").src=x.artworkUrl60||x.artworkUrl100;
+    li.querySelector(".t").textContent=x.trackName;li.querySelector(".a").textContent=x.artistName;
+    li.onmousedown=e=>{e.preventDefault();submit(x)};
+    list.appendChild(li);
+  });
+  list.hidden=false;input.setAttribute("aria-expanded","true");
+}
+input.addEventListener("keydown",e=>{
+  if(list.hidden||!items.length)return;
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+    e.preventDefault();sel=(sel+(e.key==="ArrowDown"?1:-1)+items.length)%items.length;
+    [...list.children].forEach((li,i)=>li.setAttribute("aria-selected",i===sel));
+    input.setAttribute("aria-activedescendant","opt"+sel);
+  }else if(e.key==="Enter"){e.preventDefault();submit(items[Math.max(sel,0)])}
+  else if(e.key==="Escape")closeResults();
+});
+input.addEventListener("blur",()=>setTimeout(closeResults,120));
+
+function submit(x){
+  if(!state.track||state.done)return;
+  closeResults();input.value="";
+  const a=state.track;
+  const right=x.trackId===a.trackId||(norm(x.trackName)===norm(a.trackName)&&artistKey(x.artistName)===artistKey(a.artistName));
+  advance({type:right?"right":"wrong",label:x.trackName+" · "+x.artistName});
+}
+
+/* ---------- Start ---------- */
+/* ---------- Look: color themes + disc ---------- */
+const THEMES={
+  midnight:{name:"Midnight",ink:"#0d1220",deck:"#161d31",groove:"#232c46",label:"#f2c14e",text:"#eef1f8",mute:"#8d97b3",dark:1},
+  ember:{name:"Ember",ink:"#1a0f0d",deck:"#2a1814",groove:"#3d241e",label:"#ff8a3d",text:"#fbeee8",mute:"#b39087",dark:1},
+  mint:{name:"Mint",ink:"#0b1a17",deck:"#12261f",groove:"#1d3a31",label:"#6ff0c2",text:"#e9fbf5",mute:"#86b3a5",dark:1},
+  bubblegum:{name:"Bubblegum",ink:"#1c0f22",deck:"#2a1733",groove:"#3e2449",label:"#ff7ad9",text:"#fbeefa",mute:"#b691b8",dark:1},
+  ocean:{name:"Ocean",ink:"#071624",deck:"#0d2236",groove:"#18344f",label:"#4cc9f0",text:"#e8f6fd",mute:"#7fa3bd",dark:1},
+  daylight:{name:"Daylight",ink:"#f3f4f8",deck:"#ffffff",groove:"#d9dde8",label:"#3b5bdb",text:"#141a2b",mute:"#5e6780",dark:0},
+};
+const DISCS=[["vinyl","Vinyl"],["color","Colored vinyl"],["splatter","Splatter"],["picture","Picture disc"],["gold","Gold record"],["cd","CD"],["neon","Neon"]];
+const look={theme:store.get("theme","midnight"),accent:store.get("accent",null),disc:store.get("disc","vinyl")};
+
+function applyLook(){
+  const t=THEMES[look.theme]||THEMES.midnight, r=document.documentElement.style;
+  ["ink","deck","groove","text","mute"].forEach(k=>r.setProperty("--"+k,t[k]));
+  r.setProperty("--label",look.accent||t.label);
+  r.setProperty("color-scheme",t.dark?"dark":"light");
+  document.querySelector('meta[name="theme-color"]')||document.head.insertAdjacentHTML("beforeend",'<meta name="theme-color">');
+  document.querySelector('meta[name="theme-color"]').content=t.ink;
+  $("record").dataset.disc=look.disc;
+  $("accentPick").value=look.accent||t.label;
+  renderLookPickers();
+}
+function renderLookPickers(){
+  const tp=$("themePick");tp.innerHTML="";
+  Object.entries(THEMES).forEach(([id,t])=>{
+    const b=document.createElement("button");b.className="pick";b.setAttribute("aria-pressed",look.theme===id);
+    b.innerHTML='<span class="swatch"><i style="background:'+t.ink+'"></i><i style="background:'+t.deck+'"></i><i style="background:'+t.label+'"></i></span>'+t.name;
+    b.onclick=()=>{look.theme=id;look.accent=null;store.set("theme",id);store.set("accent",null);applyLook()};
+    tp.appendChild(b);
+  });
+  const dp=$("discPick");dp.innerHTML="";
+  DISCS.forEach(([id,name])=>{
+    const b=document.createElement("button");b.className="pick";b.setAttribute("aria-pressed",look.disc===id);
+    b.innerHTML='<span class="record mini" data-disc="'+id+'"></span>'+name;
+    b.onclick=()=>{look.disc=id;store.set("disc",id);applyLook()};
+    dp.appendChild(b);
+  });
+}
+$("accentPick").addEventListener("input",e=>{look.accent=e.target.value;store.set("accent",look.accent);applyLook()});
+applyLook();
+
+renderFilters();updateStreak();
+const c=new URLSearchParams(location.search).get("c");
+let forced=null;
+if(c){const n=parseInt(c,36);if(!isNaN(n)&&(n-3)%7===0)forced=(n-3)/7}
+newRound(forced);
+</script>
+</body>
+</html>
