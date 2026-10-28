@@ -3116,7 +3116,7 @@ const SONGS=[
 ];
 const MUS={on:true,pick:'auto',vol:0.5,g:null,timer:null,song:null,step:0,next:0,seed:1,file:null,fileName:'',el:null};
 try{ const st=JSON.parse(localStorage.getItem('mowMusic')||'{}'); if(st.on!=null) MUS.on=st.on; if(st.pick) MUS.pick=st.pick; if(st.vol!=null) MUS.vol=st.vol; }catch(e){}
-function musSave(){ try{ localStorage.setItem('mowMusic',JSON.stringify({on:MUS.on,pick:MUS.pick==='file'?'auto':MUS.pick,vol:MUS.vol})); }catch(e){} }
+function musSave(){ try{ const my=/^my/.test(MUS.pick)?MUS.pick:null; localStorage.setItem('mowMusic',JSON.stringify({on:MUS.on,pick:(MUS.pick==='file'||my)?'auto':MUS.pick,vol:MUS.vol,my})); }catch(e){} }
 const mtof=m=>440*Math.pow(2,(m-69)/12);
 function musRand(){ MUS.seed=(MUS.seed*16807)%2147483647; return MUS.seed/2147483647; }
 function musAutoSong(){ if(typeof DAY!=='undefined'&&DAY.on){ const p=DAY.p; if(p<0.2||p>0.82) return 'night'; if(p<0.32) return 'sunrise'; }
@@ -3131,8 +3131,9 @@ function musHit(t,kind,vol){ const c=audio.ctx;
   g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+len); src.connect(f); f.connect(g); g.connect(MUS.g); src.start(t,Math.random()*1.2,len+0.02); }
 function musTick(){
   if(!audio||!MUS.g) return; const c=audio.ctx;
-  const target=MUS.on&&!muted&&MUS.pick!=='file'?MUS.vol*0.5:0; MUS.g.gain.setTargetAtTime(target,c.currentTime,0.4);
-  if(MUS.el){ MUS.el.volume=Math.min(1,MUS.vol); if(MUS.pick==='file'&&MUS.on&&!muted){ if(MUS.el.paused) MUS.el.play().catch(()=>{}); } else if(!MUS.el.paused) MUS.el.pause(); }
+  if(MUS.wantMy&&audio){ const w=MUS.wantMy; MUS.wantMy=null; mySongPlay(w); }
+  const isFile=MUS.pick==='file'||/^my/.test(MUS.pick); const target=MUS.on&&!muted&&!isFile?MUS.vol*0.5:0; MUS.g.gain.setTargetAtTime(target,c.currentTime,0.4);
+  if(MUS.el){ MUS.el.volume=Math.min(1,MUS.vol); if(isFile&&MUS.on&&!muted){ if(MUS.el.paused) MUS.el.play().catch(()=>{}); } else if(!MUS.el.paused) MUS.el.pause(); }
   if(target===0) { MUS.next=0; return; }
   const want=musWanted(); if(!MUS.song||MUS.song.id!==want){ MUS.song=SONGS.find(x=>x.id===want)||SONGS[0]; MUS.step=0; MUS.seed=7+SONGS.indexOf(MUS.song)*977; MUS.next=c.currentTime+0.1; const el=$('musNow'); if(el) el.textContent='♪ '+MUS.song.name; }
   const S=MUS.song, sixteenth=60/S.bpm/4; if(MUS.next<c.currentTime) MUS.next=c.currentTime+0.05;
@@ -3162,6 +3163,16 @@ function spotifyOpen(link){ const sp=spotifyParse(link); if(!sp){ toast('Paste a
   try{ localStorage.setItem('mowSpotify',link.trim()); }catch(e){}
   const box=$('spotBox'); box.hidden=false; box.classList.remove('mini'); $('spotFrame').src='https://open.spotify.com/embed/'+sp.type+'/'+sp.id+'?utm_source=generator&theme=0';
   MUS.on=false; musSave(); toast('Spotify player is open. Press play on it!'); return true; }
+const MYSONGS={list:[],db:null};
+function mySongsDB(){ return new Promise(res=>{ if(MYSONGS.db) return res(MYSONGS.db); try{ const rq=indexedDB.open('mowMusic',1); rq.onupgradeneeded=()=>rq.result.createObjectStore('songs',{keyPath:'id'}); rq.onsuccess=()=>{ MYSONGS.db=rq.result; res(MYSONGS.db); }; rq.onerror=()=>res(null); }catch(e){ res(null); } }); }
+async function mySongsLoad(){ const db=await mySongsDB(); if(!db) return; await new Promise(r=>{ const tx=db.transaction('songs','readonly').objectStore('songs').getAll(); tx.onsuccess=()=>{ MYSONGS.list=tx.result.map(x=>({id:x.id,name:x.name})); r(); }; tx.onerror=()=>r(); }); }
+async function mySongAdd(f){ const db=await mySongsDB(); const id='my'+Date.now(), name=f.name.replace(/\.[^.]+$/,'').replace(/^\d+-\d+\.\s*/,'');
+  if(db) await new Promise(r=>{ const tx=db.transaction('songs','readwrite'); tx.objectStore('songs').put({id,name,blob:f}); tx.oncomplete=r; tx.onerror=r; });
+  MYSONGS.list.push({id,name}); return {id,name}; }
+async function mySongPlay(id){ const db=await mySongsDB(); if(!db) return; const rec=await new Promise(r=>{ const tx=db.transaction('songs','readonly').objectStore('songs').get(id); tx.onsuccess=()=>r(tx.result); tx.onerror=()=>r(null); });
+  if(rec) { musLoadFile(new File([rec.blob],rec.name)); MUS.pick=id; MUS.fileName=rec.name; musSave(); } }
+async function mySongDel(id){ const db=await mySongsDB(); if(db) await new Promise(r=>{ const tx=db.transaction('songs','readwrite'); tx.objectStore('songs').delete(id); tx.oncomplete=r; tx.onerror=r; }); MYSONGS.list=MYSONGS.list.filter(x=>x.id!==id); }
+mySongsLoad().then(()=>{ try{ const st=JSON.parse(localStorage.getItem('mowMusic')||'{}'); if(st.my&&MYSONGS.list.some(x=>x.id===st.my)) MUS.wantMy=st.my; }catch(e){} });
 function musLoadFile(f){ if(!f) return; if(!MUS.el){ MUS.el=new Audio(); MUS.el.loop=true; } if(MUS.url) URL.revokeObjectURL(MUS.url); MUS.url=URL.createObjectURL(f); MUS.el.src=MUS.url; MUS.fileName=f.name.replace(/\.[^.]+$/,''); MUS.pick='file'; MUS.on=true; startAudio(); musStart(); MUS.el.play().catch(()=>{}); const el=$('musNow'); if(el) el.textContent='♪ '+MUS.fileName; }
 let setTab='Controls';
 async function renderSettings(){
@@ -3179,17 +3190,18 @@ async function renderSettings(){
     const on=document.createElement('button'); on.type='button'; on.className='keybtn'+(MUS.on?' wait':''); on.textContent=MUS.on?'On':'Off'; on.onclick=()=>{ MUS.on=!MUS.on; musSave(); renderSettings(); }; row('Music',on);
     const mv=document.createElement('input'); mv.type='range'; mv.min=0; mv.max=1; mv.step=0.05; mv.value=MUS.vol; mv.oninput=()=>{ MUS.vol=+mv.value; musSave(); }; row('Music volume',mv);
     const sel=document.createElement('select');
-    for(const [v,t] of [['auto','Auto (changes with what you do)'],['shuffle','Shuffle all songs']].concat(SONGS.map(x=>[x.id,x.name+' · '+x.mood])).concat(MUS.el?[['file','My song: '+MUS.fileName]]:[])){ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); }
-    sel.value=MUS.pick; sel.onchange=()=>{ MUS.pick=sel.value; MUS.shuf=null; MUS.on=true; musSave(); renderSettings(); }; row('Song',sel);
+    for(const [v,t] of [['auto','Auto (changes with what you do)'],['shuffle','Shuffle all songs']].concat(SONGS.map(x=>[x.id,x.name+' · '+x.mood])).concat(MYSONGS.list.map(x=>[x.id,'⭐ My song: '+x.name])).concat(MUS.pick==='file'?[['file','My song: '+MUS.fileName]]:[])){ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); }
+    sel.value=MUS.pick; sel.onchange=()=>{ const v=sel.value; MUS.shuf=null; MUS.on=true; if(/^my/.test(v)) mySongPlay(v).then(()=>renderSettings()); else { MUS.pick=v; musSave(); renderSettings(); } }; row('Song',sel);
+    if(/^my/.test(MUS.pick)){ const del=document.createElement('button'); del.type='button'; del.className='keybtn'; del.textContent='Remove this song'; del.onclick=async()=>{ await mySongDel(MUS.pick); MUS.pick='auto'; musSave(); renderSettings(); }; row('Saved song',del); }
     const nx=document.createElement('button'); nx.type='button'; nx.className='keybtn'; nx.textContent='⏭ Next song'; nx.onclick=()=>{ const i=SONGS.findIndex(x=>x.id===(MUS.song&&MUS.song.id)); MUS.pick=SONGS[(i+1)%SONGS.length].id; MUS.on=true; musSave(); renderSettings(); }; row('Skip',nx);
-    const fi=document.createElement('input'); fi.type='file'; fi.accept='audio/*'; fi.hidden=true; fi.onchange=()=>{ musLoadFile(fi.files[0]); renderSettings(); };
-    const fb=document.createElement('button'); fb.type='button'; fb.className='keybtn'; fb.textContent='📁 Pick a song file'; fb.onclick=()=>fi.click(); row('Play my own music',fb); body.appendChild(fi);
+    const fi=document.createElement('input'); fi.type='file'; fi.accept='audio/*'; fi.hidden=true; fi.onchange=async()=>{ const f=fi.files[0]; if(!f) return; const r=await mySongAdd(f); await mySongPlay(r.id); toast('Added to your music list: '+r.name); renderSettings(); };
+    const fb=document.createElement('button'); fb.type='button'; fb.className='keybtn'; fb.textContent='📁 Add a song file'; fb.onclick=()=>fi.click(); row('Play my own music',fb); body.appendChild(fi);
     const sl=document.createElement('input'); sl.placeholder='Paste a Spotify link'; let saved=''; try{ saved=localStorage.getItem('mowSpotify')||''; }catch(e){} sl.value=saved;
     sl.style.cssText='max-width:230px;width:100%;font:700 13px var(--font-b);padding:7px;border-radius:8px;background:#1d1830;color:#fff;border:1px solid rgba(255,255,255,.25)';
     row('Spotify link',sl);
     const sg=document.createElement('button'); sg.type='button'; sg.className='keybtn'; sg.style.background='#1db954'; sg.style.color='#04140a'; sg.textContent='▶ Open Spotify player'; sg.onclick=()=>{ if(spotifyOpen(sl.value)) renderSettings(); }; row('Your Spotify music',sg);
     const now=document.createElement('p'); now.className='small'; now.id='musNow'; now.textContent=MUS.pick==='file'?'♪ '+MUS.fileName:'♪ '+(SONGS.find(x=>x.id===musWanted())||SONGS[0]).name; body.appendChild(now);
-    const nt=document.createElement('p'); nt.className='small'; nt.textContent='All 8 songs were made for this game. Auto plays calm music at night, racing music in fast cars, chill music indoors and boss music when time is almost up. You can also pick a song file from your computer, or paste a link to any Spotify playlist, album or song. Spotify plays full songs when you are logged in to Spotify in this browser (free accounts may only get short previews or ads), and it works on your GitHub website version of the game.'; body.appendChild(nt);
+    const nt=document.createElement('p'); nt.className='small'; nt.textContent='All 8 songs were made for this game. Auto plays calm music at night, racing music in fast cars, chill music indoors and boss music when time is almost up. Songs you add from your computer are saved in this browser and show up in the list with a ⭐. They stay on your computer and are not put into the game for other players. You can also paste a link to any Spotify playlist, album or song. Spotify plays full songs when you are logged in to Spotify in this browser (free accounts may only get short previews or ads), and it works on your GitHub website version of the game.'; body.appendChild(nt);
   }else{
     const vol=document.createElement('input'); vol.type='range'; vol.min=0; vol.max=1.5; vol.step=0.05; vol.value=MASTER_VOL;
     vol.oninput=()=>{ MASTER_VOL=+vol.value; try{localStorage.setItem('mowVol',String(MASTER_VOL));}catch(e){} if(audio) audio.out.gain.setTargetAtTime(MASTER_VOL,audio.ctx.currentTime,0.05); };
