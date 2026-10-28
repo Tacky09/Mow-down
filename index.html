@@ -3939,13 +3939,21 @@ function eatFood(){ foodReady=false; plateFood.visible=false; panCake.visible=fa
 // ---------- on foot ----------
 function nearSwing(){ if(mode!=='foot'||swingRide) return -1; let best=-1,bd=1.1; for(let i=0;i<SWINGS.length;i++){ const p=SWINGS[i].pv.getWorldPosition(_rv); const d=Math.hypot(wpos.x-p.x,wpos.z-p.z); if(d<bd){ bd=d; best=i; } } return best; }
 function startSwing(i){ const S=SWINGS[i]; swingRide={i}; S.vel=0; sitting=false; wspeed=0; vy=0; toast('Swinging! W goes forward, S goes back · E or Space to hop off'); }
-function stopSwing(){ if(!swingRide) return; const S=SWINGS[swingRide.i]; swingRide=null; const p=S.pv.getWorldPosition(_rv); wpos.set(p.x,0,p.z+1.0); wy=0; vy=S.vel*0.6; wh=0; S.vel*=0.3; }
+function stopSwing(){ if(!swingRide) return; const S=SWINGS[swingRide.i]; swingRide=null; const p=S.pv.getWorldPosition(_rv); wpos.set(p.x,0,p.z+1.0); wy=0; vy=Math.min(8,Math.abs(S.vel)*0.8); wh=0; S.vel*=0.3; walker.rotation.set(0,0,0); }
+const _swE=new THREE.Euler(), _swV=new THREE.Vector3();
 function swingUpdate(dt,th){ const S=SWINGS[swingRide.i];
-  S.vel+=(th*2.4-9.8/S.L*Math.sin(S.ang)-0.18*S.vel)*dt; S.ang+=S.vel*dt; if(S.ang>1.25){ S.ang=1.25; S.vel*=-0.3; } if(S.ang<-1.25){ S.ang=-1.25; S.vel*=-0.3; }
-  S.pv.rotation.x=S.ang; S.pv.updateMatrixWorld(); const seat=S.pv.localToWorld(_rv.set(0,-S.L+0.05,0));
-  wpos.set(seat.x,0,seat.z); wy=seat.y-0.42; wh=0; walker.position.set(seat.x,seat.y-0.42,seat.z); walker.rotation.set(0,0,0); wP.g.rotation.set(S.ang,0,0); wP.g.position.y=0;
-  wP.legs.forEach(l=>l.rotation.x=-1.45+Math.max(-0.5,Math.min(0.5,S.vel*0.25))); wP.arms.forEach(a=>a.rotation.x=-2.7); }
-function idleSwings(dt){ for(let i=0;i<SWINGS.length;i++){ if(swingRide&&swingRide.i===i) continue; const S=SWINGS[i]; S.vel+=(-9.8/S.L*Math.sin(S.ang)-0.6*S.vel)*dt; S.ang+=S.vel*dt; S.pv.rotation.x=S.ang; } }
+  // pump with W and S; pump hard enough and you go all the way over the top bar
+  const pump=th*3.4*((th>0)===(S.vel>0)||Math.abs(S.vel)<0.3?1:0.25); S.vel+=(pump-9.8/S.L*Math.sin(S.ang)-0.07*S.vel)*dt; S.vel=Math.max(-9,Math.min(9,S.vel)); S.ang+=S.vel*dt;
+  if(S.ang>Math.PI){ S.ang-=Math.PI*2; swingLoop(); } else if(S.ang<-Math.PI){ S.ang+=Math.PI*2; swingLoop(); }
+  S.pv.rotation.x=S.ang; S.pv.updateMatrixWorld(); const seat=S.pv.localToWorld(_rv.set(0,-S.L+0.03,0));
+  // sit on the seat: the hips go on the seat and the whole body tilts with the chains
+  _swE.set(S.ang,0,0); _swV.set(0,0.86,-0.06).applyEuler(_swE);
+  walker.rotation.set(S.ang,0,0); walker.position.set(seat.x-_swV.x,seat.y-_swV.y,seat.z-_swV.z);
+  wpos.set(seat.x,0,seat.z); wy=Math.max(0,seat.y-0.86); wh=0; wP.g.rotation.set(0,0,0); wP.g.position.set(0,0,0);
+  const kick=Math.max(-0.45,Math.min(0.45,S.vel*0.12));
+  wP.legs.forEach(l=>l.rotation.x=-1.45+kick); wP.arms.forEach(a=>a.rotation.x=-2.75); }
+function swingLoop(){ swingRide.loops=(swingRide.loops||0)+1; banner(swingRide.loops>1?swingRide.loops+' LOOPS!':'LOOP!','You went all the way around'); [523,659,784,1046].forEach((f,k)=>setTimeout(()=>thunk(f,0.18,0.1,'triangle'),k*90)); }
+function idleSwings(dt){ for(let i=0;i<SWINGS.length;i++){ if(swingRide&&swingRide.i===i) continue; const S=SWINGS[i]; S.vel+=(-9.8/S.L*Math.sin(S.ang)-0.6*S.vel)*dt; S.ang+=S.vel*dt; if(S.ang>Math.PI) S.ang-=Math.PI*2; if(S.ang<-Math.PI) S.ang+=Math.PI*2; S.pv.rotation.x=S.ang; } }
 function toggleMount(){
   if(!playing||mode==='elev'||mode==='sleep'||mode==='pcsit') return;
   if(swingRide){ stopSwing(); return; }
@@ -4909,7 +4917,7 @@ function frame(now){
     else if(!carrying&&nearAptSpot()){ hint='Press <kbd>E</kbd> to '+nearAptSpot().label(); }
     else if(nearAptInnerDoor()){ hint='Press <kbd>E</kbd> to '+(nearAptInnerDoor().hold?'close':'hold open')+' the door'; }
     else if(inApt&&!sitting){ hint='Follow the green EXIT sign or press <kbd>P</kbd> to leave · press <kbd>E</kbd> by things to use them'; }
-    else if(swingRide){ hint='Hold <kbd>W</kbd> to swing forward, <kbd>S</kbd> to swing back · <kbd>E</kbd> or <kbd>Space</kbd> to hop off'; }
+    else if(swingRide){ hint='Tap <kbd>W</kbd> and <kbd>S</kbd> in time with the swing to go higher, then loop over the top bar · <kbd>E</kbd> or <kbd>Space</kbd> to hop off'; }
     else if(!carrying&&nearSwing()>=0){ hint='Press <kbd>E</kbd> to sit on the swing'; }
     else if(!carrying&&nearStoreDoor()){ hint='Press <kbd>E</kbd> to go inside the '+nearStoreDoor().name.toLowerCase(); }
     else if(swimming){ hint='Swimming! Hold <kbd>C</kbd> or <kbd>Shift</kbd> to dive under, <kbd>Space</kbd> to come up'; }
