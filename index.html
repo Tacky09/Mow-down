@@ -349,6 +349,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
       <span><kbd>I</kbd> first person</span>
       <span><kbd>Esc</kbd> menu</span>
       <span><kbd>M</kbd> mute</span>
+      <span><kbd>N</kbd> mute mower</span>
     </div>
     <p class="small" id="phoneHelp" hidden>On a phone: turn it sideways, drag the round pad on the left to drive or walk, and use the buttons on the right to hop off, use tools, jump and switch to first person. Tap Menu at the top to pause.</p>
     <div class="section party" id="partyBox">
@@ -2125,7 +2126,7 @@ const FX={clip:makeParticles(0x8fd65a,0.08,300),tree:makeParticles(0xe0b77a,0.1,
 const keys={};
 // ---- remappable controls: every action has a default key; your own key is translated to it ----
 const BIND_DEFS=[['forward','Move forward','KeyW'],['back','Move back','KeyS'],['left','Turn left','KeyA'],['right','Turn right','KeyD'],['use','Use / grab / chop','KeyE'],
-  ['mount','Hop on / off, drive','KeyP'],['jump','Jump / swim up','Space'],['dive','Dive under water','KeyC'],['view','First person','KeyI'],['fire','Fire weapon','KeyF'],['honk','Honk the horn','KeyH'],['mute','Mute sound','KeyM']];
+  ['mount','Hop on / off, drive','KeyP'],['jump','Jump / swim up','Space'],['dive','Dive under water','KeyC'],['view','First person','KeyI'],['fire','Fire weapon','KeyF'],['honk','Honk the horn','KeyH'],['mute','Mute sound','KeyM'],['mutemower','Mute just the mower','KeyN']];
 let BINDS={}; try{ BINDS=JSON.parse(localStorage.getItem('mowBinds')||'{}'); }catch(e){}
 let REMAP={};
 function rebuildRemap(){ REMAP={}; const used=new Set(BIND_DEFS.map(([id,,def])=>BINDS[id]||def));
@@ -2154,6 +2155,7 @@ addEventListener('keydown',e=>{
   if(e.code==='Space') jump();
   if(e.code==='KeyI') toggleView();
   if(e.code==='KeyM') toggleMute();
+  if(e.code==='KeyN') toggleMowerMute();
   if(e.code==='Escape') togglePause();
   if(choosing&&/^Digit[1-9]$/.test(e.code)){const k=offer[+e.code.slice(5)-1]; if(k) pickUpgrade(k);}
   else if(playing&&mode==='foot'&&/^Digit[1-5]$/.test(e.code)){ const n=+e.code.slice(5)-1; if(n<4||equip.weapon) setSlot(n); }
@@ -2180,7 +2182,8 @@ $('bJ').addEventListener('pointerdown',e=>{e.preventDefault();jump();});
 $('bV').addEventListener('pointerdown',e=>{e.preventDefault();toggleView();});
 
 // ---------- sound ----------
-let audio=null, muted=false, engineLevel=0.05;
+let audio=null, muted=false, engineLevel=0.05, mowerMuted=false;
+try{mowerMuted=localStorage.getItem('mowMowerMuted')==='1';}catch(e){}
 try{muted=localStorage.getItem('mowMuted')==='1';}catch(e){}
 let MASTER_VOL=1, SINK=''; try{ MASTER_VOL=+(localStorage.getItem('mowVol')||1); SINK=localStorage.getItem('mowSink')||''; }catch(e){}
 let sinkEl=null;
@@ -2270,7 +2273,8 @@ function setEngine(rpm,load,kind){
   audio.whir.gain.setTargetAtTime(kind==='mow'?0.025+0.06*load:truckK?P[6]*(0.4+rpm):0,t,0.12);
   audio.whirBP.frequency.setTargetAtTime(truckK&&P[7]?P[7]+rpm*1800:850+rpm*350,t,0.1);
 }
-function setSound(on){ if(audio) audio.master.gain.setTargetAtTime(on&&!muted?engineLevel*6:0,audio.ctx.currentTime,0.1); }
+function toggleMowerMute(){ mowerMuted=!mowerMuted; try{localStorage.setItem('mowMowerMuted',mowerMuted?'1':'0');}catch(e){} toast(mowerMuted?'Lawn mower sound off (N to turn it back on)':'Lawn mower sound on'); setSound(playing); }
+function setSound(on){ if(audio) audio.master.gain.setTargetAtTime(on&&!muted&&!(mowerMuted&&mode!=='truck'&&mode!=='ride')?engineLevel*6:0,audio.ctx.currentTime,0.1); }
 // footsteps: a short puff of filtered noise, different for grass, road and wood floors
 function footstep(surface){
   if(!audio||muted) return;
@@ -4666,6 +4670,7 @@ function frame(now){
       if(d>0.5) panTo=Math.max(-0.9,Math.min(0.9,(dx*-Math.cos(fh)+dz*Math.sin(fh))/d));
     }
     const at=audio.ctx.currentTime;
+    if(mowerMuted&&mode!=='truck'&&mode!=='ride') vol=0;
     audio.master.gain.setTargetAtTime(vol,at,0.15);
     if(audio.pan) audio.pan.pan.setTargetAtTime(panTo,at,0.15);
   }
