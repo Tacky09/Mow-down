@@ -3209,6 +3209,16 @@ function spotifyOpen(link){ const sp=spotifyParse(link); if(!sp){ toast('Paste a
   });
   MUS.on=false; musSave(); toast('Spotify is open!'); return true; }
 function spotResize(){ const z=spotSize(), f=$('spotBox').querySelector('#spotHost, iframe[src*="spotify"]'); for(const fr of $('spotBox').querySelectorAll('iframe')) fr.style.height=z.h+'px'; }
+const MYSONGS={list:[],db:null};
+function mySongsDB(){ return new Promise(res=>{ if(MYSONGS.db) return res(MYSONGS.db); try{ const rq=indexedDB.open('mowMusic',1); rq.onupgradeneeded=()=>rq.result.createObjectStore('songs',{keyPath:'id'}); rq.onsuccess=()=>{ MYSONGS.db=rq.result; res(MYSONGS.db); }; rq.onerror=()=>res(null); }catch(e){ res(null); } }); }
+async function mySongsLoad(){ const db=await mySongsDB(); if(!db) return; await new Promise(r=>{ const tx=db.transaction('songs','readonly').objectStore('songs').getAll(); tx.onsuccess=()=>{ MYSONGS.list=tx.result.map(x=>({id:x.id,name:x.name})); r(); }; tx.onerror=()=>r(); }); }
+async function mySongAdd(f){ const db=await mySongsDB(); const id='my'+Date.now(), name=f.name.replace(/\.[^.]+$/,'').replace(/^\d+-\d+\.\s*/,'');
+  if(db) await new Promise(r=>{ const tx=db.transaction('songs','readwrite'); tx.objectStore('songs').put({id,name,blob:f}); tx.oncomplete=r; tx.onerror=r; });
+  MYSONGS.list.push({id,name}); return {id,name}; }
+async function mySongPlay(id){ const db=await mySongsDB(); if(!db) return; const rec=await new Promise(r=>{ const tx=db.transaction('songs','readonly').objectStore('songs').get(id); tx.onsuccess=()=>r(tx.result); tx.onerror=()=>r(null); });
+  if(rec) { musLoadFile(new File([rec.blob],rec.name)); MUS.pick=id; MUS.fileName=rec.name; musSave(); } }
+async function mySongDel(id){ const db=await mySongsDB(); if(db) await new Promise(r=>{ const tx=db.transaction('songs','readwrite'); tx.objectStore('songs').delete(id); tx.oncomplete=r; tx.onerror=r; }); MYSONGS.list=MYSONGS.list.filter(x=>x.id!==id); }
+mySongsLoad().then(()=>{ try{ const st=JSON.parse(localStorage.getItem('mowMusic')||'{}'); if(st.my&&MYSONGS.list.some(x=>x.id===st.my)) MUS.wantMy=st.my; }catch(e){} });
 function musLoadFile(f){ if(!f) return; if(!MUS.el){ MUS.el=new Audio(); MUS.el.loop=true; } if(MUS.url) URL.revokeObjectURL(MUS.url); MUS.url=URL.createObjectURL(f); MUS.el.src=MUS.url; MUS.fileName=f.name.replace(/\.[^.]+$/,''); MUS.pick='file'; MUS.on=true; startAudio(); musStart(); MUS.el.play().catch(()=>{}); const el=$('musNow'); if(el) el.textContent='♪ '+MUS.fileName; }
 let setTab='Controls';
 async function renderSettings(){
