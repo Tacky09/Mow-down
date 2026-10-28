@@ -189,12 +189,19 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 #xhair{position:fixed;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none;z-index:3}
 #xhair::before,#xhair::after{content:"";position:absolute;background:rgba(255,255,255,.9);box-shadow:0 0 2px #000}
 #xhair::before{left:8px;top:0;width:2px;height:18px} #xhair::after{top:8px;left:0;height:2px;width:18px}
-#spotBox{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);width:300px;z-index:4;background:#121212;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#spotBox{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);width:320px;z-index:4;background:#121212;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.5);color:#fff}
 #spotBox .spotbar{display:flex;align-items:center;gap:6px;padding:6px 8px;background:#1db954;color:#04140a}
 #spotBox .spotbar b{flex:1;font:800 13px var(--font-b)}
 #spotBox .spotbar button{width:24px;height:24px;border:0;border-radius:50%;background:rgba(0,0,0,.25);color:#fff;font:800 15px/24px var(--font-b);padding:0;cursor:pointer}
 #spotBox iframe{display:block;width:100%;height:352px;border:0}
-#spotBox.mini iframe{height:80px}
+#spotBox .spotbody{padding:8px;display:grid;gap:6px}
+.spotrow{display:flex;gap:6px} .spotrow input{flex:1;min-width:0;font:700 13px var(--font-b);padding:7px 9px;border-radius:8px;border:1px solid #333;background:#242424;color:#fff}
+.spotrow button,.spotctl button{border:0;border-radius:8px;background:#1db954;color:#04140a;font:800 14px var(--font-b);padding:0 10px;cursor:pointer;min-width:36px;height:32px}
+.spotctl{display:flex;align-items:center;gap:6px} .spotctl span{flex:1;font:700 12px var(--font-b);color:#b3b3b3;font-variant-numeric:tabular-nums}
+.spotctl a{font:800 12px var(--font-b);color:#1db954;text-decoration:none;border:1px solid #1db954;border-radius:999px;padding:4px 10px}
+.spotnote{margin:0;font:600 11px var(--font-b);color:#8a8a8a}
+#spotBox.mini{width:260px} #spotBox.mini .spotrow,#spotBox.mini .spotnote{display:none}
+#spotBox.max{left:50%;top:50%;transform:translate(-50%,-50%);width:min(680px,calc(100vw - 32px));z-index:5}
 #spotMsg{padding:12px;color:#eee;font:700 13px/1.4 var(--font-b)} #spotMsg p{margin:0 0 8px} #spotMsg a{display:inline-block;background:#1db954;color:#04140a;padding:7px 12px;border-radius:999px;text-decoration:none;font-weight:800}
 @media (max-width:560px){#spotBox{width:240px}#spotBox iframe{height:232px}}
 #tlBar{position:fixed;left:50%;top:calc(12vh + 14px);transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.55);padding:8px 14px;border-radius:999px;color:#fff}
@@ -328,7 +335,17 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 </div>
 <div id="speedo" hidden><b>0</b><span>MPH</span><i>N</i></div>
 <div id="tlBar" hidden><b>TIMELAPSE</b><span id="tlPct">0%</span><div class="bar"><i id="tlFill"></i></div><button type="button" id="tlSkip">Skip (Space)</button></div>
-<div id="spotBox" hidden><div class="spotbar"><b>Spotify</b><button type="button" id="spotMin" aria-label="Shrink the player">–</button><button type="button" id="spotClose" aria-label="Close the player">×</button></div><iframe id="spotFrame" title="Spotify player" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe><div id="spotMsg" hidden></div></div>
+<div id="spotBox" hidden>
+  <div class="spotbar"><b>🎧 Spotify</b><button type="button" id="spotMin" title="Minimize" aria-label="Minimize">–</button><button type="button" id="spotMax" title="Maximize" aria-label="Maximize">▢</button><button type="button" id="spotClose" title="Close" aria-label="Close">×</button></div>
+  <div class="spotbody">
+    <div class="spotrow"><input id="spotQ" placeholder="Search for a song or artist" autocomplete="off"><button type="button" id="spotSearch">🔍</button></div>
+    <div class="spotrow"><input id="spotLink" placeholder="Paste a Spotify link here" autocomplete="off"><button type="button" id="spotGo">▶</button></div>
+    <div id="spotHost"></div><iframe id="spotFrame" title="Spotify player" hidden allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+    <div class="spotctl"><button type="button" id="spotBack" title="Back 15 seconds">⏪</button><button type="button" id="spotPlay" title="Play or pause">⏯</button><button type="button" id="spotFwd" title="Forward 15 seconds">⏩</button><span id="spotTime">0:00 / 0:00</span><a id="spotLyr" target="_blank" rel="noopener">Lyrics</a></div>
+    <p class="spotnote">To skip, click the next song in the list. Change the volume with your computer or phone volume.</p>
+  </div>
+  <div id="spotMsg" hidden></div>
+</div>
 <div id="xhair" hidden></div>
 <div id="toast"></div>
 <div id="banner"></div>
@@ -3164,26 +3181,32 @@ function musTick(){
 }
 function musStart(){ if(!audio) return; if(!MUS.g){ MUS.g=audio.ctx.createGain(); MUS.g.gain.value=0; MUS.g.connect(audio.out); } if(!MUS.timer) MUS.timer=setInterval(musTick,60); }
 function spotifyParse(t){ t=(t||'').trim(); let m=t.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|album|playlist|artist|episode|show)\/([A-Za-z0-9]+)/); if(m) return {type:m[1],id:m[2]}; m=t.match(/^spotify:(track|album|playlist|artist|episode|show):([A-Za-z0-9]+)$/); return m?{type:m[1],id:m[2]}:null; }
+const SPOT={ctl:null,api:null,loading:false,uri:null,web:''};
+function spotLoadApi(cb){ if(SPOT.api) return cb(SPOT.api); if(SPOT.loading){ SPOT.wait=cb; return; } SPOT.loading=true; SPOT.wait=cb;
+  window.onSpotifyIframeApiReady=api=>{ SPOT.api=api; const w=SPOT.wait; SPOT.wait=null; if(w) w(api); };
+  const sc=document.createElement('script'); sc.src='https://open.spotify.com/embed/iframe-api/v1'; sc.async=true; sc.onerror=()=>{ SPOT.failed=true; const w=SPOT.wait; SPOT.wait=null; if(w) w(null); }; document.head.appendChild(sc);
+  setTimeout(()=>{ if(!SPOT.api&&SPOT.wait){ SPOT.failed=true; const w=SPOT.wait; SPOT.wait=null; w(null); } },6000); }
+const fmtT=ms=>{ const t=Math.max(0,Math.round(ms/1000)); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
+function spotSize(){ const b=$('spotBox'); return b.classList.contains('max')?{w:'100%',h:Math.max(380,Math.min(innerHeight-260,640))}:{w:'100%',h:b.classList.contains('mini')?80:352}; }
 function spotifyOpen(link){ const sp=spotifyParse(link); if(!sp){ toast('Paste a Spotify link, like a playlist or song'); return false; }
   try{ localStorage.setItem('mowSpotify',link.trim()); }catch(e){}
-  const box=$('spotBox'); box.hidden=false; box.classList.remove('mini'); const web='https://open.spotify.com/'+sp.type+'/'+sp.id;
+  const box=$('spotBox'); box.hidden=false; const web='https://open.spotify.com/'+sp.type+'/'+sp.id; SPOT.web=web; $('spotLyr').href=web; $('spotLink').value=link.trim();
   const inClaude=/claude|anthropic/i.test(location.hostname)||!!(window.claude&&window.claude.use);
-  if(inClaude){ $('spotFrame').hidden=true; $('spotFrame').src='about:blank'; const m=$('spotMsg'); m.hidden=false;
+  if(inClaude){ box.querySelector('.spotbody').hidden=true; const m=$('spotMsg'); m.hidden=false;
     m.innerHTML='<p>Spotify is blocked inside the Claude version of the game.</p><p>Play on your website instead: <b>tacky09.github.io/Mow-down</b></p><a target="_blank" rel="noopener" href="'+web+'">Open this in Spotify</a>';
     return true; }
-  $('spotMsg').hidden=true; $('spotFrame').hidden=false; $('spotFrame').src='https://open.spotify.com/embed/'+sp.type+'/'+sp.id+'?utm_source=generator&theme=0';
-  $('settings').hidden=true;
-  MUS.on=false; musSave(); toast('Spotify player is open. Press play on it!'); return true; }
-const MYSONGS={list:[],db:null};
-function mySongsDB(){ return new Promise(res=>{ if(MYSONGS.db) return res(MYSONGS.db); try{ const rq=indexedDB.open('mowMusic',1); rq.onupgradeneeded=()=>rq.result.createObjectStore('songs',{keyPath:'id'}); rq.onsuccess=()=>{ MYSONGS.db=rq.result; res(MYSONGS.db); }; rq.onerror=()=>res(null); }catch(e){ res(null); } }); }
-async function mySongsLoad(){ const db=await mySongsDB(); if(!db) return; await new Promise(r=>{ const tx=db.transaction('songs','readonly').objectStore('songs').getAll(); tx.onsuccess=()=>{ MYSONGS.list=tx.result.map(x=>({id:x.id,name:x.name})); r(); }; tx.onerror=()=>r(); }); }
-async function mySongAdd(f){ const db=await mySongsDB(); const id='my'+Date.now(), name=f.name.replace(/\.[^.]+$/,'').replace(/^\d+-\d+\.\s*/,'');
-  if(db) await new Promise(r=>{ const tx=db.transaction('songs','readwrite'); tx.objectStore('songs').put({id,name,blob:f}); tx.oncomplete=r; tx.onerror=r; });
-  MYSONGS.list.push({id,name}); return {id,name}; }
-async function mySongPlay(id){ const db=await mySongsDB(); if(!db) return; const rec=await new Promise(r=>{ const tx=db.transaction('songs','readonly').objectStore('songs').get(id); tx.onsuccess=()=>r(tx.result); tx.onerror=()=>r(null); });
-  if(rec) { musLoadFile(new File([rec.blob],rec.name)); MUS.pick=id; MUS.fileName=rec.name; musSave(); } }
-async function mySongDel(id){ const db=await mySongsDB(); if(db) await new Promise(r=>{ const tx=db.transaction('songs','readwrite'); tx.objectStore('songs').delete(id); tx.oncomplete=r; tx.onerror=r; }); MYSONGS.list=MYSONGS.list.filter(x=>x.id!==id); }
-mySongsLoad().then(()=>{ try{ const st=JSON.parse(localStorage.getItem('mowMusic')||'{}'); if(st.my&&MYSONGS.list.some(x=>x.id===st.my)) MUS.wantMy=st.my; }catch(e){} });
+  $('spotMsg').hidden=true; box.querySelector('.spotbody').hidden=false; $('settings').hidden=true;
+  const uri='spotify:'+sp.type+':'+sp.id; SPOT.uri=uri;
+  spotLoadApi(api=>{
+    if(!api){ $('spotFrame').hidden=false; $('spotFrame').style.height=spotSize().h+'px'; $('spotFrame').src='https://open.spotify.com/embed/'+sp.type+'/'+sp.id+'?utm_source=generator&theme=0'; $('spotTime').textContent='Use the player buttons'; return; }
+    if(SPOT.ctl){ SPOT.ctl.loadUri(uri); setTimeout(()=>{ try{ SPOT.ctl.play(); }catch(e){} },600); return; }
+    const z=spotSize(); api.createController($('spotHost'),{uri,width:z.w,height:z.h},ctl=>{ SPOT.ctl=ctl;
+      ctl.addListener('ready',()=>{ try{ ctl.play(); }catch(e){} });
+      ctl.addListener('playback_update',e=>{ const d=e.data||{}; SPOT.paused=d.isPaused; SPOT.pos=d.position||0; SPOT.dur=d.duration||0; $('spotTime').textContent=fmtT(SPOT.pos)+' / '+fmtT(SPOT.dur); $('spotPlay').textContent=d.isPaused?'▶':'⏸'; });
+    });
+  });
+  MUS.on=false; musSave(); toast('Spotify is open!'); return true; }
+function spotResize(){ const z=spotSize(), f=$('spotBox').querySelector('#spotHost, iframe[src*="spotify"]'); for(const fr of $('spotBox').querySelectorAll('iframe')) fr.style.height=z.h+'px'; }
 function musLoadFile(f){ if(!f) return; if(!MUS.el){ MUS.el=new Audio(); MUS.el.loop=true; } if(MUS.url) URL.revokeObjectURL(MUS.url); MUS.url=URL.createObjectURL(f); MUS.el.src=MUS.url; MUS.fileName=f.name.replace(/\.[^.]+$/,''); MUS.pick='file'; MUS.on=true; startAudio(); musStart(); MUS.el.play().catch(()=>{}); const el=$('musNow'); if(el) el.textContent='♪ '+MUS.fileName; }
 let setTab='Controls';
 async function renderSettings(){
@@ -4383,8 +4406,17 @@ $('tvgYtGo').onclick=()=>{ const id=ytIdFrom($('tvgYt').value); if(!id){ toast('
 $('tvgFile').onclick=()=>$('tvgPick').click(); $('tvgPick').onchange=e=>{ loadMyVideo(e.target.files[0]); e.target.value=''; };
 $('tvgPause').onclick=()=>{ if(!MV.el) return; if(MV.el.paused){ if(MV.el.ended) MV.el.currentTime=0; MV.el.play().catch(()=>{}); } else MV.el.pause(); renderTvGuide(); };
 $('tvgClose').onclick=closeTvGuide;
-$('spotClose').onclick=()=>{ $('spotFrame').src='about:blank'; $('spotBox').hidden=true; };
-$('spotMin').onclick=()=>{ const b=$('spotBox'); b.classList.toggle('mini'); $('spotMin').textContent=b.classList.contains('mini')?'+':'–'; };
+$('spotClose').onclick=()=>{ try{ if(SPOT.ctl) SPOT.ctl.pause(); }catch(e){} $('spotFrame').src='about:blank'; $('spotBox').hidden=true; };
+$('spotMin').onclick=()=>{ const b=$('spotBox'); b.classList.remove('max'); b.classList.toggle('mini'); $('spotMin').textContent=b.classList.contains('mini')?'+':'–'; $('spotMax').textContent='▢'; spotResize(); };
+$('spotMax').onclick=()=>{ const b=$('spotBox'); b.classList.remove('mini'); b.classList.toggle('max'); $('spotMax').textContent=b.classList.contains('max')?'❐':'▢'; $('spotMin').textContent='–'; spotResize(); };
+$('spotSearch').onclick=()=>{ const q=$('spotQ').value.trim(); if(!q){ toast('Type a song or artist to search'); return; } window.open('https://open.spotify.com/search/'+encodeURIComponent(q),'_blank','noopener'); toast('Pick a song in Spotify, copy its link (Share → Copy link) and paste it in the box below'); };
+$('spotQ').addEventListener('keydown',e=>{ if(e.key==='Enter') $('spotSearch').click(); });
+$('spotGo').onclick=()=>spotifyOpen($('spotLink').value);
+$('spotLink').addEventListener('keydown',e=>{ if(e.key==='Enter') $('spotGo').click(); });
+$('spotLink').addEventListener('paste',()=>setTimeout(()=>{ if(spotifyParse($('spotLink').value)) spotifyOpen($('spotLink').value); },50));
+$('spotPlay').onclick=()=>{ try{ SPOT.ctl&&SPOT.ctl.togglePlay(); }catch(e){} };
+$('spotBack').onclick=()=>{ try{ SPOT.ctl&&SPOT.ctl.seek(Math.max(0,(SPOT.pos||0)/1000-15)); }catch(e){} };
+$('spotFwd').onclick=()=>{ try{ SPOT.ctl&&SPOT.ctl.seek(((SPOT.pos||0)/1000)+15); }catch(e){} };
 function renderDayOpts(){ for(const b of $('dayOpts').querySelectorAll('button')) b.setAttribute('aria-pressed',String((b.dataset.d==='1')===DAY.on)); $('dayClock').hidden=!DAY.on; }
 $('dayOpts').addEventListener('click',e=>{ const b=e.target.closest('button[data-d]'); if(!b) return; DAY.on=b.dataset.d==='1'; try{localStorage.setItem('mowDayCycle',DAY.on?'1':'0');}catch(_){} renderDayOpts(); if(!DAY.on&&cfg){ setTheme(cfg.theme); stars.material.opacity=0; moon.material.opacity=0; } });
 renderDayOpts();
