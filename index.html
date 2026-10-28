@@ -192,6 +192,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 #spotBox .spotbar button{width:24px;height:24px;border:0;border-radius:50%;background:rgba(0,0,0,.25);color:#fff;font:800 15px/24px var(--font-b);padding:0;cursor:pointer}
 #spotBox iframe{display:block;width:100%;height:352px;border:0}
 #spotBox.mini iframe{height:80px}
+#spotMsg{padding:12px;color:#eee;font:700 13px/1.4 var(--font-b)} #spotMsg p{margin:0 0 8px} #spotMsg a{display:inline-block;background:#1db954;color:#04140a;padding:7px 12px;border-radius:999px;text-decoration:none;font-weight:800}
 @media (max-width:560px){#spotBox{width:240px}#spotBox iframe{height:232px}}
 #tlBar{position:fixed;left:50%;top:calc(12vh + 14px);transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.55);padding:8px 14px;border-radius:999px;color:#fff}
 #tlBar b{font:400 20px 'Anton',Impact,sans-serif;letter-spacing:.2em;color:#ffd23f;animation:upgpulse .6s ease-in-out infinite alternate}
@@ -324,7 +325,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 </div>
 <div id="speedo" hidden><b>0</b><span>MPH</span><i>N</i></div>
 <div id="tlBar" hidden><b>TIMELAPSE</b><span id="tlPct">0%</span><div class="bar"><i id="tlFill"></i></div><button type="button" id="tlSkip">Skip (Space)</button></div>
-<div id="spotBox" hidden><div class="spotbar"><b>Spotify</b><button type="button" id="spotMin" aria-label="Shrink the player">–</button><button type="button" id="spotClose" aria-label="Close the player">×</button></div><iframe id="spotFrame" title="Spotify player" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe></div>
+<div id="spotBox" hidden><div class="spotbar"><b>Spotify</b><button type="button" id="spotMin" aria-label="Shrink the player">–</button><button type="button" id="spotClose" aria-label="Close the player">×</button></div><iframe id="spotFrame" title="Spotify player" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe><div id="spotMsg" hidden></div></div>
 <div id="toast"></div>
 <div id="banner"></div>
 
@@ -3161,7 +3162,13 @@ function musStart(){ if(!audio) return; if(!MUS.g){ MUS.g=audio.ctx.createGain()
 function spotifyParse(t){ t=(t||'').trim(); let m=t.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|album|playlist|artist|episode|show)\/([A-Za-z0-9]+)/); if(m) return {type:m[1],id:m[2]}; m=t.match(/^spotify:(track|album|playlist|artist|episode|show):([A-Za-z0-9]+)$/); return m?{type:m[1],id:m[2]}:null; }
 function spotifyOpen(link){ const sp=spotifyParse(link); if(!sp){ toast('Paste a Spotify link, like a playlist or song'); return false; }
   try{ localStorage.setItem('mowSpotify',link.trim()); }catch(e){}
-  const box=$('spotBox'); box.hidden=false; box.classList.remove('mini'); $('spotFrame').src='https://open.spotify.com/embed/'+sp.type+'/'+sp.id+'?utm_source=generator&theme=0';
+  const box=$('spotBox'); box.hidden=false; box.classList.remove('mini'); const web='https://open.spotify.com/'+sp.type+'/'+sp.id;
+  const inClaude=/claude|anthropic/i.test(location.hostname)||!!(window.claude&&window.claude.use);
+  if(inClaude){ $('spotFrame').hidden=true; $('spotFrame').src='about:blank'; const m=$('spotMsg'); m.hidden=false;
+    m.innerHTML='<p>Spotify is blocked inside the Claude version of the game.</p><p>Play on your website instead: <b>tacky09.github.io/Mow-down</b></p><a target="_blank" rel="noopener" href="'+web+'">Open this in Spotify</a>';
+    return true; }
+  $('spotMsg').hidden=true; $('spotFrame').hidden=false; $('spotFrame').src='https://open.spotify.com/embed/'+sp.type+'/'+sp.id+'?utm_source=generator&theme=0';
+  $('settings').hidden=true;
   MUS.on=false; musSave(); toast('Spotify player is open. Press play on it!'); return true; }
 const MYSONGS={list:[],db:null};
 function mySongsDB(){ return new Promise(res=>{ if(MYSONGS.db) return res(MYSONGS.db); try{ const rq=indexedDB.open('mowMusic',1); rq.onupgradeneeded=()=>rq.result.createObjectStore('songs',{keyPath:'id'}); rq.onsuccess=()=>{ MYSONGS.db=rq.result; res(MYSONGS.db); }; rq.onerror=()=>res(null); }catch(e){ res(null); } }); }
