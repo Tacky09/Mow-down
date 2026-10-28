@@ -351,7 +351,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
       <div class="sub" id="dayClock">8:00 AM</div>
     </div>
     <div class="card" id="players" hidden><div class="label" id="plabel">Party</div><ul id="plist"></ul></div>
-    <div class="btnrow"><button id="gfxBtn" type="button" aria-label="Graphics settings">Graphics</button><button id="menuBtn" type="button">Menu</button><button id="mute" type="button" aria-pressed="false">Mute</button></div>
+    <div class="btnrow"><button id="menuBtn" type="button">Menu</button><button id="mute" type="button" aria-pressed="false">Mute</button></div>
   </div>
 </div>
 
@@ -2154,7 +2154,7 @@ function pullCord(){ if(!playing||mode!=='mow'||lv.ride||mowerOn||mowerFuel<=0||
 const fpMow=(()=>{ const g=new THREE.Group(); g.visible=false; const sk=new THREE.MeshStandardMaterial({color:0xc68642,roughness:0.6}), sl=new THREE.MeshStandardMaterial({color:0x333a45,roughness:0.8});
   const hands=[]; for(const sd of [-1,1]){ const h=new THREE.Group(); g.add(h);
     const palm=new THREE.Mesh(new THREE.BoxGeometry(0.075,0.04,0.09),sk); h.add(palm);
-    for(let f=0;f<4;f++){ const fg=new THREE.Mesh(new THREE.CapsuleGeometry?new THREE.CylinderGeometry(0.011,0.01,0.05,6):new THREE.BoxGeometry(0.02,0.02,0.05),sk); fg.rotation.x=Math.PI/2+0.9; fg.position.set((f-1.5)*0.019,-0.015,0.045); h.add(fg); }
+    for(let f=0;f<4;f++){ const fg=new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.01,0.05,6),sk); fg.rotation.x=Math.PI/2+0.9; fg.position.set((f-1.5)*0.019,-0.015,0.045); h.add(fg); }
     const th=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.011,0.045,6),sk); th.rotation.z=sd*1.1; th.position.set(-sd*0.04,0.0,0.02); h.add(th);
     const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.05,0.45,10),sl); arm.rotation.x=Math.PI/2; arm.position.set(sd*0.02,-0.03,-0.24); h.add(arm);
     hands.push(h); }
@@ -3357,7 +3357,7 @@ async function renderSettings(){
     mk('How long a day lasts','timer',[['180','3 minutes'],['360','6 minutes'],['720','12 minutes'],['1200','20 minutes']],GOPT.dayLen,v=>{ GOPT.dayLen=+v; goptSave(); applyGopt(); });
     mk('Menu look','sun',[['auto','Auto (matches day and night)'],['light','Day (light)'],['dark','Night (dark)']],UI_MODE,v=>{ UI_MODE=v; try{localStorage.setItem('mowUi',v);}catch(e){} applyUi(typeof DAY!=='undefined'&&cfg?dayBlend(DAY.p).n:0); });
     mk('Menu see-through','star',[['1','Glass (see-through)'],['0','Solid']],document.documentElement.dataset.glass==='0'?'0':'1',v=>{ document.documentElement.dataset.glass=v; try{localStorage.setItem('mowGlass',v);}catch(e){} });
-    const nt=document.createElement('p'); nt.className='small'; nt.textContent='Tip: the Graphics button at the top right opens this page any time.'; body.appendChild(nt);
+    const nt=document.createElement('p'); nt.className='small'; nt.textContent='Tip: Settings opens on this page from the main menu or the pause menu.'; body.appendChild(nt);
   }else if(setTab==='Music'){
     startAudio(); musStart();
     const on=document.createElement('button'); on.type='button'; on.className='keybtn'+(MUS.on?' wait':''); on.textContent=MUS.on?'On':'Off'; on.onclick=()=>{ MUS.on=!MUS.on; musSave(); renderSettings(); }; row('Music',on);
@@ -4571,7 +4571,7 @@ $('tvgFile').onclick=()=>$('tvgPick').click(); $('tvgPick').onchange=e=>{ loadMy
 $('tvgPause').onclick=()=>{ if(!MV.el) return; if(MV.el.paused){ if(MV.el.ended) MV.el.currentTime=0; MV.el.play().catch(()=>{}); } else MV.el.pause(); renderTvGuide(); };
 $('tvgClose').onclick=closeTvGuide;
 for(const [id,ic] of [['go','play'],['pickLvl','list'],['shopBtn','bag'],['shopBtnP','bag'],['setBtn','gamepad'],['setBtnP','gamepad'],['aboutBtn','question'],['resume','play'],['toMain','list'],['retry','rewind'],['quit','list'],['menuBtn','list'],['gfxBtn','sun'],['lvBack','rewind'],['aboutClose','rewind'],['shopClose','x'],['setClose','x'],['tvgClose','play'],['tvgOff','x'],['mkParty','star'],['joinParty','play'],['copyCode','list'],['copyLink','list'],['leaveParty','x']]){ const el=$(id); if(el&&!el.querySelector('svg')) el.insertAdjacentHTML('afterbegin',ico(ic)+' '); }
-$('gfxBtn').onclick=()=>{ setTab='Graphics'; renderSettings(); $('settings').hidden=false; if(document.pointerLockElement) document.exitPointerLock(); };
+if($('gfxBtn')) $('gfxBtn').onclick=()=>{ setTab='Graphics'; renderSettings(); $('settings').hidden=false; if(document.pointerLockElement) document.exitPointerLock(); };
 $('spotClose').onclick=()=>{ try{ if(SPOT.ctl) SPOT.ctl.pause(); }catch(e){} $('spotFrame').src='about:blank'; $('spotBox').hidden=true; };
 $('spotMin').onclick=()=>{ const b=$('spotBox'); b.classList.remove('max'); b.classList.toggle('mini'); $('spotMin').innerHTML=ico(b.classList.contains('mini')?'max':'min'); $('spotMax').innerHTML=ico('max'); spotResize(); };
 $('spotMax').onclick=()=>{ const b=$('spotBox'); b.classList.remove('mini'); b.classList.toggle('max'); $('spotMax').innerHTML=ico(b.classList.contains('max')?'restore':'max'); $('spotMin').innerHTML=ico('min'); spotResize(); };
