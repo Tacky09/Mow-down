@@ -186,6 +186,13 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 .scard.on .sprice{background:#ffd23f;color:#2a2208}
 
 #setTabs{display:flex;gap:6px;justify-content:center}
+#spotBox{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);width:300px;z-index:4;background:#121212;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#spotBox .spotbar{display:flex;align-items:center;gap:6px;padding:6px 8px;background:#1db954;color:#04140a}
+#spotBox .spotbar b{flex:1;font:800 13px var(--font-b)}
+#spotBox .spotbar button{width:24px;height:24px;border:0;border-radius:50%;background:rgba(0,0,0,.25);color:#fff;font:800 15px/24px var(--font-b);padding:0;cursor:pointer}
+#spotBox iframe{display:block;width:100%;height:352px;border:0}
+#spotBox.mini iframe{height:80px}
+@media (max-width:560px){#spotBox{width:240px}#spotBox iframe{height:232px}}
 #tlBar{position:fixed;left:50%;top:calc(12vh + 14px);transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.55);padding:8px 14px;border-radius:999px;color:#fff}
 #tlBar b{font:400 20px 'Anton',Impact,sans-serif;letter-spacing:.2em;color:#ffd23f;animation:upgpulse .6s ease-in-out infinite alternate}
 #tlBar span{font:800 13px var(--font-b);min-width:3ch;font-variant-numeric:tabular-nums}
@@ -317,6 +324,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
 </div>
 <div id="speedo" hidden><b>0</b><span>MPH</span><i>N</i></div>
 <div id="tlBar" hidden><b>TIMELAPSE</b><span id="tlPct">0%</span><div class="bar"><i id="tlFill"></i></div><button type="button" id="tlSkip">Skip (Space)</button></div>
+<div id="spotBox" hidden><div class="spotbar"><b>Spotify</b><button type="button" id="spotMin" aria-label="Shrink the player">–</button><button type="button" id="spotClose" aria-label="Close the player">×</button></div><iframe id="spotFrame" title="Spotify player" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe></div>
 <div id="toast"></div>
 <div id="banner"></div>
 
@@ -2186,7 +2194,7 @@ async function applySink(){
     }
   }catch(e){ toast('That audio device could not be used'); }
 }
-function startAudio(){
+function startAudio(){ setTimeout(()=>{ try{ musStart(); }catch(e){} },0);
   if(audio) return;
   try{
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -3091,10 +3099,70 @@ addEventListener('keyup',e=>{ arc.held[e.code]=false; });
     arcInput(Math.abs(dx)>Math.abs(dy)?(dx>0?'ArrowRight':'ArrowLeft'):(dy>0?'ArrowDown':'ArrowUp')); });
 }
 for(const id of ['shopBtn','shopBtnP']) $(id).addEventListener('click',()=>{ renderShop(); $('shop').hidden=false; });
+// ===== background music: original songs made by code (no outside music) =====
+const SONGS=[
+  {id:'sunny',name:'Sunny Lawn',bpm:118,root:60,mode:[0,2,4,5,7,9,11],prog:[0,5,3,4],lead:'square',bass:'triangle',drum:'pop',mood:'Happy and bouncy'},
+  {id:'chill',name:'Chill Mowing',bpm:82,root:57,mode:[0,2,3,5,7,8,10],prog:[0,5,2,6],lead:'sine',bass:'sine',drum:'lofi',mood:'Relaxed lo-fi beat'},
+  {id:'turbo',name:'Turbo Drive',bpm:146,root:62,mode:[0,2,3,5,7,8,10],prog:[0,6,5,6],lead:'sawtooth',bass:'sawtooth',drum:'fast',mood:'Fast racing synth'},
+  {id:'town',name:'Town Groove',bpm:104,root:55,mode:[0,2,4,5,7,9,10],prog:[0,3,0,4],lead:'triangle',bass:'square',drum:'funk',mood:'Funky bass groove'},
+  {id:'night',name:'Starry Night',bpm:70,root:52,mode:[0,2,3,5,7,8,10],prog:[0,5,3,4],lead:'sine',bass:'sine',drum:'none',mood:'Calm night music'},
+  {id:'boss',name:'Big Lawn Boss',bpm:132,root:50,mode:[0,1,3,5,7,8,10],prog:[0,1,0,6],lead:'sawtooth',bass:'square',drum:'rock',mood:'Epic and intense'},
+  {id:'arcade',name:'Pixel Party',bpm:128,root:64,mode:[0,2,4,7,9],prog:[0,3,4,2],lead:'square',bass:'square',drum:'pop',mood:'Retro 8-bit'},
+  {id:'sunrise',name:'Morning Coffee',bpm:96,root:62,mode:[0,2,4,5,7,9,11],prog:[0,4,5,3],lead:'triangle',bass:'triangle',drum:'lofi',mood:'Warm and sunny'}
+];
+const MUS={on:true,pick:'auto',vol:0.5,g:null,timer:null,song:null,step:0,next:0,seed:1,file:null,fileName:'',el:null};
+try{ const st=JSON.parse(localStorage.getItem('mowMusic')||'{}'); if(st.on!=null) MUS.on=st.on; if(st.pick) MUS.pick=st.pick; if(st.vol!=null) MUS.vol=st.vol; }catch(e){}
+function musSave(){ try{ localStorage.setItem('mowMusic',JSON.stringify({on:MUS.on,pick:MUS.pick==='file'?'auto':MUS.pick,vol:MUS.vol})); }catch(e){} }
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+function musRand(){ MUS.seed=(MUS.seed*16807)%2147483647; return MUS.seed/2147483647; }
+function musAutoSong(){ if(typeof DAY!=='undefined'&&DAY.on){ const p=DAY.p; if(p<0.2||p>0.82) return 'night'; if(p<0.32) return 'sunrise'; }
+  if(mode==='truck') return VEHICLES[vehicle]&&(VEHICLES[vehicle].top||0)>=30?'turbo':'town'; if(inStore||inApt) return 'chill'; if(typeof arc!=='undefined'&&arc.open) return 'arcade';
+  if(isFinite(timeLeft)&&levelTime&&timeLeft<levelTime*0.2) return 'boss'; return 'sunny'; }
+function musWanted(){ return MUS.pick==='auto'?musAutoSong():MUS.pick==='shuffle'?(MUS.shuf||(MUS.shuf=SONGS[(Math.random()*SONGS.length)|0].id)):MUS.pick; }
+function musNote(t,f,dur,type,vol,dest){ const c=audio.ctx,o=c.createOscillator(),g=c.createGain(); o.type=type; o.frequency.value=f; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol,t+0.012); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.connect(g); g.connect(dest); o.start(t); o.stop(t+dur+0.05); }
+function musHit(t,kind,vol){ const c=audio.ctx;
+  if(kind==='kick'){ const o=c.createOscillator(),g=c.createGain(); o.frequency.setValueAtTime(140,t); o.frequency.exponentialRampToValueAtTime(42,t+0.16); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.22); o.connect(g); g.connect(MUS.g); o.start(t); o.stop(t+0.25); return; }
+  const src=c.createBufferSource(); src.buffer=audio.noiseBuf; const f=c.createBiquadFilter(), g=c.createGain();
+  f.type=kind==='hat'?'highpass':'bandpass'; f.frequency.value=kind==='hat'?7000:1800; const len=kind==='hat'?0.05:0.16;
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+len); src.connect(f); f.connect(g); g.connect(MUS.g); src.start(t,Math.random()*1.2,len+0.02); }
+function musTick(){
+  if(!audio||!MUS.g) return; const c=audio.ctx;
+  const target=MUS.on&&!muted&&MUS.pick!=='file'?MUS.vol*0.5:0; MUS.g.gain.setTargetAtTime(target,c.currentTime,0.4);
+  if(MUS.el){ MUS.el.volume=Math.min(1,MUS.vol); if(MUS.pick==='file'&&MUS.on&&!muted){ if(MUS.el.paused) MUS.el.play().catch(()=>{}); } else if(!MUS.el.paused) MUS.el.pause(); }
+  if(target===0) { MUS.next=0; return; }
+  const want=musWanted(); if(!MUS.song||MUS.song.id!==want){ MUS.song=SONGS.find(x=>x.id===want)||SONGS[0]; MUS.step=0; MUS.seed=7+SONGS.indexOf(MUS.song)*977; MUS.next=c.currentTime+0.1; const el=$('musNow'); if(el) el.textContent='♪ '+MUS.song.name; }
+  const S=MUS.song, sixteenth=60/S.bpm/4; if(MUS.next<c.currentTime) MUS.next=c.currentTime+0.05;
+  while(MUS.next<c.currentTime+0.25){
+    const t=MUS.next, st=MUS.step, bar=Math.floor(st/16)%S.prog.length, b16=st%16, deg=S.prog[bar], M=S.mode, n=M.length;
+    const chord=[0,2,4].map(k=>S.root+M[(deg+k)%n]+12*Math.floor((deg+k)/n));
+    // bass
+    const bassHits=S.drum==='funk'?[0,3,6,8,10,14]:S.drum==='fast'?[0,2,4,6,8,10,12,14]:[0,6,8,12];
+    if(bassHits.includes(b16)) musNote(t,mtof(chord[0]-24+(S.drum==='funk'&&b16===10?12:0)),sixteenth*(S.drum==='fast'?1.6:2.6),S.bass,0.22,MUS.g);
+    // chords pad on the bar
+    if(b16===0||(S.drum!=='none'&&b16===8&&S.bpm<110)) for(const m of chord) musNote(t,mtof(m),sixteenth*(S.drum==='none'?15:7),S.drum==='none'?'sine':'triangle',S.drum==='none'?0.05:0.035,MUS.g);
+    // melody: made up on the fly from the chord and the scale, same every loop of the song
+    const density=S.drum==='none'?0.22:S.drum==='fast'?0.55:0.42;
+    if(b16%2===0||S.drum==='fast'){ const r=musRand(); if(r<density){ const k=(musRand()*5)|0, oct=musRand()<0.2?12:0; const nn=musRand()<0.6?chord[k%3]+12+oct:S.root+12+M[(deg+k)%n]+oct; musNote(t,mtof(nn),sixteenth*(1.5+musRand()*2.5),S.lead,S.lead==='sawtooth'?0.05:S.lead==='square'?0.05:0.09,MUS.g); } }
+    // drums
+    if(S.drum!=='none'){ const d=S.drum;
+      if(b16===0||b16===8||(d==='rock'&&b16===10)||(d==='fast'&&b16%4===0)||(d==='funk'&&b16===11)) musHit(t,'kick',0.5);
+      if(b16===4||b16===12) musHit(t,'snare',d==='lofi'?0.12:0.22);
+      if(d!=='lofi'?b16%2===0:b16%4===2) musHit(t,'hat',d==='fast'?0.07:0.05); }
+    MUS.step++; if(MUS.step%(16*S.prog.length)===0) MUS.seed=7+SONGS.indexOf(S)*977; // repeat the tune each loop
+    if(MUS.pick==='shuffle'&&MUS.step>=16*S.prog.length*4){ MUS.shuf=SONGS[(Math.random()*SONGS.length)|0].id; }
+    MUS.next+=sixteenth; }
+}
+function musStart(){ if(!audio) return; if(!MUS.g){ MUS.g=audio.ctx.createGain(); MUS.g.gain.value=0; MUS.g.connect(audio.out); } if(!MUS.timer) MUS.timer=setInterval(musTick,60); }
+function spotifyParse(t){ t=(t||'').trim(); let m=t.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|album|playlist|artist|episode|show)\/([A-Za-z0-9]+)/); if(m) return {type:m[1],id:m[2]}; m=t.match(/^spotify:(track|album|playlist|artist|episode|show):([A-Za-z0-9]+)$/); return m?{type:m[1],id:m[2]}:null; }
+function spotifyOpen(link){ const sp=spotifyParse(link); if(!sp){ toast('Paste a Spotify link, like a playlist or song'); return false; }
+  try{ localStorage.setItem('mowSpotify',link.trim()); }catch(e){}
+  const box=$('spotBox'); box.hidden=false; box.classList.remove('mini'); $('spotFrame').src='https://open.spotify.com/embed/'+sp.type+'/'+sp.id+'?utm_source=generator&theme=0';
+  MUS.on=false; musSave(); toast('Spotify player is open. Press play on it!'); return true; }
+function musLoadFile(f){ if(!f) return; if(!MUS.el){ MUS.el=new Audio(); MUS.el.loop=true; } if(MUS.url) URL.revokeObjectURL(MUS.url); MUS.url=URL.createObjectURL(f); MUS.el.src=MUS.url; MUS.fileName=f.name.replace(/\.[^.]+$/,''); MUS.pick='file'; MUS.on=true; startAudio(); musStart(); MUS.el.play().catch(()=>{}); const el=$('musNow'); if(el) el.textContent='♪ '+MUS.fileName; }
 let setTab='Controls';
 async function renderSettings(){
   const tabs=$('setTabs'); tabs.textContent='';
-  for(const t of ['Controls','Audio']){ const b=document.createElement('button'); b.type='button'; b.className='stab'; b.textContent=(t==='Controls'?'🎮  ':'🎧  ')+t; b.setAttribute('aria-pressed',String(t===setTab)); b.onclick=()=>{ setTab=t; renderSettings(); }; tabs.appendChild(b); }
+  for(const t of ['Controls','Audio','Music']){ const b=document.createElement('button'); b.type='button'; b.className='stab'; b.textContent=(t==='Controls'?'🎮  ':t==='Music'?'🎵  ':'🎧  ')+t; b.setAttribute('aria-pressed',String(t===setTab)); b.onclick=()=>{ setTab=t; renderSettings(); }; tabs.appendChild(b); }
   const body=$('setBody'); body.textContent=''; const list=document.createElement('div'); list.className='setlist'; body.appendChild(list);
   const row=(label,el)=>{ const r=document.createElement('div'); r.className='setrow'; const sp=document.createElement('span'); sp.textContent=label; r.append(sp,el); list.appendChild(r); };
   if(setTab==='Controls'){
@@ -3102,6 +3170,22 @@ async function renderSettings(){
       b.onclick=()=>{ bindWait=id; renderSettings(); }; row(label,b); }
     const rs=document.createElement('button'); rs.type='button'; rs.className='keybtn'; rs.textContent='Reset all keys'; rs.onclick=()=>{ BINDS={}; try{localStorage.removeItem('mowBinds');}catch(e){} rebuildRemap(); renderSettings(); }; row('Back to the normal keys',rs);
     const nt=document.createElement('p'); nt.className='small'; nt.textContent='Click a button, then press the key you want. Esc cancels. The arrow keys always work too.'; body.appendChild(nt);
+  }else if(setTab==='Music'){
+    startAudio(); musStart();
+    const on=document.createElement('button'); on.type='button'; on.className='keybtn'+(MUS.on?' wait':''); on.textContent=MUS.on?'On':'Off'; on.onclick=()=>{ MUS.on=!MUS.on; musSave(); renderSettings(); }; row('Music',on);
+    const mv=document.createElement('input'); mv.type='range'; mv.min=0; mv.max=1; mv.step=0.05; mv.value=MUS.vol; mv.oninput=()=>{ MUS.vol=+mv.value; musSave(); }; row('Music volume',mv);
+    const sel=document.createElement('select');
+    for(const [v,t] of [['auto','Auto (changes with what you do)'],['shuffle','Shuffle all songs']].concat(SONGS.map(x=>[x.id,x.name+' · '+x.mood])).concat(MUS.el?[['file','My song: '+MUS.fileName]]:[])){ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); }
+    sel.value=MUS.pick; sel.onchange=()=>{ MUS.pick=sel.value; MUS.shuf=null; MUS.on=true; musSave(); renderSettings(); }; row('Song',sel);
+    const nx=document.createElement('button'); nx.type='button'; nx.className='keybtn'; nx.textContent='⏭ Next song'; nx.onclick=()=>{ const i=SONGS.findIndex(x=>x.id===(MUS.song&&MUS.song.id)); MUS.pick=SONGS[(i+1)%SONGS.length].id; MUS.on=true; musSave(); renderSettings(); }; row('Skip',nx);
+    const fi=document.createElement('input'); fi.type='file'; fi.accept='audio/*'; fi.hidden=true; fi.onchange=()=>{ musLoadFile(fi.files[0]); renderSettings(); };
+    const fb=document.createElement('button'); fb.type='button'; fb.className='keybtn'; fb.textContent='📁 Pick a song file'; fb.onclick=()=>fi.click(); row('Play my own music',fb); body.appendChild(fi);
+    const sl=document.createElement('input'); sl.placeholder='Paste a Spotify link'; let saved=''; try{ saved=localStorage.getItem('mowSpotify')||''; }catch(e){} sl.value=saved;
+    sl.style.cssText='max-width:230px;width:100%;font:700 13px var(--font-b);padding:7px;border-radius:8px;background:#1d1830;color:#fff;border:1px solid rgba(255,255,255,.25)';
+    row('Spotify link',sl);
+    const sg=document.createElement('button'); sg.type='button'; sg.className='keybtn'; sg.style.background='#1db954'; sg.style.color='#04140a'; sg.textContent='▶ Open Spotify player'; sg.onclick=()=>{ if(spotifyOpen(sl.value)) renderSettings(); }; row('Your Spotify music',sg);
+    const now=document.createElement('p'); now.className='small'; now.id='musNow'; now.textContent=MUS.pick==='file'?'♪ '+MUS.fileName:'♪ '+(SONGS.find(x=>x.id===musWanted())||SONGS[0]).name; body.appendChild(now);
+    const nt=document.createElement('p'); nt.className='small'; nt.textContent='All 8 songs were made for this game. Auto plays calm music at night, racing music in fast cars, chill music indoors and boss music when time is almost up. You can also pick a song file from your computer, or paste a link to any Spotify playlist, album or song. Spotify plays full songs when you are logged in to Spotify in this browser (free accounts may only get short previews or ads), and it works on your GitHub website version of the game.'; body.appendChild(nt);
   }else{
     const vol=document.createElement('input'); vol.type='range'; vol.min=0; vol.max=1.5; vol.step=0.05; vol.value=MASTER_VOL;
     vol.oninput=()=>{ MASTER_VOL=+vol.value; try{localStorage.setItem('mowVol',String(MASTER_VOL));}catch(e){} if(audio) audio.out.gain.setTargetAtTime(MASTER_VOL,audio.ctx.currentTime,0.05); };
@@ -4251,6 +4335,8 @@ $('tvgYtGo').onclick=()=>{ const id=ytIdFrom($('tvgYt').value); if(!id){ toast('
 $('tvgFile').onclick=()=>$('tvgPick').click(); $('tvgPick').onchange=e=>{ loadMyVideo(e.target.files[0]); e.target.value=''; };
 $('tvgPause').onclick=()=>{ if(!MV.el) return; if(MV.el.paused){ if(MV.el.ended) MV.el.currentTime=0; MV.el.play().catch(()=>{}); } else MV.el.pause(); renderTvGuide(); };
 $('tvgClose').onclick=closeTvGuide;
+$('spotClose').onclick=()=>{ $('spotFrame').src='about:blank'; $('spotBox').hidden=true; };
+$('spotMin').onclick=()=>{ const b=$('spotBox'); b.classList.toggle('mini'); $('spotMin').textContent=b.classList.contains('mini')?'+':'–'; };
 function renderDayOpts(){ for(const b of $('dayOpts').querySelectorAll('button')) b.setAttribute('aria-pressed',String((b.dataset.d==='1')===DAY.on)); $('dayClock').hidden=!DAY.on; }
 $('dayOpts').addEventListener('click',e=>{ const b=e.target.closest('button[data-d]'); if(!b) return; DAY.on=b.dataset.d==='1'; try{localStorage.setItem('mowDayCycle',DAY.on?'1':'0');}catch(_){} renderDayOpts(); if(!DAY.on&&cfg){ setTheme(cfg.theme); stars.material.opacity=0; moon.material.opacity=0; } });
 renderDayOpts();
