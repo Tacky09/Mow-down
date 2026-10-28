@@ -814,7 +814,16 @@ const fenceGroup=new THREE.Group(); scene.add(fenceGroup);
 const FENCE_LIGHTS=[]; let fenceGlow=0;
 const lampBulbMat=new THREE.MeshStandardMaterial({color:0xfff3d0,emissive:new THREE.Color(0xffd890),emissiveIntensity:0,roughness:0.3});
 const lampCapMat=new THREE.MeshStandardMaterial({color:0x1f2023,roughness:0.6,metalness:0.4});
-function setFenceLights(n){ fenceGlow=n; const k=Math.max(0,Math.min(1,(n-0.25)/0.55)); for(const L of FENCE_LIGHTS) L.intensity=k*2.4; lampBulbMat.emissiveIntensity=k*2.2; }
+const FENCE_GLOWS=[]; const glowTex=(()=>{ const c=document.createElement('canvas'); c.width=c.height=128; const x=c.getContext('2d'), g=x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,214,150,1)'); g.addColorStop(0.35,'rgba(255,200,120,0.45)'); g.addColorStop(1,'rgba(255,190,110,0)'); x.fillStyle=g; x.fillRect(0,0,128,128); return new THREE.CanvasTexture(c); })();
+const glowMat=new THREE.MeshBasicMaterial({map:glowTex,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false});
+const haloMat=new THREE.SpriteMaterial({map:glowTex,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false});
+function setFenceLights(n){ fenceGlow=n; const k=Math.max(0,Math.min(1,(n-0.25)/0.55));
+  for(const L of FENCE_LIGHTS) L.intensity=k*3.2; lampBulbMat.emissiveIntensity=k*3; glowMat.opacity=k*0.6; haloMat.opacity=k*0.85;
+  // glow-in-the-dark mower paint
+  if(typeof myPaint!=='undefined'){ myPaint.emissive.copy(myPaint.color); myPaint.emissiveIntensity=k*0.9; }
+  for(const pm of GLOW_PAINTS) { pm.emissive.copy(pm.color); pm.emissiveIntensity=k*0.9; } }
+const GLOW_PAINTS=[];
 function buildFence(){
   for(const c of [...fenceGroup.children]){fenceGroup.remove(c); if(c.geometry) c.geometry.dispose();}
   FENCE_LIGHTS.length=0;
@@ -824,7 +833,10 @@ function buildFence(){
       const post=new THREE.Mesh(new THREE.BoxGeometry(0.12,1.5,0.12),lampCapMat); post.position.y=0.75; lamp.add(post);
       const box=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.3,0.26),lampBulbMat); box.position.y=1.62; lamp.add(box);
       const cap=new THREE.Mesh(new THREE.ConeGeometry(0.24,0.16,4),lampCapMat); cap.position.y=1.85; cap.rotation.y=Math.PI/4; lamp.add(cap);
-      const L=new THREE.PointLight(0xffd59a,0,Math.max(18,H*1.25),1.4); L.position.set(x*0.96,1.9,z*0.96); fenceGroup.add(L); FENCE_LIGHTS.push(L); } }
+      const halo=new THREE.Sprite(haloMat); halo.scale.set(1.6,1.6,1); halo.position.y=1.62; lamp.add(halo);
+      const pool=new THREE.Mesh(new THREE.PlaneGeometry(11,11),glowMat); pool.rotation.x=-Math.PI/2; pool.position.set(x*0.93,0.05,z*0.93); pool.renderOrder=2; fenceGroup.add(pool); }
+    // only a few real lights (too many would slow the game down); the glow on the grass does the rest
+    for(const [x,z] of [[0,-H*0.92],[-H*0.92,0],[H*0.92,0],[0,H*0.92]]){ const L=new THREE.PointLight(0xffd59a,0,H*1.4,1.2); L.position.set(x,2.2,z); fenceGroup.add(L); FENCE_LIGHTS.push(L); } }
   setFenceLights(fenceGlow);
   const spots=[]; for(let p=-HALF+0.11;p<HALF;p+=0.22){if(Math.abs(p+9)>1.7) spots.push([p,-HALF,0]); spots.push([-HALF,p,1],[HALF,p,1]); if(Math.abs(p)>1.0) spots.push([p,HALF,0]);}
   const pk=new THREE.InstancedMesh(new THREE.BoxGeometry(0.2,1.12,0.025),fenceMat,spots.length);
@@ -4386,7 +4398,7 @@ function makeAvatar(ci){
   const root=new THREE.Group(); scene.add(root);
   const mower=new THREE.Group(); root.add(mower);
   const push=new THREE.Group(), ride=new THREE.Group(); mower.add(push); mower.add(ride);
-  const paint=mowerPaint(MOWER_COLORS[0].c); buildPushMower(push,paint); buildRideMower(ride,paint);
+  const paint=mowerPaint(MOWER_COLORS[0].c); GLOW_PAINTS.push(paint); buildPushMower(push,paint); buildRideMower(ride,paint);
   const pp=personParts(push,look); pushPose(pp);
   const rp=personParts(ride,look); ridePose(rp);
   const wk=new THREE.Group(); root.add(wk); const wp=personParts(wk,look);
