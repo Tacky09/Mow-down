@@ -372,6 +372,7 @@ body:has(#hotbar:not([hidden])) #hint{bottom:calc(env(safe-area-inset-bottom,0px
       <span><kbd>Esc</kbd> menu</span>
       <span><kbd>M</kbd> mute</span>
       <span><kbd>N</kbd> mute mower</span>
+      <span><kbd>V</kbd> normal view</span>
     </div>
     <p class="small" id="phoneHelp" hidden>On a phone: turn it sideways, drag the round pad on the left to drive or walk, and use the buttons on the right to hop off, use tools, jump and switch to first person. Tap Menu at the top to pause.</p>
     <div class="section party" id="partyBox">
@@ -2148,7 +2149,7 @@ const FX={clip:makeParticles(0x8fd65a,0.08,300),tree:makeParticles(0xe0b77a,0.1,
 const keys={};
 // ---- remappable controls: every action has a default key; your own key is translated to it ----
 const BIND_DEFS=[['forward','Move forward','KeyW'],['back','Move back','KeyS'],['left','Turn left','KeyA'],['right','Turn right','KeyD'],['use','Use / grab / chop','KeyE'],
-  ['mount','Hop on / off, drive','KeyP'],['jump','Jump / swim up','Space'],['dive','Dive under water','KeyC'],['view','First person','KeyI'],['fire','Fire weapon','KeyF'],['honk','Honk the horn','KeyH'],['mute','Mute sound','KeyM'],['mutemower','Mute just the mower','KeyN']];
+  ['mount','Hop on / off, drive','KeyP'],['jump','Jump / swim up','Space'],['dive','Dive under water','KeyC'],['view','First person','KeyI'],['fire','Fire weapon','KeyF'],['honk','Honk the horn','KeyH'],['mute','Mute sound','KeyM'],['mutemower','Mute just the mower','KeyN'],['resetcam','Back to normal view','KeyV']];
 let BINDS={}; try{ BINDS=JSON.parse(localStorage.getItem('mowBinds')||'{}'); }catch(e){}
 let REMAP={};
 function rebuildRemap(){ REMAP={}; const used=new Set(BIND_DEFS.map(([id,,def])=>BINDS[id]||def));
@@ -2178,6 +2179,7 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyI') toggleView();
   if(e.code==='KeyM') toggleMute();
   if(e.code==='KeyN') toggleMowerMute();
+  if(e.code==='KeyV') resetCam();
   if(e.code==='Escape') togglePause();
   if(choosing&&/^Digit[1-9]$/.test(e.code)){const k=offer[+e.code.slice(5)-1]; if(k) pickUpgrade(k);}
   else if(playing&&mode==='foot'&&/^Digit[1-5]$/.test(e.code)){ const n=+e.code.slice(5)-1; if(n<4||equip.weapon) setSlot(n); }
@@ -3219,7 +3221,7 @@ async function renderSettings(){
       b.onclick=()=>{ bindWait=id; renderSettings(); }; row(label,b); }
     const rs=document.createElement('button'); rs.type='button'; rs.className='keybtn'; rs.textContent='Reset all keys'; rs.onclick=()=>{ BINDS={}; try{localStorage.removeItem('mowBinds');}catch(e){} rebuildRemap(); renderSettings(); }; row('Back to the normal keys',rs);
     const se=document.createElement('input'); se.type='range'; se.min=0.0008; se.max=0.006; se.step=0.0002; se.value=MLOOK.sens; se.oninput=()=>{ MLOOK.sens=+se.value; try{localStorage.setItem('mowSens',String(MLOOK.sens));}catch(e){} }; row('Mouse look speed',se);
-    const nt=document.createElement('p'); nt.className='small'; nt.textContent='Click the game to turn on mouse look, then move the mouse to look up, down and around. Hold right-click and drag also works. Scroll to zoom in and out, and scroll all the way in for first person. Esc lets go of the mouse. Click a button, then press the key you want. Esc cancels. The arrow keys always work too.'; body.appendChild(nt);
+    const nt=document.createElement('p'); nt.className='small'; nt.textContent='Click the game to turn on mouse look, then move the mouse to look up, down and around. Hold right-click and drag also works. Scroll to zoom in and out, and scroll all the way in for first person. Esc lets go of the mouse, and V puts the camera back to normal. Click a button, then press the key you want. Esc cancels. The arrow keys always work too.'; body.appendChild(nt);
   }else if(setTab==='Music'){
     startAudio(); musStart();
     const on=document.createElement('button'); on.type='button'; on.className='keybtn'+(MUS.on?' wait':''); on.textContent=MUS.on?'On':'Off'; on.onclick=()=>{ MUS.on=!MUS.on; musSave(); renderSettings(); }; row('Music',on);
@@ -3420,6 +3422,7 @@ function updateCombat(dt){
 // ---- mouse look (like Roblox): click the game to lock the mouse, move it to look around, scroll to zoom ----
 const MLOOK={yaw:0,pitch:0,zoom:1,idle:0,drag:false,lx:0,ly:0,sens:0.0026};
 try{ const v=parseFloat(localStorage.getItem('mowSens')); if(v>0) MLOOK.sens=v; }catch(e){}
+function resetCam(){ MLOOK.yaw=0; MLOOK.pitch=0; MLOOK.zoom=1; MLOOK.drag=false; if(document.pointerLockElement) document.exitPointerLock(); toast('Camera back to normal'); }
 function anyOverlay(){ for(const o of document.querySelectorAll('.overlay')) if(!o.hidden) return true; return false; }
 function mouseLook(dx,dy){
   MLOOK.idle=0; const k=MLOOK.sens;
