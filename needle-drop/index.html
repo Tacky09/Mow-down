@@ -231,9 +231,9 @@ const SONGS = [
  ["Rolling in the Deep","Adele","pop","2010s",1],["Shake It Off","Taylor Swift","pop","2010s",1],["Uptown Funk","Mark Ronson","pop","2010s",1],
  ["Shape of You","Ed Sheeran","pop","2010s",1],["Call Me Maybe","Carly Rae Jepsen","pop","2010s",1],["Teenage Dream","Katy Perry","pop","2010s",2],
  ["Green Light","Lorde","pop","2010s",3],["Dancing On My Own","Robyn","pop","2010s",3],["Midnight City","M83","pop","2010s",3],
- ["Blinding Lights","The Weeknd","pop","2020s",1],["Levitating","Dua Lipa","pop","2020s",1],["As It Was","Harry Styles","pop","2020s",1],
- ["drivers license","Olivia Rodrigo","pop","2020s",1],["Flowers","Miley Cyrus","pop","2020s",1],["Espresso","Sabrina Carpenter","pop","2020s",1],
- ["Anti-Hero","Taylor Swift","pop","2020s",2],["Good Luck, Babe!","Chappell Roan","pop","2020s",2],
+ ["Blinding Lights","The Weeknd","pop","2020s",1,2020],["Levitating","Dua Lipa","pop","2020s",1,2020],["As It Was","Harry Styles","pop","2020s",1,2022],
+ ["drivers license","Olivia Rodrigo","pop","2020s",1,2021],["Flowers","Miley Cyrus","pop","2020s",1,2023],["Espresso","Sabrina Carpenter","pop","2020s",1,2024],
+ ["Anti-Hero","Taylor Swift","pop","2020s",2,2022],["Good Luck, Babe!","Chappell Roan","pop","2020s",2,2024],
  // Hip-Hop
  ["Gangsta's Paradise","Coolio","hiphop","classic",1],["California Love","2Pac","hiphop","classic",1],["Still D.R.E.","Dr. Dre","hiphop","classic",1],
  ["Juicy","The Notorious B.I.G.","hiphop","classic",2],["N.Y. State of Mind","Nas","hiphop","classic",3],
@@ -242,7 +242,7 @@ const SONGS = [
  ["HUMBLE.","Kendrick Lamar","hiphop","2010s",1],["God's Plan","Drake","hiphop","2010s",1],["SICKO MODE","Travis Scott","hiphop","2010s",1],
  ["Old Town Road","Lil Nas X","hiphop","2010s",1],["Hotline Bling","Drake","hiphop","2010s",2],["Alright","Kendrick Lamar","hiphop","2010s",3],
  ["Mo Bamba","Sheck Wes","hiphop","2010s",3],
- ["Not Like Us","Kendrick Lamar","hiphop","2020s",1],["Rich Flex","Drake","hiphop","2020s",2],["Industry Baby","Lil Nas X","hiphop","2020s",2],
+ ["Not Like Us","Kendrick Lamar","hiphop","2020s",1,2024],["Rich Flex","Drake","hiphop","2020s",2,2022],["Industry Baby","Lil Nas X","hiphop","2020s",2,2021],
  // Rock / Alternative
  ["Bohemian Rhapsody","Queen","rock","classic",1],["Smells Like Teen Spirit","Nirvana","rock","classic",1],["Sweet Child O' Mine","Guns N' Roses","rock","classic",1],
  ["Don't Stop Believin'","Journey","rock","classic",1],["Wonderwall","Oasis","rock","classic",1],["Creep","Radiohead","rock","classic",2],
@@ -251,53 +251,53 @@ const SONGS = [
  ["Boulevard of Broken Dreams","Green Day","rock","2000s",2],["Take Me Out","Franz Ferdinand","rock","2000s",2],["Feel Good Inc.","Gorillaz","rock","2000s",2],
  ["Last Nite","The Strokes","rock","2000s",3],
  ["Do I Wanna Know?","Arctic Monkeys","rock","2010s",1],["Radioactive","Imagine Dragons","rock","2010s",1],["Pumped Up Kicks","Foster the People","rock","2010s",2],
- ["Heat Waves","Glass Animals","rock","2020s",1],["Beggin'","Måneskin","rock","2020s",2],
+ ["Heat Waves","Glass Animals","rock","2020s",1,2020],["Beggin'","Måneskin","rock","2020s",2,2021],
  // R&B
  ["I Will Always Love You","Whitney Houston","rnb","classic",1],["No Scrubs","TLC","rnb","classic",1],["Waterfalls","TLC","rnb","classic",2],
  ["Say My Name","Destiny's Child","rnb","classic",2],["Pony","Ginuwine","rnb","classic",3],
  ["Crazy in Love","Beyoncé","rnb","2000s",1],["Yeah!","Usher","rnb","2000s",1],["We Belong Together","Mariah Carey","rnb","2000s",2],["No One","Alicia Keys","rnb","2000s",2],
  ["Thinking Bout You","Frank Ocean","rnb","2010s",2],["Redbone","Childish Gambino","rnb","2010s",2],["Adorn","Miguel","rnb","2010s",3],
- ["Kill Bill","SZA","rnb","2020s",1],["Leave the Door Open","Silk Sonic","rnb","2020s",2],["Snooze","SZA","rnb","2020s",2],["Water","Tyla","rnb","2020s",2],
+ ["Kill Bill","SZA","rnb","2020s",1,2022],["Leave the Door Open","Silk Sonic","rnb","2020s",2,2021],["Snooze","SZA","rnb","2020s",2,2023],["Water","Tyla","rnb","2020s",2,2023],
  // Country / Folk
  ["Jolene","Dolly Parton","country","classic",1],["Ring of Fire","Johnny Cash","country","classic",1],["Take Me Home, Country Roads","John Denver","country","classic",1],
  ["Man! I Feel Like a Woman!","Shania Twain","country","classic",1],["Friends in Low Places","Garth Brooks","country","classic",2],
  ["Before He Cheats","Carrie Underwood","country","2000s",1],["Need You Now","Lady A","country","2000s",2],["Little Lion Man","Mumford & Sons","country","2000s",2],
  ["The House That Built Me","Miranda Lambert","country","2000s",3],
  ["Ho Hey","The Lumineers","country","2010s",1],["Cruise","Florida Georgia Line","country","2010s",2],["Tennessee Whiskey","Chris Stapleton","country","2010s",2],
- ["Fast Car","Luke Combs","country","2020s",1],["Last Night","Morgan Wallen","country","2020s",1],["Texas Hold 'Em","Beyoncé","country","2020s",1],
- ["A Bar Song (Tipsy)","Shaboozey","country","2020s",1],["Something in the Orange","Zach Bryan","country","2020s",2],
+ ["Fast Car","Luke Combs","country","2020s",1,2023],["Last Night","Morgan Wallen","country","2020s",1,2023],["Texas Hold 'Em","Beyoncé","country","2020s",1,2024],
+ ["A Bar Song (Tipsy)","Shaboozey","country","2020s",1,2024],["Something in the Orange","Zach Bryan","country","2020s",2,2022],
  // K-Pop
  ["Gee","Girls' Generation","kpop","2000s",2],["Gangnam Style","PSY","kpop","2010s",1],["DDU-DU DDU-DU","BLACKPINK","kpop","2010s",1],
  ["Fantastic Baby","BIGBANG","kpop","2010s",2],["Fancy","TWICE","kpop","2010s",2],
- ["Dynamite","BTS","kpop","2020s",1],["Butter","BTS","kpop","2020s",1],["How You Like That","BLACKPINK","kpop","2020s",1],["Hype Boy","NewJeans","kpop","2020s",1],
- ["Seven","Jung Kook","kpop","2020s",1],["APT.","ROSÉ","kpop","2020s",1],["Super Shy","NewJeans","kpop","2020s",2],["Love Dive","IVE","kpop","2020s",2],
- ["Next Level","aespa","kpop","2020s",2],["Antifragile","LE SSERAFIM","kpop","2020s",3],["God's Menu","Stray Kids","kpop","2020s",3],
+ ["Dynamite","BTS","kpop","2020s",1,2020],["Butter","BTS","kpop","2020s",1,2021],["How You Like That","BLACKPINK","kpop","2020s",1,2020],["Hype Boy","NewJeans","kpop","2020s",1,2022],
+ ["Seven","Jung Kook","kpop","2020s",1,2023],["APT.","ROSÉ","kpop","2020s",1,2024],["Super Shy","NewJeans","kpop","2020s",2,2023],["Love Dive","IVE","kpop","2020s",2,2022],
+ ["Next Level","aespa","kpop","2020s",2,2021],["Antifragile","LE SSERAFIM","kpop","2020s",3,2022],["God's Menu","Stray Kids","kpop","2020s",3,2020],
  // SoundCloud Indie
  ["Pretty Girl","Clairo","scindie","2010s",1],["Sofia","Clairo","scindie","2010s",2],["Bags","Clairo","scindie","2010s",2],
- ["SLOW DANCING IN THE DARK","Joji","scindie","2010s",1],["Glimpse of Us","Joji","scindie","2020s",1],
+ ["SLOW DANCING IN THE DARK","Joji","scindie","2010s",1],["Glimpse of Us","Joji","scindie","2020s",1,2022],
  ["Line Without a Hook","Ricky Montgomery","scindie","2010s",1],["Mrs Magic","Strawberry Guy","scindie","2010s",3],
  ["Space Song","Beach House","scindie","2010s",1],["Myth","Beach House","scindie","2010s",3],
  ["Chamber of Reflection","Mac DeMarco","scindie","2010s",1],["Freaking Out the Neighborhood","Mac DeMarco","scindie","2010s",2],
  ["Apocalypse","Cigarettes After Sex","scindie","2010s",1],["Sunsetz","Cigarettes After Sex","scindie","2010s",2],
- ["Bad Habit","Steve Lacy","scindie","2020s",1],["Dark Red","Steve Lacy","scindie","2010s",2],
- ["Loving Is Easy","Rex Orange County","scindie","2010s",2],["Coffee","beabadoobee","scindie","2010s",2],["Glue Song","beabadoobee","scindie","2020s",2],
- ["Heather","Conan Gray","scindie","2020s",1],["Every Summertime","NIKI","scindie","2020s",2],
- ["Motion Sickness","Phoebe Bridgers","scindie","2010s",2],["Kyoto","Phoebe Bridgers","scindie","2020s",2],
- ["My Love Mine All Mine","Mitski","scindie","2020s",1],["Washing Machine Heart","Mitski","scindie","2010s",1],["Nobody","Mitski","scindie","2010s",2],
- ["Your Best American Girl","Mitski","scindie","2010s",3],["Mary","Alex G","scindie","2010s",3],["Space Girl","Frances Forever","scindie","2020s",3],
- ["back to friends","sombr","scindie","2020s",1],["undressed","sombr","scindie","2020s",2],
+ ["Bad Habit","Steve Lacy","scindie","2020s",1,2022],["Dark Red","Steve Lacy","scindie","2010s",2],
+ ["Loving Is Easy","Rex Orange County","scindie","2010s",2],["Coffee","beabadoobee","scindie","2010s",2],["Glue Song","beabadoobee","scindie","2020s",2,2023],
+ ["Heather","Conan Gray","scindie","2020s",1,2020],["Every Summertime","NIKI","scindie","2020s",2,2021],
+ ["Motion Sickness","Phoebe Bridgers","scindie","2010s",2],["Kyoto","Phoebe Bridgers","scindie","2020s",2,2020],
+ ["My Love Mine All Mine","Mitski","scindie","2020s",1,2023],["Washing Machine Heart","Mitski","scindie","2010s",1],["Nobody","Mitski","scindie","2010s",2],
+ ["Your Best American Girl","Mitski","scindie","2010s",3],["Mary","Alex G","scindie","2010s",3],["Space Girl","Frances Forever","scindie","2020s",3,2020],
+ ["back to friends","sombr","scindie","2020s",1,2024],["undressed","sombr","scindie","2020s",2,2025],
  // Alt-Rap
  ["Look At Me!","XXXTENTACION","altrap","2010s",1],["Jocelyn Flores","XXXTENTACION","altrap","2010s",1],["SAD!","XXXTENTACION","altrap","2010s",1],
  ["Moonlight","XXXTENTACION","altrap","2010s",2],["Hope","XXXTENTACION","altrap","2010s",2],
  ["Lucid Dreams","Juice WRLD","altrap","2010s",1],["All Girls Are the Same","Juice WRLD","altrap","2010s",2],["Robbery","Juice WRLD","altrap","2010s",2],
  ["Star Shopping","Lil Peep","altrap","2010s",2],["Awful Things","Lil Peep","altrap","2010s",2],
- ["XO Tour Llif3","Lil Uzi Vert","altrap","2010s",1],["Myron","Lil Uzi Vert","altrap","2020s",3],
- ["Magnolia","Playboi Carti","altrap","2010s",1],["Sky","Playboi Carti","altrap","2020s",2],
+ ["XO Tour Llif3","Lil Uzi Vert","altrap","2010s",1],["Myron","Lil Uzi Vert","altrap","2020s",3,2020],
+ ["Magnolia","Playboi Carti","altrap","2010s",1],["Sky","Playboi Carti","altrap","2020s",2,2020],
  ["Gucci Gang","Lil Pump","altrap","2010s",1],["Mask Off","Future","altrap","2010s",1],
  ["EARFQUAKE","Tyler, The Creator","altrap","2010s",1],["See You Again","Tyler, The Creator","altrap","2010s",1],
  ["NEW MAGIC WAND","Tyler, The Creator","altrap","2010s",2],["Who Dat Boy","Tyler, The Creator","altrap","2010s",3],
  ["Day 'N' Nite","Kid Cudi","altrap","2000s",1],["Pursuit of Happiness","Kid Cudi","altrap","2000s",2],
- ["BOOGIE","BROCKHAMPTON","altrap","2010s",2],["SUGAR","BROCKHAMPTON","altrap","2010s",2],["Poland","Lil Yachty","altrap","2020s",2],
+ ["BOOGIE","BROCKHAMPTON","altrap","2010s",2],["SUGAR","BROCKHAMPTON","altrap","2010s",2],["Poland","Lil Yachty","altrap","2020s",2,2022],
  // Underground Rock
  ["Cigarette Daydreams","Cage the Elephant","underrock","2010s",1],["Sweater Weather","The Neighbourhood","underrock","2010s",1],
  ["Chocolate","The 1975","underrock","2010s",1],["Somebody Else","The 1975","underrock","2010s",2],
@@ -311,12 +311,34 @@ const SONGS = [
  ["Drunk Drivers/Killer Whales","Car Seat Headrest","underrock","2010s",3],["Bloodbuzz Ohio","The National","underrock","2010s",3],
  ["Archie, Marry Me","Alvvays","underrock","2010s",2],["Dreams Tonite","Alvvays","underrock","2010s",3],
  ["Seasons (Waiting On You)","Future Islands","underrock","2010s",2],["Tongue Tied","Grouplove","underrock","2010s",2],
- ["Chaise Longue","Wet Leg","underrock","2020s",2],["Ur Mum","Wet Leg","underrock","2020s",3],
- ["Seventeen Going Under","Sam Fender","underrock","2020s",2],["Not Strong Enough","boygenius","underrock","2020s",2],
+ ["Chaise Longue","Wet Leg","underrock","2020s",2,2021],["Ur Mum","Wet Leg","underrock","2020s",3,2022],
+ ["Seventeen Going Under","Sam Fender","underrock","2020s",2,2021],["Not Strong Enough","boygenius","underrock","2020s",2,2023],
+ // Newer hits, tagged by year
+ ["Die with a Smile","Lady Gaga","pop","2020s",1,2024],["Birds of a Feather","Billie Eilish","pop","2020s",1,2024],
+ ["Beautiful Things","Benson Boone","pop","2020s",1,2024],["Lose Control","Teddy Swims","pop","2020s",1,2024],
+ ["Taste","Sabrina Carpenter","pop","2020s",2,2024],["Messy","Lola Young","pop","2020s",2,2024],["Stargazing","Myles Smith","pop","2020s",2,2024],
+ ["Apple","Charli xcx","pop","2020s",3,2024],["Too Sweet","Hozier","rock","2020s",2,2024],["I Had Some Help","Post Malone","country","2020s",1,2024],
+ ["Timeless","The Weeknd","hiphop","2020s",2,2024],["squabble up","Kendrick Lamar","hiphop","2020s",2,2024],
+ ["Love Me Not","Ravyn Lenae","rnb","2020s",2,2024],["MUTT","Leon Thomas","rnb","2020s",2,2024],
+ ["Sailor Song","Gigi Perez","scindie","2020s",2,2024],["No One Noticed","The Marías","scindie","2020s",2,2024],
+ ["Supernova","aespa","kpop","2020s",2,2024],["Whiplash","aespa","kpop","2020s",2,2024],["Magnetic","ILLIT","kpop","2020s",2,2024],["How Sweet","NewJeans","kpop","2020s",3,2024],
+ ["luther","Kendrick Lamar","hiphop","2020s",1,2025],["tv off","Kendrick Lamar","hiphop","2020s",2,2025],["NOKIA","Drake","hiphop","2020s",2,2025],
+ ["Ordinary","Alex Warren","pop","2020s",1,2025],["Manchild","Sabrina Carpenter","pop","2020s",1,2025],["The Fate of Ophelia","Taylor Swift","pop","2020s",1,2025],
+ ["That's So True","Gracie Abrams","pop","2020s",2,2025],["WILDFLOWER","Billie Eilish","pop","2020s",2,2025],["Abracadabra","Lady Gaga","pop","2020s",2,2025],
+ ["Sports car","Tate McRae","pop","2020s",2,2025],["Daisies","Justin Bieber","pop","2020s",2,2025],["DtMF","Bad Bunny","pop","2020s",2,2025],
+ ["30 for 30","SZA","rnb","2020s",3,2025],["Love Somebody","Morgan Wallen","country","2020s",2,2025],["I'm the Problem","Morgan Wallen","country","2020s",2,2025],
+ ["What I Want","Morgan Wallen","country","2020s",2,2025],["Just in Case","Morgan Wallen","country","2020s",3,2025],["Good News","Shaboozey","country","2020s",3,2025],
+ ["Worst Way","Riley Green","country","2020s",3,2025],["Golden","HUNTR/X","kpop","2020s",1,2025],["JUMP","BLACKPINK","kpop","2020s",2,2025],
+ ["Gnarly","KATSEYE","kpop","2020s",3,2025],["Anxiety","Doechii","altrap","2020s",2,2025],["EVIL J0RDAN","Playboi Carti","altrap","2020s",2,2025],
+ ["12 to 12","sombr","scindie","2020s",2,2025],
+ ["I Just Might","Bruno Mars","pop","2020s",1,2026],["Risk It All","Bruno Mars","pop","2020s",2,2026],["Aperture","Harry Styles","pop","2020s",1,2026],
+ ["Opalite","Taylor Swift","pop","2020s",1,2026],["I Knew It, I Knew You","Taylor Swift","pop","2020s",2,2026],["Drop Dead","Olivia Rodrigo","pop","2020s",1,2026],
+ ["Hate That I Made You Love Me","Ariana Grande","pop","2020s",1,2026],["Janice STFU","Drake","hiphop","2020s",1,2026],
+ ["Choosin' Texas","Ella Langley","country","2020s",1,2026],["Be Her","Ella Langley","country","2020s",2,2026],["SWIM","BTS","kpop","2020s",1,2026],
 ];
 
 const GENRES=[["all","All"],["pop","Pop"],["hiphop","Hip-Hop"],["rock","Rock/Alt"],["rnb","R&B"],["country","Country/Folk"],["kpop","K-Pop"],["scindie","SoundCloud Indie"],["altrap","Alt-Rap"],["underrock","Underground Rock"]];
-const ERAS=[["any","Any era"],["classic","Before 2000"],["2000s","2000s"],["2010s","2010s"],["2020s","2020s"]];
+const ERAS=[["any","Any era"],["classic","Before 2000"],["2000s","2000s"],["2010s","2010s"],["2020s","2020s"],["2021","2021"],["2022","2022"],["2023","2023"],["2024","2024"],["2025","2025"],["2026","2026"]];
 const DIFFS=[["easy","Easy",[1]],["medium","Medium",[1,2]],["hard","Hard",[1,2,3]],["expert","Expert",[2,3]],["impossible","Impossible",[2,3]]];
 const STAGES_FULL=[0.1,0.5,2,8,15], STAGES_IMP=[0.1,0.5,2];
 
@@ -397,10 +419,13 @@ const stages=()=>state.diff==="impossible"?STAGES_IMP:STAGES_FULL;
 
 function pool(){
   const tiers=DIFFS.find(d=>d[0]===state.diff)[2];
-  let p=SONGS.map((s,i)=>({s,i})).filter(({s})=>(state.genre==="all"||s[2]===state.genre)
-     &&(state.era==="any"||s[3]===state.era||s[2]==="kpop"&&state.genre==="kpop"));
+  const all=SONGS.map((s,i)=>({s,i}));
+  const isYear=/^\d{4}$/.test(state.era);
+  const eraOk=s=>state.era==="any"||(isYear?s[5]===+state.era:s[3]===state.era)||(!isYear&&s[2]==="kpop"&&state.genre==="kpop");
+  let p=all.filter(({s})=>(state.genre==="all"||s[2]===state.genre)&&eraOk(s));
+  if(!p.length)p=all.filter(({s})=>eraOk(s)); // that genre has nothing from this year: play any genre from it
   const byTier=p.filter(({s})=>tiers.includes(s[4]));
-  return byTier.length?byTier:p.length?p:SONGS.map((s,i)=>({s,i}));
+  return byTier.length?byTier:p.length?p:all;
 }
 
 /* ---------- Clip bar ---------- */
