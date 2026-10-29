@@ -307,6 +307,37 @@ body.lay-phone .spdock,body.lay-tablet:not(.tab-pass) .spdock{bottom:calc(var(--
 body.lay-phone .dock .pcard .s.jv,body.lay-tablet .dock .pcard .s.jv{font-size:clamp(7px,2vw,9px);line-height:1;padding-bottom:22%}
 body.lay-phone .dock .pcard.joker .h{bottom:3%}
 @media (max-width:520px){.brand h1{display:none}}
+
+/* party info chip in the top bar */
+.partychip{display:flex;align-items:center;gap:8px;min-width:0;margin-right:auto;margin-left:6px;padding:5px 12px;border-radius:999px;cursor:pointer;color:var(--ink);font:600 12.5px var(--f-body);
+  background:color-mix(in srgb,var(--brass) 14%,transparent);border:1px solid color-mix(in srgb,var(--brass) 55%,transparent);white-space:nowrap;overflow:hidden}
+.partychip b{font-family:var(--f-display);letter-spacing:.12em;color:var(--brass);font-size:14px}
+.partychip span+span::before{content:'·';margin-right:8px;color:var(--dim)}
+@media (max-width:860px){.partychip span:last-child{display:none}}
+@media (max-width:560px){.partychip span{display:none}.partychip{margin-left:0}}
+/* game full screen: everything fits, nothing scrolls */
+body.fs footer.copy,body.fs .tutbox,body.fs .tutspot{display:none!important}
+body.fs .side{overflow:hidden}
+body.fs .dock{max-height:100%;overflow:auto}
+
+/* Spotify Premium player */
+.spnow{display:grid;grid-template-columns:56px 1fr;gap:10px;align-items:center}
+.spnow img{width:56px;height:56px;border-radius:10px;object-fit:cover;background:#121212}
+.spnow b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.spnow small{color:var(--dim);font-size:12px}
+.spnow div{min-width:0}
+.spctl{display:flex;justify-content:center;gap:10px}
+.spctl .icobtn{width:42px;height:42px;border-radius:50%;justify-content:center;padding:0}
+.spctl #spToggle{width:48px;height:48px}
+.spseek{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.spseek small{font-variant-numeric:tabular-nums;color:var(--dim);font-size:12px}
+.spseek input,.spvol input{accent-color:#1db954;width:100%}
+.spsteps{margin:0;padding-left:18px;display:grid;gap:4px;font-size:13px;color:var(--dim)}
+.spsteps code{font-size:12px;word-break:break-all;color:var(--ink)}
+.spprem summary{font-size:13px}
+.sphead{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;position:relative;padding-top:8px}
+.sphead::before{content:'';position:absolute;left:50%;top:0;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--dim);opacity:.45}
+.spdock.dragging{box-shadow:0 18px 50px rgba(0,0,0,.45)}.spdock.dragging .sphead{cursor:grabbing}
+.spdock.dragging iframe{pointer-events:none}
 /* board */
 #rot,#play{transition:transform .6s ease}
 .peg{transition:transform .07s linear;cursor:default;will-change:transform}
@@ -455,9 +486,9 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
 
 <div class="app">
   <header class="bar">
-    <div class="brand"><span class="logo" data-ico="joker"></span><h1>The Roaming of the Joker</h1></div>
+    <div class="brand"><span class="logo" id="brandLogo"></span><h1>The Roaming of the Joker</h1></div>
+    <button class="partychip" id="barParty" type="button" hidden></button>
     <nav class="barbtns" aria-label="Main">
-      <button class="ghost icobtn" id="howBtn" type="button" title="How to play"><span data-ico="help"></span><span class="bl">How to play</span></button>
       <button class="ghost icobtn modebtn" id="modeBtn" type="button" aria-label="Switch day or night mode"></button>
       <button class="primary icobtn" id="newBtn" type="button" title="New game"><span data-ico="plus"></span><span class="bl">New game</span></button>
       <button class="ghost icobtn" id="fsBtn" type="button" title="Full screen"><span data-ico="expand"></span><span class="bl">Full screen</span></button>
@@ -511,6 +542,7 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
     <button role="tab" data-tab="keys" aria-selected="false"><span data-ico="keyboard"></span>Keys</button>
     <button role="tab" data-tab="rules" aria-selected="false"><span data-ico="sliders"></span>Rules</button>
     <button role="tab" data-tab="profile" aria-selected="false"><span data-ico="user"></span>Profile</button>
+    <button role="tab" data-tab="howto" aria-selected="false"><span data-ico="help"></span>How to play</button>
     <button role="tab" data-tab="history" aria-selected="false"><span data-ico="clock"></span>History</button>
   </div>
 
@@ -542,7 +574,19 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
       <ul class="mslist" id="msList"></ul></div>
     <div class="rule"><span class="lab">Spotify</span>
       <div class="joinrow"><input class="tin url" id="spUrl" type="url" placeholder="Paste a Spotify song, album or playlist link" autocomplete="off" aria-label="Spotify link"><button class="primary" id="spUse" type="button">Use</button></div>
-      <p>Plays in a corner player. Sign in to Spotify in this browser for full songs.</p></div>
+      <p>Plays in a corner player.</p>
+      <details class="popts spprem"><summary>Full songs with Spotify Premium</summary>
+        <div class="optgrid">
+          <p class="snote" id="spStatus">Not connected. Without this, the corner player plays 30-second clips unless you're signed in to Spotify.</p>
+          <ol class="spsteps">
+            <li>Open <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> and press <b>Create app</b>.</li>
+            <li>Under Redirect URI, add this page's address: <code id="spRedir"></code> <button class="ghost sm" type="button" id="spCopyRedir">Copy</button></li>
+            <li>Tick <b>Web Playback SDK</b> and <b>Web API</b>, save, then copy the app's <b>Client ID</b>.</li>
+            <li>In the app's <b>User Management</b>, add the email of each Spotify account that will listen.</li>
+          </ol>
+          <div class="joinrow"><input class="tin url" id="spCid" placeholder="Paste your Client ID" autocomplete="off" spellcheck="false" aria-label="Spotify Client ID"><button class="primary" id="spConnect" type="button">Connect</button></div>
+          <button class="ghost sm" id="spDisconnect" type="button" hidden>Disconnect Spotify</button>
+        </div></details></div>
     <div class="rule"><span class="lab">Volume</span>
       <label class="slider"><span class="volico" data-ico="volLow"></span><input type="range" id="vol" min="0" max="100" step="1" value="50" aria-label="Music volume"><span class="volico" data-ico="volHigh"></span><span id="volVal">50</span></label></div>
     <p class="snote" id="musicNote" hidden></p>
@@ -588,30 +632,7 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
     <div class="rule"><span class="lab">Speed</span>
       <div class="seg" id="segSpeed"><button data-v="1" aria-pressed="true">Normal</button><button data-v="0.5" aria-pressed="false">Fast</button></div></div>
   </div>
-  <div class="tabpanel" data-panel="profile" role="tabpanel" hidden>
-    <div class="rule"><span class="lab">Your profile</span>
-      <p>Saved on this device; Party uses it.</p>
-      <label class="field"><span class="lab">Name</span><input class="tin" id="profName" maxlength="16" autocomplete="nickname" placeholder="Player"></label>
-      <div class="field"><span class="lab">Favorite peg color</span><div id="profColor"></div></div>
-      <p id="profStats"></p></div>
-  </div>
-
-  <div class="tabpanel" data-panel="history" role="tabpanel" hidden>
-    <p class="snote">Last 30 games on this device. Tap one to replay it.</p>
-    <div id="histList" class="hist"></div>
-    <div><button class="ghost sm" id="histClear" type="button">Clear history</button></div>
-  </div>
-</div></div>
-
-<div id="party" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="partyTitle"><div class="box">
-  <div class="shead"><h2 id="partyTitle">Party</h2><button class="ghost" id="partyClose" type="button">Close</button></div>
-  <div id="partyBody" style="display:grid;gap:12px"></div>
-  <h3 style="margin:16px 0 8px;font-family:var(--f-display)">Invite friends</h3>
-  <div id="invBody" style="display:grid;gap:12px"></div>
-</div></div>
-
-<div id="howModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="howTitle"><div class="box">
-  <div class="shead"><h2 id="howTitle">How to play</h2><button class="ghost" id="howClose" type="button">Close</button></div>
+    <div class="tabpanel" data-panel="howto" role="tabpanel" hidden>
   <div class="tutcta"><div><b>New here?</b><span>Play a short guided round.</span></div><button class="primary" id="tutStart" type="button">Start tutorial</button></div>
   <div class="manual">
     <h3>The goal</h3>
@@ -628,7 +649,7 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
     <table class="ctable"><tbody>
       <tr><td>A</td><td>Bring a peg out of home onto your start hole, or move a peg 1.</td></tr>
       <tr><td>2, 3, 4, 5, 6, 9, 10</td><td>Move one peg forward that many holes.</td></tr>
-      <tr><td>7</td><td>Move exactly 7, never more or less. Use it on one peg, or split it between different pegs, like 4 on one and 3 on another. Each peg moves only once. If the full 7 can't be used, you can't play the 7.</td></tr>
+      <tr><td>7</td><td>Move exactly 7. Use it all on one peg, or split it between <b>2 pegs</b> (like 4 and 3). If the full 7 can't be used, the 7 can't be played.</td></tr>
       <tr><td>8</td><td>Move one peg <b>backward</b> 8. Handy for slipping into your finish lane from just past it.</td></tr>
       <tr><td>J, Q, K</td><td>Bring a peg out of home, or move one peg forward 11, 12 or 13.</td></tr>
       <tr><td>Joker</td><td><b>Jump ahead:</b> move one of your pegs on the track any number of holes forward, not just 1 to 13, up to and including your own finish lane entry hole. A Joker can also bring a peg straight out of home to any hole, with no Ace or face card needed. It can't go into a finish lane, and it never goes backward, so one Joker can't send a peg around the board twice. If it lands on a peg, that peg is bumped, enemy or teammate (a teammate goes to their own lane entry hole and must step in next turn). If that teammate already has a peg on its lane entry hole, there is nowhere for the bumped peg to go, so that move can't be played. Holes with a peg on them are marked for you.</td></tr>
@@ -672,14 +693,37 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
       <li>On every screen, your own color sits at the bottom of the board. Playing against bots, there's no dice: you always go first.</li>
     </ol>
   </div>
+  </div>
+  <div class="tabpanel" data-panel="profile" role="tabpanel" hidden>
+    <div class="rule"><span class="lab">Your profile</span>
+      <p>Saved on this device; Party uses it.</p>
+      <label class="field"><span class="lab">Name</span><input class="tin" id="profName" maxlength="16" autocomplete="nickname" placeholder="Player"></label>
+      <div class="field"><span class="lab">Favorite peg color</span><div id="profColor"></div></div>
+      <p id="profStats"></p></div>
+  </div>
+
+  <div class="tabpanel" data-panel="history" role="tabpanel" hidden>
+    <p class="snote">Last 30 games on this device. Tap one to replay it.</p>
+    <div id="histList" class="hist"></div>
+    <div><button class="ghost sm" id="histClear" type="button">Clear history</button></div>
+  </div>
 </div></div>
+
+<div id="party" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="partyTitle"><div class="box">
+  <div class="shead"><h2 id="partyTitle">Party</h2><button class="ghost" id="partyClose" type="button">Close</button></div>
+  <div id="partyBody" style="display:grid;gap:12px"></div>
+  <h3 style="margin:16px 0 8px;font-family:var(--f-display)">Invite friends</h3>
+  <div id="invBody" style="display:grid;gap:12px"></div>
+</div></div>
+
+
 
 <div id="ngModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="ngTitle"><div class="box narrow">
   <div class="shead"><h2 id="ngTitle">New game</h2><button class="ghost" id="ngClose" type="button">Cancel</button></div>
   <div class="ctl"><span class="lab">Board</span>
     <div class="seg" id="segMode"><button data-v="4" aria-pressed="true">2 v 2</button><button data-v="6" aria-pressed="false">3 v 3</button></div></div>
   <div class="ctl"><span class="lab">Players</span>
-    <div class="seg" id="segHuman"><button data-v="bots" aria-pressed="true">You vs bots</button><button data-v="pass" aria-pressed="false">Pass &amp; play</button></div>
+    <div class="seg" id="segHuman"><button data-v="bots" aria-pressed="true">You vs bots</button><button data-v="pass" aria-pressed="false">Pass &amp; play</button><button data-v="watch" aria-pressed="false">Watch bots</button></div>
     <p class="snote" id="ngNote">Bots play the other seats.</p></div>
   <button class="primary" id="ngStart" type="button">Start game</button>
   <p class="snote">Playing friends online? Use <b>Party</b>.</p>
@@ -939,19 +983,22 @@ const playerOf=id=>net.players.find(p=>p.id===id);
 
 /* seats and naming */
 const teamOf=s=>s%2;
-function isLocal(s){ if(G&&G.replay)return false; return isOnline()? s===net.mySeat : (opt.human==='pass'||s===0); }
+function isLocal(s){ if(G&&G.replay)return false; if(!isOnline()&&opt.human==='watch')return false; return isOnline()? s===net.mySeat : (opt.human==='pass'||s===0); }
 function isBot(s){ if(G&&G.replay)return false; return isOnline()? !net.seats[s] : !isLocal(s); }
 const isDriver=()=>!(G&&G.replay)&&(!isOnline()||net.role==='host');
 function viewSeat(){ return isOnline()? Math.max(0,net.mySeat) : 0; }
+/* your own name: your Profile nickname if you've set one, otherwise "You" */
+function myNick(){const n=(store.get('pj-name')||'').trim(); return n&&n!=='Player'?n:'';}
 function nm(s){
   if(G&&G.replay&&G.meta)return G.meta.names[s]||('Player '+(s+1));
   if(isOnline()){
-    const id=net.seats[s]; if(id&&id===net.myId)return 'You';
+    const id=net.seats[s]; if(id&&id===net.myId)return myNick()||'You';
     if(!id)return 'Bot '+(s+1);
     const p=playerOf(id); return p?p.name:'Player '+(s+1);
   }
   if(opt.human==='pass')return 'Player '+(s+1);
-  if(s===0)return 'You';
+  if(opt.human==='watch')return 'Bot '+(s+1);
+  if(s===0)return myNick()||'You';
   const mine=s%2===0; let idx=0;
   for(let q=1;q<=s;q++) if((q%2===0)===mine) idx++;
   const total=[...Array(G.N).keys()].filter(q=>q!==0&&(q%2===0)===mine).length;
@@ -959,11 +1006,11 @@ function nm(s){
 }
 const possessive=s=>nm(s)==='You'?'your':nm(s)+"'s";
 function winLine(t){const n=teamName(t);return n+(n==='Enemy team'?' win':' wins');}
-function handSeatAtStart(){ return isOnline()?net.mySeat:(opt.human==='pass'?-1:0); }
+function handSeatAtStart(){ return isOnline()?net.mySeat:(opt.human==='pass'||opt.human==='watch'?-1:0); }
 function teamName(t){
   if(G&&G.replay)return 'Team '+(t+1);
   if(isOnline()){ if(net.mySeat<0)return 'Team '+(t+1); return teamOf(net.mySeat)===t?'Your team':'Enemy team'; }
-  return opt.human==='pass'?'Team '+(t+1):(t===0?'Your team':'Enemy team');
+  return opt.human==='pass'||opt.human==='watch'?'Team '+(t+1):(t===0?'Your team':'Enemy team');
 }
 
 /* ---------- rules ---------- */
@@ -1019,7 +1066,8 @@ function canFinish7(s,rem,excl){
   if(memo7.has(key))return memo7.get(key);
   const saved=G.pegs; let ok=false;
   try{
-    const ms=rawMoves(s,'7',rem,excl).sort((a,b)=>b.steps-a.steps);
+    /* a 7 splits between 2 pegs at most: after the first peg moves, the second must use exactly what is left */
+    const ms=rawMoves(s,'7',rem,excl).filter(m=>!excl.length||m.steps===rem).sort((a,b)=>b.steps-a.steps);
     for(const m of ms){ G.pegs=simMove(saved,m); const r=canFinish7(s,rem-m.steps,excl.concat(m.o+'-'+m.i)); G.pegs=saved; if(r){ok=true;break;} }
   } finally { G.pegs=saved; }
   if(memo7.size>40000)memo7.clear(); memo7.set(key,ok); return ok;
@@ -1028,6 +1076,7 @@ function movesFor(s,r,rem,excl){
   if(!excl)excl=r==='7'&&G.pend&&G.pend.moved?G.pend.moved:[];
   const res=rawMoves(s,r,rem,excl);
   if(r!=='7')return res;
+  if(excl.length)return res.filter(m=>m.steps===rem); // second (and last) peg of a split 7 takes the rest
   const saved=G.pegs;
   try{ return res.filter(m=>{ if(m.steps===rem)return true; G.pegs=simMove(saved,m); const ok=canFinish7(s,rem-m.steps,excl.concat(m.o+'-'+m.i)); G.pegs=saved; return ok; }); }
   finally{ G.pegs=saved; }
@@ -1243,7 +1292,22 @@ function viewFor(N,s){
 function cardBackSvg(x,y,w,h,U){
   return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${.25*U}" fill="#7d1f2c" stroke="#f6ecd6" stroke-width="${U*.08}"/>
     <rect x="${x+U*.22}" y="${y+U*.22}" width="${w-U*.44}" height="${h-U*.44}" rx="${.15*U}" fill="url(#backpat)" stroke="#e8c779" stroke-width="${U*.05}"/>
-    ${iconAt('sparkle',x+w/2,y+h/2,U*1.3,'#f3d488',1.6)}`;
+    ${logoSvg(x+w/2,y+h/2,Math.min(w,h)*.62)}`;
+}
+/* the game's logo: a gold medallion with a jester hat and three pegs */
+function logoSvg(cx,cy,size){
+  const k=size/48;
+  return `<g transform="translate(${cx-size/2} ${cy-size/2}) scale(${k})">
+    <circle cx="24" cy="24" r="22.5" fill="#5c1520" stroke="#f3d488" stroke-width="2.2"/>
+    <circle cx="24" cy="24" r="18.6" fill="none" stroke="#f3d488" stroke-opacity=".75" stroke-width=".9" stroke-dasharray="1.3 2.1"/>
+    <g transform="translate(12 6.5)" stroke="#f3d488" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M6 17.5C5 13 4 9.5 2.8 7c3 .6 5.6 2.7 7.2 6.2L12 7.5l2 5.7c1.6-3.5 4.2-5.6 7.2-6.2-1.2 2.5-2.2 6-3.2 10.5z" fill="#e2b24d"/>
+      <path d="M5.5 17.5h13v2.5h-13z" fill="#c9952f"/>
+      <circle cx="2.8" cy="5.6" r="1.5" fill="#f3d488"/><circle cx="21.2" cy="5.6" r="1.5" fill="#f3d488"/><circle cx="12" cy="5.9" r="1.5" fill="#f3d488"/></g>
+    <circle cx="17.5" cy="35.5" r="2.4" fill="#d42a1e" stroke="#f3d488" stroke-width=".6"/>
+    <circle cx="24" cy="36.6" r="2.4" fill="#2a9be0" stroke="#f3d488" stroke-width=".6"/>
+    <circle cx="30.5" cy="35.5" r="2.4" fill="#36a84a" stroke="#f3d488" stroke-width=".6"/>
+  </g>`;
 }
 let grainCache='';
 function grainURL(){
@@ -1347,7 +1411,7 @@ function applyColors(){
 }
 
 /* ---------- rendering ---------- */
-function handSeat(){ if(G&&G.replay)return -1; if(isOnline())return net.mySeat; return opt.human==='pass'?G.turn:0; }
+function handSeat(){ if(G&&G.replay)return -1; if(!isOnline()&&opt.human==='watch')return -1; if(isOnline())return net.mySeat; return opt.human==='pass'?G.turn:0; }
 function renderAll(){renderScore();renderHand();renderPegs();renderTargets();renderCenter();renderSides();renderStatus();renderLog();renderDice();}
 const PIPS={1:[5],2:[3,7],3:[3,5,7],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
 function dieHtml(v,spin){
@@ -1442,8 +1506,7 @@ function cardSvgInner(c,seatCol,w,h,U){
   const joker=c.rank==='JOKER';
   const col=joker?'#7a3d9a':(c.suit===1||c.suit===2)?'#c63c2b':'#1d1d1b';
   let face;
-  if(joker) face=['J','O','K','E','R'].map((ch,k)=>`<text x="0" y="${-h/2+U*.95+k*U*.62}" text-anchor="middle" font-size="${U*.62}" font-weight="700" fill="${col}">${ch}</text>`).join('')+
-    `<text x="${w/2-U*.22}" y="${h/2-U*.3}" text-anchor="end" font-size="${U*.36}" font-weight="700" fill="#5f5c55" font-family="Figtree,sans-serif">wild</text>`;
+  if(joker) face=['J','O','K','E','R'].map((ch,k)=>`<text x="0" y="${-h/2+U*.95+k*U*.62}" text-anchor="middle" font-size="${U*.62}" font-weight="700" fill="${col}">${ch}</text>`).join('');
   else face=`<text x="${-w/2+U*.22}" y="${-h/2+U*.78}" font-size="${U*.78}" font-weight="700" fill="${col}">${c.rank}</text>
     <text x="${w/2-U*.22}" y="${h/2-U*.25}" text-anchor="end" font-size="${U*.78}" font-weight="700" fill="${col}" transform="rotate(180 ${w/2-U*.5} ${h/2-U*.5})">${c.rank}</text>
     ${suitAt(c.suit,0,U*.1,U*1.35,col)}`;
@@ -1559,7 +1622,7 @@ function renderLog(){$('#log').innerHTML=G.log.slice(0,8).map(x=>`<li>${esc(x)}<
 function tip(r){
   if(r==='JUMP')return 'Pick a peg, then any hole ahead.';
   if(r==='A')return 'Come out, or move 1.';
-  if(r==='7')return 'Move 7, split any way.';
+  if(r==='7')return 'Move 7, or split it between 2 pegs.';
   if(r==='8')return 'Move one peg back 8.';
   if(r==='J'||r==='Q'||r==='K')return `Come out, or move ${FWD[r]}.`;
   return `Move ${FWD[r]} forward.`;
@@ -1585,7 +1648,7 @@ function renderStatus(){
       (wait?`${wait} of ${MAXBURN}${wait>=MAXBURN?': a peg comes out free.':'.'} `:'')+'Tap a card.');
   }
   if(g.stuck[s]>0&&g.phase==='card'&&nothingOut(s))return setStatus(`Waiting to come out: ${g.stuck[s]} of ${MAXBURN}`,'Play a face card or Joker, or keep waiting.'+mateNote);
-  if(g.pend)return setStatus(`${g.pend.rem} left on your 7`,'Use all of it; each peg moves once.'+mateNote);
+  if(g.pend)return setStatus(`${g.pend.rem} left on your 7`,'Use all of it on one more peg.'+mateNote);
   if(g.phase==='joker')return setStatus('Joker is wild','Choose what it counts as below.');
   if(g.phase==='move')return setStatus(g.rank==="JUMP"?"Joker: jump ahead":`Playing ${g.rank}`,tip(g.rank)+mateNote);
   setStatus(nm(s)==='You'?'Your turn: play a card':nm(s)+': play a card',mateNote.trim());
@@ -1594,7 +1657,7 @@ function handSorted(hs){return G.hands[hs].slice().sort((a,b)=>{const ra=a.rank=
 const kbHint=()=>KEYS.on?(KEYS.mode==='twice'?' Or press its number to pick it, and again to play it.':' Or press its number to play it.'):'';
 function renderHand(){
   const hs=handSeat(), el=$('#hand'), pk=$('#picker');
-  if(hs<0){ $('#handTitle').textContent=G.replay?'Replay':'Watching'; $('#handHint').textContent=''; el.innerHTML=G.replay?'<p class="watch">Hands stay hidden in replays. Use the controls on the board to play, pause or jump.</p>':'<p class="watch">You are watching. Take a seat in Party before the next game.</p>'; pk.hidden=true; $('#cancelBtn').hidden=true; return; }
+  if(hs<0){ $('#handTitle').textContent=G.replay?'Replay':(!isOnline()&&opt.human==='watch')?'Bots only':'Watching'; $('#handHint').textContent=''; el.innerHTML=G.replay?'<p class="watch">Hands stay hidden in replays. Use the controls on the board to play, pause or jump.</p>':(!isOnline()&&opt.human==='watch')?'<p class="watch">Bots only: sit back and watch. Settings → Rules → Speed makes them play faster.</p>':'<p class="watch">You are watching. Take a seat in Party before the next game.</p>'; pk.hidden=true; $('#cancelBtn').hidden=true; return; }
   const hand=handSorted(hs);
   const live=isLocal(G.turn)&&!G.over&&!G.busy&&!G.pend&&!G.waiting&&G.turn===hs&&G.phase!=='draw';
   const ds=drawSeat(), db=$('#drawBtn'); db.hidden=ds<0; db.innerHTML=ico('cards')+(ds>=0&&shuffleAllowed(ds)?'Shuffle the pile':ds>=0&&ds!==G.turn?'Draw early':'Draw a card');
@@ -2355,10 +2418,12 @@ $('#invBody').addEventListener('click',e=>{
   if(q){ const slot=q.closest('.osum').querySelector('.qrslot'); if(slot.firstChild){slot.innerHTML='';return;} const box=document.createElement('div'); box.className='qrbox'; slot.appendChild(box); showQR(box,q.dataset.qr); }
 });
 document.querySelectorAll('[data-ico]').forEach(el=>{el.innerHTML=ico(el.dataset.ico);});
+$('#brandLogo').innerHTML=`<svg viewBox="0 0 48 48" width="30" height="30" aria-hidden="true">${logoSvg(24,24,48)}</svg>`;
 syncModeBtn();
 matchMedia('(prefers-color-scheme: dark)').addEventListener&&matchMedia('(prefers-color-scheme: dark)').addEventListener('change',syncModeBtn);
 $('#modeBtn').addEventListener('click',()=>{look.theme=isDarkNow()?'day':'night';saveLook();applyTheme();if(!$('#settings').hidden)renderSettings();toast(look.theme==='day'?'Day mode':'Night mode');});
 $('#partyBtn').addEventListener('click',openParty);
+$('#barParty').addEventListener('click',openParty);
 
 $('#partyClose').addEventListener('click',closeParty);
 $('#party').addEventListener('click',e=>{if(e.target.id==='party')closeParty();});
@@ -2409,7 +2474,7 @@ function saveHistory(){
   store.set(HKEY,txt);
 }
 function histTitle(r){const m=r.meta, d=new Date(m.date||r.meta.end||Date.now());
-  return `${m.mode===4?'2 v 2':'3 v 3'}${m.online?' online':m.human==='pass'?' pass & play':' vs bots'} · ${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}`;}
+  return `${m.mode===4?'2 v 2':'3 v 3'}${m.online?' online':m.human==='pass'?' pass & play':m.human==='watch'?' bots only':' vs bots'} · ${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}`;}
 function didWin(r){const me=r.meta.me; return me!=null&&me>=0&&me%2===r.winner;}
 function renderHist(){
   const h=loadHist(), el=$('#histList'); if(!el)return;
@@ -2609,7 +2674,7 @@ function rigEnemy(){ // park an enemy peg a little way ahead of your peg so ther
   if(j>=0&&!hitAt(0,target)){g.pegs[e][j]=rel; placePeg(e,j,true); renderAll();}
 }
 function startTutorial(){
-  $('#howModal').hidden=true;
+  closeSettings();
   if(isOnline()){toast('Leave the party first to play the tutorial.');return;}
   TUT.saved={mode:opt.mode,human:opt.human,autodraw:opt.autodraw}; opt.mode=4; opt.human='bots'; opt.autodraw=false;
   newGame(); G.tut=true; TUT.on=true; TUT.step=0; tutShow(); tutWatch();
@@ -2697,6 +2762,7 @@ function spotifyShow(u){
   const p=spotifyParts(u), d=$('#spDock');
   if(!p){toast('That isn\'t a Spotify link. In Spotify use Share, then Copy link, and paste it here.');return;}
   if(snd.on)setMusic(false);
+  if(!SPF.forceEmbed&&spTok()&&SPF.cid){ store.set('pj-spotify',u); spPremium(p).then(ok=>{ if(!ok){SPF.forceEmbed=true;spotifyShow(u);SPF.forceEmbed=false;} }); return; }
   const web=`https://open.spotify.com/${p.type}/${p.id}`, local=!/^https?:$/.test(location.protocol);
   const warn=local?"Spotify's player only works when the game is opened from a website (like GitHub Pages), not as a file or in a preview. Use Open in Spotify for now."
                   :"If this stays blank, your browser is blocking Spotify's player. Use Open in Spotify instead.";
@@ -2714,19 +2780,159 @@ $('#spUse').addEventListener('click',()=>spotifyShow($('#spUrl').value.trim()));
 $('#spUrl').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();spotifyShow(e.target.value.trim());} e.stopPropagation(); });
 $('#spDock').addEventListener('click',e=>{ if(e.target.id==='spReload'){const f=$('#spDock iframe'); if(f)f.src=f.src; return;} if(e.target.id==='spClose'){ $('#spDock').hidden=true; $('#spDock').innerHTML=''; store.set('pj-spotify',''); } });
 $('#spUrl').value=store.get('pj-spotify')||'';
+
+/* ---------- Spotify Premium player: full songs, play/pause, skip, seek and volume (Spotify Web Playback SDK) ---------- */
+const SPF={cid:store.get('pj-sp-cid')||'',player:null,dev:null,state:null,stamp:0,tick:0,pending:null,sdk:null};
+function spTok(){try{return JSON.parse(store.get('pj-sp-tok')||'null');}catch(e){return null;}}
+function spSaveTok(t){store.set('pj-sp-tok',t?JSON.stringify(t):'');}
+const spRedirect=()=>location.origin+location.pathname;
+const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+function rnd(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return Array.from(a,x=>'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x%62]).join('');}
+async function spConnect(){
+  const cid=$('#spCid').value.trim();
+  if(!/^[0-9a-f]{32}$/i.test(cid)){toast('That doesn\'t look like a Client ID. It\'s 32 letters and numbers.');return;}
+  if(!/^https?:$/.test(location.protocol)){toast('Open the game from its website to connect Spotify.');return;}
+  if(!crypto.subtle){toast('This browser can\'t sign in to Spotify here.');return;}
+  SPF.cid=cid; store.set('pj-sp-cid',cid);
+  const ver=rnd(64), st=rnd(16), ch=b64u(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ver)));
+  store.set('pj-sp-ver',ver); store.set('pj-sp-state',st);
+  const q=new URLSearchParams({client_id:cid,response_type:'code',redirect_uri:spRedirect(),code_challenge_method:'S256',code_challenge:ch,state:st,
+    scope:'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state'});
+  location.href='https://accounts.spotify.com/authorize?'+q;
+}
+async function spTokenCall(body){
+  const r=await fetch('https://accounts.spotify.com/api/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)});
+  if(!r.ok)throw new Error('token '+r.status); const j=await r.json();
+  const old=spTok()||{}; const t={a:j.access_token,r:j.refresh_token||old.r,e:Date.now()+(j.expires_in||3600)*1000}; spSaveTok(t); return t;
+}
+async function spGetToken(){
+  let t=spTok(); if(!t)throw new Error('none');
+  if(Date.now()>t.e-60000){ if(!t.r)throw new Error('expired'); t=await spTokenCall({grant_type:'refresh_token',refresh_token:t.r,client_id:SPF.cid}); }
+  return t.a;
+}
+async function spFinishLogin(){ // back from Spotify's sign-in page
+  const q=new URLSearchParams(location.search), code=q.get('code'), st=q.get('state'), err=q.get('error');
+  if(!code&&!err)return;
+  try{history.replaceState(null,'',location.pathname+location.hash);}catch(e){}
+  if(err||st!==store.get('pj-sp-state')){toast('Spotify sign-in was cancelled.');return;}
+  try{ await spTokenCall({grant_type:'authorization_code',code,redirect_uri:spRedirect(),client_id:SPF.cid,code_verifier:store.get('pj-sp-ver')||''});
+    toast('Spotify connected! Full songs are on.'); renderSpSettings();
+    const link=store.get('pj-spotify'); if(link)spotifyShow(link);
+  }catch(e){ toast('Spotify sign-in didn\'t finish. Check the Redirect URI matches exactly.'); }
+}
+function loadSpSdk(){
+  if(window.Spotify&&window.Spotify.Player)return Promise.resolve();
+  if(SPF.sdk)return SPF.sdk;
+  SPF.sdk=new Promise((res,rej)=>{ window.onSpotifyWebPlaybackSDKReady=res;
+    const sc=document.createElement('script'); sc.src='https://sdk.scdn.co/spotify-player.js'; sc.onerror=()=>{SPF.sdk=null;rej();}; document.head.appendChild(sc);
+    setTimeout(()=>rej(new Error('timeout')),15000); });
+  return SPF.sdk;
+}
+async function spApi(path,method,body){
+  const tok=await spGetToken();
+  return fetch('https://api.spotify.com/v1'+path,{method:method||'GET',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+}
+async function spPlay(p,tries){
+  const body=p.type==='track'||p.type==='episode'?{uris:[`spotify:${p.type}:${p.id}`]}:{context_uri:`spotify:${p.type}:${p.id}`};
+  const r=await spApi('/me/player/play?device_id='+encodeURIComponent(SPF.dev),'PUT',body);
+  if(r.status===404&&(tries||0)<4){setTimeout(()=>spPlay(p,(tries||0)+1),900);return;}
+  if(!r.ok&&r.status!==204){const t=await r.text().catch(()=>''); toast(/PREMIUM/i.test(t)?'Spotify Premium is needed for full songs.':'Spotify couldn\'t start that. Try another link.');}
+}
+async function spPremium(p){ // returns false if the Premium player can't be used, so the normal corner player is shown instead
+  if(!spTok()||!SPF.cid)return false;
+  try{ await spGetToken(); await loadSpSdk(); }catch(e){ return false; }
+  spDockPremium();
+  if(!SPF.player){
+    SPF.player=new Spotify.Player({name:'The Roaming of the Joker',getOAuthToken:cb=>{spGetToken().then(cb).catch(()=>{});},volume:Math.max(.05,snd.vol/100)});
+    SPF.player.addListener('ready',({device_id})=>{SPF.dev=device_id; if(SPF.pending){spPlay(SPF.pending);SPF.pending=null;}});
+    SPF.player.addListener('not_ready',()=>{SPF.dev=null;});
+    SPF.player.addListener('player_state_changed',st=>{SPF.state=st;SPF.stamp=Date.now();renderSpPlayer();});
+    const fail=msg=>()=>{toast(msg); spFallback();};
+    SPF.player.addListener('account_error',fail('Spotify Premium is needed for full songs. Showing the normal player.'));
+    SPF.player.addListener('authentication_error',()=>{spSaveTok(null);renderSpSettings();toast('Spotify sign-in expired. Connect again in Settings → Sound.');spFallback();});
+    SPF.player.addListener('initialization_error',fail('This browser can\'t play Spotify here. Showing the normal player.'));
+    await SPF.player.connect();
+  }
+  if(SPF.dev)spPlay(p); else SPF.pending=p;
+  clearInterval(SPF.tick); SPF.tick=setInterval(renderSpProgress,500);
+  return true;
+}
+function spFallback(){ const link=store.get('pj-spotify'); SPF.forceEmbed=true; if(link)spotifyShow(link); SPF.forceEmbed=false; }
+const fmtT=ms=>{ms=Math.max(0,ms|0);const s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+function spDockPremium(){
+  const d=$('#spDock'); d.hidden=false;
+  d.innerHTML=`<div class="sphead"><span class="lab">Spotify Premium</span><button class="ghost sm" type="button" id="spClose">Close</button></div>
+    <div class="spnow"><img id="spArt" alt="" width="56" height="56"><div><b id="spTitle">Starting…</b><small id="spArtist"></small></div></div>
+    <div class="spctl"><button class="ghost icobtn" type="button" id="spPrev" aria-label="Previous song">${ico('prev')}</button>
+      <button class="primary icobtn" type="button" id="spToggle" aria-label="Play or pause">${ico('pause')}</button>
+      <button class="ghost icobtn" type="button" id="spNext" aria-label="Next song">${ico('next')}</button></div>
+    <div class="spseek"><small id="spPos">0:00</small><input type="range" id="spSeek" min="0" max="1000" value="0" aria-label="Song position"><small id="spDur">0:00</small></div>
+    <label class="slider spvol"><span class="volico">${ico('volLow')}</span><input type="range" id="spVol" min="0" max="100" value="${snd.vol}" aria-label="Spotify volume"><span class="volico">${ico('volHigh')}</span></label>`;
+}
+function renderSpPlayer(){
+  const st=SPF.state; if(!st||!$('#spTitle'))return;
+  const tr=st.track_window&&st.track_window.current_track;
+  if(tr){ $('#spTitle').textContent=tr.name; $('#spArtist').textContent=(tr.artists||[]).map(a=>a.name).join(', ');
+    const im=(tr.album&&tr.album.images||[]).slice(-1)[0]; if(im&&$('#spArt').src!==im.url)$('#spArt').src=im.url; }
+  $('#spToggle').innerHTML=ico(st.paused?'play':'pause');
+  $('#spDur').textContent=fmtT(st.duration); $('#spSeek').max=Math.max(1,st.duration);
+  renderSpProgress();
+}
+function renderSpProgress(){
+  const st=SPF.state, el=$('#spSeek'); if(!st||!el||SPF.dragging)return;
+  const pos=Math.min(st.duration,st.position+(st.paused?0:Date.now()-SPF.stamp));
+  el.value=pos; $('#spPos').textContent=fmtT(pos);
+}
+$('#spDock').addEventListener('click',e=>{
+  if(!SPF.player)return; const b=e.target.closest('button'); if(!b)return;
+  if(b.id==='spToggle')SPF.player.togglePlay(); else if(b.id==='spNext')SPF.player.nextTrack(); else if(b.id==='spPrev')SPF.player.previousTrack();
+  else if(b.id==='spClose'){ SPF.player.pause(); clearInterval(SPF.tick); }
+});
+$('#spDock').addEventListener('input',e=>{
+  if(e.target.id==='spVol'&&SPF.player)SPF.player.setVolume(Math.max(0,+e.target.value)/100);
+  if(e.target.id==='spSeek'){SPF.dragging=true; $('#spPos').textContent=fmtT(+e.target.value);}
+});
+$('#spDock').addEventListener('change',e=>{ if(e.target.id==='spSeek'&&SPF.player){SPF.player.seek(+e.target.value); SPF.dragging=false;} });
+function renderSpSettings(){
+  $('#spRedir').textContent=spRedirect(); $('#spCid').value=SPF.cid;
+  const on=!!spTok(); $('#spDisconnect').hidden=!on;
+  $('#spStatus').textContent=on?'Connected: Spotify links play full songs with volume, skip and seek (Spotify Premium needed).':'Not connected. Without this, the corner player plays 30-second clips unless you\'re signed in to Spotify.';
+}
+$('#spConnect').addEventListener('click',spConnect);
+$('#spCid').addEventListener('keydown',e=>{e.stopPropagation(); if(e.key==='Enter')spConnect();});
+$('#spCopyRedir').addEventListener('click',()=>copyText(spRedirect(),'Redirect URI copied.'));
+$('#spDisconnect').addEventListener('click',()=>{ spSaveTok(null); if(SPF.player){SPF.player.disconnect();SPF.player=null;SPF.dev=null;} renderSpSettings(); toast('Spotify disconnected.'); });
+renderSpSettings(); spFinishLogin();
+
+/* ---------- the Spotify player can be dragged anywhere by its top bar; the spot is remembered ---------- */
+(function(){
+  const d=$('#spDock'); let drag=null;
+  const place=(x,y)=>{ const w=d.offsetWidth,h=d.offsetHeight; x=Math.max(6,Math.min(innerWidth-w-6,x)); y=Math.max(6,Math.min(innerHeight-h-6,y));
+    Object.assign(d.style,{left:x+'px',top:y+'px',right:'auto',bottom:'auto'}); return [x,y]; };
+  const saved=()=>{try{return JSON.parse(store.get('pj-spdock')||'null');}catch(e){return null;}};
+  const restore=()=>{ const sv=saved(); if(sv&&!d.hidden)requestAnimationFrame(()=>place(sv[0]*innerWidth,sv[1]*innerHeight)); };
+  new MutationObserver(restore).observe(d,{attributes:true,attributeFilter:['hidden']});
+  d.addEventListener('pointerdown',e=>{
+    const h=e.target.closest('.sphead'); if(!h||e.target.closest('button,a,input'))return;
+    const r=d.getBoundingClientRect(); drag={dx:e.clientX-r.left,dy:e.clientY-r.top,id:e.pointerId};
+    try{h.setPointerCapture(e.pointerId);}catch(x){} d.classList.add('dragging'); e.preventDefault();
+  });
+  d.addEventListener('pointermove',e=>{ if(!drag||e.pointerId!==drag.id)return; place(e.clientX-drag.dx,e.clientY-drag.dy); });
+  const end=()=>{ if(!drag)return; drag=null; d.classList.remove('dragging');
+    const r=d.getBoundingClientRect(); store.set('pj-spdock',JSON.stringify([r.left/innerWidth,r.top/innerHeight])); };
+  d.addEventListener('pointerup',end); d.addEventListener('pointercancel',end);
+  addEventListener('resize',()=>{ if(d.hidden||!d.style.left)return; const r=d.getBoundingClientRect(); place(r.left,r.top); });
+})();
 /* top bars */
 function syncBars(){
   const on=isOnline(); renderChat();
   $('#partyLabel').textContent=net.role&&net.code&&net.status==='lobby'?'Party · '+net.code:'Party';
   $('#newBtn').hidden=on&&net.role!=='host';
-  const pb=$('#partybar'); pb.hidden=!on;
-  if(on){
-    const s=net.mySeat;
-    pb.innerHTML=`<span>Online party <b>${esc(net.code)}</b> · ${s>=0?`You are seat ${s+1}, Team ${s%2+1}`:'You are watching'} · ${net.players.length} player${net.players.length===1?'':'s'}</span>
-      <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="ghost sm" type="button" id="pbOpen">Party menu</button>${net.role==='host'?'<button class="primary sm" type="button" id="pbNew">New game</button>':''}</span>`;
-    $('#pbOpen').addEventListener('click',openParty);
-    const nb=$('#pbNew'); if(nb)nb.addEventListener('click',()=>{ if(!G.over&&!confirm('Start a new game? The current game will end.'))return; hostStart(); });
-  }
+  $('#partybar').hidden=true;
+  const chip=$('#barParty'), inP=!!(net.role&&net.code&&net.status==='lobby'); chip.hidden=!inP;
+  if(inP){ const s=net.mySeat, seated=net.seats.filter(Boolean).length;
+    chip.innerHTML=`<b>${esc(net.code)}</b><span>${s>=0?`Seat ${s+1} · Team ${s%2+1}`:'Watching'}</span><span>${net.players.length} in party · ${seated}/${net.mode} seats</span>`;
+    chip.title='Open the party menu'; }
 }
 
 /* ---------- controls ---------- */
@@ -2742,7 +2948,7 @@ function seg(id,key,restart,parse,after){
   });
 }
 seg('#segMode','mode',false,Number);
-seg('#segHuman','human',false,null,()=>{$('#ngNote').textContent=opt.human==='pass'?'Everyone shares this device. Hands hide between turns.':'Bots play the other seats.';});
+seg('#segHuman','human',false,null,()=>{$('#ngNote').textContent=opt.human==='pass'?'Everyone shares this device. Hands hide between turns.':opt.human==='watch'?'Every seat is a bot. They play until one team wins.':'Bots play the other seats.';});
 seg('#segTeam','tm',false,null,saveOpts);
 seg('#segSpeed','speed',false,Number,saveOpts);
 seg('#segDraw','autodraw',false,v=>v==='auto',saveOpts);
@@ -2753,9 +2959,7 @@ $('#newBtn').addEventListener('click',()=>{ if(isOnline()){ if(net.role==='host'
 $('#ngStart').addEventListener('click',()=>{$('#ngModal').hidden=true; newGame();});
 $('#ngClose').addEventListener('click',()=>{$('#ngModal').hidden=true;});
 $('#ngModal').addEventListener('click',e=>{if(e.target.id==='ngModal')$('#ngModal').hidden=true;});
-$('#howBtn').addEventListener('click',()=>{$('#howModal').hidden=false;$('#howClose').focus();});
-$('#howClose').addEventListener('click',()=>{$('#howModal').hidden=true;});
-$('#howModal').addEventListener('click',e=>{if(e.target.id==='howModal')$('#howModal').hidden=true;});
+
 
 $('#cancelBtn').addEventListener('click',()=>{if(G.pend)return; if(G.selCard||G.phase==='discard'){clearSel();renderAll();}});
 $('#drawBtn').addEventListener('click',onDeckClick);
