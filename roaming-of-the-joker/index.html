@@ -673,6 +673,15 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
     <div class="rule"><span class="lab">Betting</span>
       <label class="bet"><input type="checkbox" id="betOn"> Bet $<input type="number" id="stake" min="1" step="1" value="5" aria-label="Stake per peg in dollars"> per peg</label>
       <p>Play money: losers pay per peg out; winners split it.</p></div>
+    <div class="rule"><span class="lab">The 4 card</span>
+      <div class="seg" id="segFour"><button data-v="fwd" aria-pressed="true">Forward 4</button><button data-v="back" aria-pressed="false">Back 4</button></div>
+      <p>Some families play the 4 backward. Starts with your next game.</p></div>
+    <div class="rule"><span class="lab">The 9 card</span>
+      <div class="seg" id="segNine"><button data-v="one" aria-pressed="true">One peg 9</button><button data-v="split" aria-pressed="false">Split 3 + 3 + 3</button></div>
+      <p>Split lets a 9 move three different pegs 3 each. Starts with your next game.</p></div>
+    <div class="rule"><span class="lab">Sideways cards</span>
+      <div class="seg" id="segSide"><button data-v="3" aria-pressed="true">1 out of 3</button><button data-v="5" aria-pressed="false">1 out of 5</button></div>
+      <p>How many sideways cards before a peg comes out free. 5 is the older rule. Starts with your next game.</p></div>
     <div class="rule"><span class="lab">Draw</span>
       <div class="seg" id="segDraw"><button data-v="tap" aria-pressed="true">Tap</button><button data-v="auto" aria-pressed="false">Auto</button></div>
       <p>Auto draws your card when your turn starts.</p></div>
@@ -732,6 +741,13 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
       <li>With nothing on the track, the turns count 1 out of 3, 2 out of 3, 3 out of 3, and the sideways cards pile up beside your home.</li>
       <li>On turn 2 or 3 you can play a face card or Joker to come out (your sideways cards then go to the played pile), or turn another card sideways to keep waiting.</li>
       <li>On the third, a peg comes out for free no matter what, and the 3 sideways cards are shuffled back into the draw pile. If it happens again later, the count starts over.</li>
+    </ul>
+    <h3>House rules (Settings, Rules)</h3>
+    <ul>
+      <li><b>The 4 card:</b> forward 4 (normal), or back 4.</li>
+      <li><b>The 9 card:</b> one peg moves 9 (normal), or split it so three different pegs move 3 each.</li>
+      <li><b>Sideways cards:</b> a peg comes out free after 3 (1 out of 3), or after 5 with the older rule (1 out of 5).</li>
+      <li>Changes start with your next game. Online, the host picks these in Party options.</li>
     </ul>
     <h3>Playing online</h3>
     <ol>
@@ -892,10 +908,10 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const opt={mode:4,human:'bots',tm:'entry',bet:false,stake:5,speed:1,autodraw:false,autoshuffle:true,ledger:Array(6).fill(0)};
+const opt={mode:4,human:'bots',tm:'entry',bet:false,stake:5,speed:1,autodraw:false,autoshuffle:true,four:'fwd',nine:'one',side:3,ledger:Array(6).fill(0)};
 try{const o=JSON.parse(store.get('pj-opts')||'null');
-  if(o){if(o.tm==='home'||o.tm==='entry'||o.tm==='finish')opt.tm='entry'; opt.bet=!!o.bet; if(o.stake>0)opt.stake=Math.floor(o.stake); if(o.speed===0.5||o.speed===1)opt.speed=o.speed; opt.autodraw=!!o.autodraw; opt.autoshuffle=o.autoshuffle!==false;}}catch(e){}
-function saveOpts(){store.set('pj-opts',JSON.stringify({tm:opt.tm,bet:opt.bet,stake:opt.stake,speed:opt.speed,autodraw:opt.autodraw,autoshuffle:opt.autoshuffle}));}
+  if(o){if(o.tm==='home'||o.tm==='entry'||o.tm==='finish')opt.tm='entry'; opt.bet=!!o.bet; if(o.stake>0)opt.stake=Math.floor(o.stake); if(o.speed===0.5||o.speed===1)opt.speed=o.speed; opt.autodraw=!!o.autodraw; opt.autoshuffle=o.autoshuffle!==false; if(o.four==='back')opt.four='back'; if(o.nine==='split')opt.nine='split'; if(o.side===5)opt.side=5;}}catch(e){}
+function saveOpts(){store.set('pj-opts',JSON.stringify({tm:opt.tm,bet:opt.bet,stake:opt.stake,speed:opt.speed,autodraw:opt.autodraw,autoshuffle:opt.autoshuffle,four:opt.four,nine:opt.nine,side:opt.side}));}
 const dly=ms=>(G&&G.fast)?Promise.resolve():sleep(reduce?0:ms*opt.speed);
 
 /* looks: table theme, board wood, peg color sets */
@@ -1141,8 +1157,24 @@ function canFinish7(s,rem,excl){
   } finally { G.pegs=saved; }
   if(memo7.size>40000)memo7.clear(); memo7.set(key,ok); return ok;
 }
+const pendR=()=>(G.pend&&G.pend.r)||'7';
+/* house rule: a 9 can be split into 3 + 3 + 3 over three different pegs */
+function canFinish9(s,need,ex){
+  if(need<=0)return true;
+  const saved=G.pegs;
+  try{ for(const m of rawMoves(s,'3',0)){ if(ex.includes(m.o+'-'+m.i))continue; G.pegs=simMove(saved,m); const ok=canFinish9(s,need-3,ex.concat(m.o+'-'+m.i)); G.pegs=saved; if(ok)return true; } }
+  finally{ G.pegs=saved; }
+  return false;
+}
+function moves9(s,rem){
+  const inSplit=G.pend&&G.pend.r==='9', ex=inSplit?G.pend.moved:[], saved=G.pegs;
+  const three=rawMoves(s,'3',0).filter(m=>!ex.includes(m.o+'-'+m.i)).filter(m=>{ G.pegs=simMove(saved,m); const ok=canFinish9(s,(inSplit?rem:9)-3,ex.concat(m.o+'-'+m.i)); G.pegs=saved; return ok; });
+  G.pegs=saved;
+  return inSplit?three:rawMoves(s,'9',0).concat(three);
+}
 function movesFor(s,r,rem,excl){
-  if(!excl)excl=r==='7'&&G.pend&&G.pend.moved?G.pend.moved:[];
+  if(r==='9'&&G.rules&&G.rules.nine==='split')return moves9(s,rem);
+  if(!excl)excl=r==='7'&&G.pend&&G.pend.moved&&pendR()==='7'?G.pend.moved:[];
   const res=rawMoves(s,r,rem,excl);
   if(r!=='7')return res;
   if(excl.length)return res.filter(m=>m.steps===rem); // second (and last) peg of a split 7 takes the rest
@@ -1180,14 +1212,14 @@ function rawMoves0(s,r,rem,excl){
     for(let i=0;i<PEGS;i++){
       if(pg[i]<0)continue;
       if(r==='7'){ if(excl&&excl.includes(o+'-'+i))continue; for(let k=1;k<=rem;k++){const m=fwd(o,i,k); if(m)res.push(m);} }
-      else if(r==='8'){const m=back(o,i,8); if(m)res.push(m);}
+      else if(r==='8'||(r==='4'&&G.rules&&G.rules.four==='back')){const m=back(o,i,r==='8'?8:4); if(m)res.push(m);}
       else {const m=fwd(o,i,FWD[r]); if(m)res.push(m);}
     }
   }
   return res;
 }
 const ranksOf=c=>c.rank==='JOKER'?['JUMP']:[c.rank];
-const cardLegal=(s,c)=>ranksOf(c).some(r=>movesFor(s,r,r==='7'?7:0).length>0);
+const cardLegal=(s,c)=>ranksOf(c).some(r=>movesFor(s,r,r==='7'?7:r==='9'?9:0).length>0);
 const anyLegal=s=>G.hands[s].some(c=>cardLegal(s,c));
 const RANKNAME={A:'Ace',J:'Jack',Q:'Queen',K:'King'};
 function cardText(c,r){return c.rank==='JOKER'?(r==='JUMP'?'Joker to jump ahead':r==='JOKER'||!r?'a Joker':'Joker as '+r):(RANKNAME[c.rank]||c.rank)+' of '+SUITS[c.suit];}
@@ -1196,6 +1228,8 @@ function cardHint(r){
   if(r==='A')return 'Out or 1';
   if(r==='7')return 'Exactly 7';
   if(r==='8')return 'Back 8';
+  if(r==='4'&&G&&G.rules&&G.rules.four==='back')return 'Back 4';
+  if(r==='9'&&G&&G.rules&&G.rules.nine==='split')return '9 or 3+3+3';
   if(r==='J'||r==='Q'||r==='K')return 'Out or '+FWD[r];
   return 'Move '+FWD[r];
 }
@@ -1209,7 +1243,8 @@ function newGame(seed,online,rp){
   G={N,online:!!online,rng:mulberry32(seed),pegs:[...Array(N)].map(()=>Array(PEGS).fill(-1)),hands:[...Array(N)].map(()=>[]),deck:[],discard:[],
      turn:0,phase:'',pend:null,selCard:null,rank:null,selPeg:null,moves:[],over:false,busy:false,log:[],lastPlay:null,pegEl:[],
      queue:[],pumping:false,turnNo:0,notified:-1,sideBy:[],waiting:false,ang:0,burns:0,stuck:Array(N).fill(0),sideCard:Array(N).fill(null),sideShown:{},seen:new Set(),drawPending:false,dice:null,kbT:-1,kbB:-1,
-     rules:{autoshuffle:online?po.autoshuffle!==false:opt.autoshuffle, first:online?po.first:'me', tie:online?po.tie:'first'}};
+     rules:{autoshuffle:online?po.autoshuffle!==false:opt.autoshuffle, first:online?po.first:'me', tie:online?po.tie:'first',
+       four:(online?po.four:opt.four)==='back'?'back':'fwd', nine:(online?po.nine:opt.nine)==='split'?'split':'one', side:(online?po.side:opt.side)===5?5:3}};
   G.seed=seed; G.rec=[]; if(rp){G.replay=rp; G.meta=rp.meta; G.rules=Object.assign({},rp.meta.rules);}
   COLORS=rp?rp.meta.colors.slice():online?net.colors:PEGC[N];
   G.deck=makeDeck(G.rng);
@@ -1656,7 +1691,7 @@ function renderSides(){
     if(!el){el=document.createElementNS('http://www.w3.org/2000/svg','g');el.id='sd-'+s;g.appendChild(el);}
     if(G.sideShown[s]===key)continue; G.sideShown[s]=key;
     if(!st.length){el.innerHTML='';continue;}
-    const sp=sideSpots(G.N)[s], w=2.6*U, h=3.6*U, n=st.length, step=U*SIDE_STEP;
+    const sp=sideSpots(G.N)[s], w=2.6*U, h=3.6*U, n=st.length, step=U*SIDE_STEP*(n>3?2/(n-1):1);
     el.innerHTML=`<g transform="translate(${sp.x} ${sp.y}) rotate(${sp.a}) scale(${SIDE_SC})">`+
       st.map((c,k)=>`<g class="sidecard" transform="translate(${k%2?U*.12:0} ${(k-(n-1)/2)*step})">${cardSvgInner(c,COLORS[s],w,h,U)}</g>`).join('')+`</g>`+
       (sc&&sc.n?`<g transform="translate(${sp.bx} ${sp.by}) scale(${SIDE_BADGE})"><g transform="translate(${-sp.bx} ${-sp.by})">${sideBadge(sc,sp.bx,sp.by,U)}</g></g>`:'');
@@ -1665,9 +1700,9 @@ function renderSides(){
 /* "1 out of 3" tag and three dots: counts your turns in a row with no move and nothing out; the third lets a peg out */
 function sideBadge(sc,x,y,U){
   const n=sc.n, w=U*2.5, h=U*1.05;
-  let dots=''; for(let k=0;k<MAXBURN;k++)dots+=`<circle cx="${(k-(MAXBURN-1)/2)*U*.45}" cy="${U*.27}" r="${U*.12}" fill="${k<n?'#ffd45c':'#fff'}" fill-opacity="${k<n?1:.35}"/>`;
+  let dots=''; for(let k=0;k<mb();k++)dots+=`<circle cx="${(k-(mb()-1)/2)*U*.45}" cy="${U*.27}" r="${U*.12}" fill="${k<n?'#ffd45c':'#fff'}" fill-opacity="${k<n?1:.35}"/>`;
   return `<g transform="translate(${x} ${y}) rotate(${-G.ang})"><g class="sidebadge"><rect x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" rx="${U*.28}" fill="#1d1d1b" fill-opacity=".9" stroke="${COLORS[sc.s]}" stroke-width="${U*.08}"/>
-    <text x="0" y="${-U*.06}" text-anchor="middle" font-size="${U*.34}" font-weight="700" fill="#fff" font-family="Arvo,Georgia,serif">${n} out of ${MAXBURN}</text>${dots}</g></g>`;
+    <text x="0" y="${-U*.06}" text-anchor="middle" font-size="${U*.34}" font-weight="700" fill="#fff" font-family="Arvo,Georgia,serif">${n} out of ${mb()}</text>${dots}</g></g>`;
 }
 function counts(s){const p=G.pegs[s];return {home:p.filter(x=>x<0).length,out:p.filter(x=>x>=0&&x<T).length,fin:p.filter(x=>x>=T).length};}
 function renderScore(){
@@ -1693,6 +1728,8 @@ function tip(r){
   if(r==='A')return 'Come out, or move 1.';
   if(r==='7')return 'Move 7, or split it between 2 pegs.';
   if(r==='8')return 'Move one peg back 8.';
+  if(r==='4'&&G.rules&&G.rules.four==='back')return 'Move one peg back 4.';
+  if(r==='9'&&G.rules&&G.rules.nine==='split')return 'Move one peg 9, or move 3 pegs 3 each.';
   if(r==='J'||r==='Q'||r==='K')return `Come out, or move ${FWD[r]}.`;
   return `Move ${FWD[r]} forward.`;
 }
@@ -1714,10 +1751,10 @@ function renderStatus(){
   if(g.phase==='discard'){
     const vol=anyLegal(s), wait=nothingOut(s)&&g.pegs[controlled(s)[0]].some(p=>p<0)?g.stuck[s]+1:0;
     return setStatus(vol?'Keep waiting: turn a card sideways':(nm(s)==='You'?'No move: turn a card sideways':nm(s)+': no move, turn a card sideways'),
-      (wait?`${wait} of ${MAXBURN}${wait>=MAXBURN?': a peg comes out free.':'.'} `:'')+'Tap a card.');
+      (wait?`${wait} of ${mb()}${wait>=mb()?': a peg comes out free.':'.'} `:'')+'Tap a card.');
   }
-  if(g.stuck[s]>0&&g.phase==='card'&&nothingOut(s))return setStatus(`Waiting to come out: ${g.stuck[s]} of ${MAXBURN}`,'Play a face card or Joker, or keep waiting.'+mateNote);
-  if(g.pend)return setStatus(`${g.pend.rem} left on your 7`,'Use all of it on one more peg.'+mateNote);
+  if(g.stuck[s]>0&&g.phase==='card'&&nothingOut(s))return setStatus(`Waiting to come out: ${g.stuck[s]} of ${mb()}`,'Play a face card or Joker, or keep waiting.'+mateNote);
+  if(g.pend)return setStatus(`${g.pend.rem} left on your ${pendR()}`,(pendR()==='9'?'Move another peg 3.':'Use all of it on one more peg.')+mateNote);
   if(g.phase==='joker')return setStatus('Joker is wild','Choose what it counts as below.');
   if(g.phase==='move')return setStatus(g.rank==="JUMP"?"Joker: jump ahead":`Playing ${g.rank}`,tip(g.rank)+mateNote);
   setStatus(nm(s)==='You'?'Your turn: play a card':nm(s)+': play a card',mateNote.trim());
@@ -1734,8 +1771,8 @@ function renderHand(){
   $('#handHint').textContent=opt.human==='pass'&&!isOnline()?'Pass the device between turns so hands stay private.':(live?'Tap a card to play it.'+kbHint():'');
   const optBurn=live&&G.phase==='discard'&&anyLegal(hs);
   $('#cancelBtn').hidden=!(live&&(G.selCard||optBurn));
-  const bb=$('#burnBtn'); bb.hidden=!(live&&G.stuck[G.turn]>0&&G.stuck[G.turn]<MAXBURN&&nothingOut(G.turn)&&G.phase!=='discard'&&!G.selCard);
-  bb.textContent=`Keep waiting: turn a card sideways (${G.stuck[G.turn]+1} out of ${MAXBURN})`;
+  const bb=$('#burnBtn'); bb.hidden=!(live&&G.stuck[G.turn]>0&&G.stuck[G.turn]<mb()&&nothingOut(G.turn)&&G.phase!=='discard'&&!G.selCard);
+  bb.textContent=`Keep waiting: turn a card sideways (${G.stuck[G.turn]+1} out of ${mb()})`;
   el.innerHTML='';
   hand.forEach((c,ci)=>{
     const b=document.createElement('button'); b.type='button';
@@ -1792,7 +1829,7 @@ function onPegClick(o,i){
 }
 function playMove(m){
   const g=G; if(g.busy||g.waiting)return;
-  const a={t:'move',s:g.turn,cid:g.pend?null:g.selCard.id,r:g.pend?'7':g.rank,o:m.o,i:m.i,to:m.to,st:m.steps,kd:m.kind};
+  const a={t:'move',s:g.turn,cid:g.pend?null:g.selCard.id,r:g.pend?pendR():g.rank,o:m.o,i:m.i,to:m.to,st:m.steps,kd:m.kind};
   g.selPeg=null; g.moves=[]; g.kbT=-1; renderTargets(); renderPegs();
   act(a);
 }
@@ -1845,9 +1882,9 @@ async function apply(a){
   }
   if(a.t==='move'){
     let card=null, rank;
-    if(g.pend)rank='7';
+    if(g.pend)rank=pendR();
     else{card=g.hands[a.s].find(x=>x.id===a.cid); if(!card||!ranksOf(card).includes(a.r))return; rank=a.r;}
-    const rem=g.pend?g.pend.rem:(rank==='7'?7:0);
+    const rem=g.pend?g.pend.rem:(rank==='7'?7:rank==='9'?9:0);
     const m=movesFor(a.s,rank,rem).find(x=>x.o===a.o&&x.i===a.i&&x.to===a.to&&x.steps===a.st&&x.kind===a.kd);
     if(!m){renderAll();return;}
     await doMove(m,card,rank);
@@ -1867,8 +1904,8 @@ function freeOut(s){
   const i=g.pegs[o].findIndex(p=>p<0); if(i<0)return false;
   const m=outMove(o,i); if(!m)return false;
   g.busy=true; g.selCard=null;g.rank=null;g.selPeg=null;g.moves=[];
-  say(`${nm(s)==='You'?'You have':nm(s)+' has'} waited three turns, so a peg comes out for free.`);
-  if(isLocal(s))toast('Third turn waiting: a peg comes out for free.');
+  say(`${nm(s)==='You'?'You have':nm(s)+' has'} waited ${mb()} turns, so a peg comes out for free.`);
+  if(isLocal(s))toast(`${mb()} sideways cards: a peg comes out for free.`);
   renderAll();
   /* part of the move order (awaited), so fast catch-up and replays stay in step */
   return (async()=>{ await dly(900); if(g!==G)return; sideBack(s); renderAll(); await doMove(m,null,'A'); })();
@@ -1876,7 +1913,7 @@ function freeOut(s){
 /* no move: turn ONE card sideways (everyone sees it beside your home) and your turn ends.
    Nothing on the track? Count your turns in a row: the third one lets a peg out for free, no matter what.
    On turn 2 or 3 you may also choose to keep waiting even if you could play a card. */
-const MAXBURN=3;
+const mb=()=>(G&&G.rules&&G.rules.side)||3;
 const nothingOut=s=>!G.pegs[controlled(s)[0]].some(p=>p>=0&&p<T);
 function burnCard(s,c){
   const g=G; const h=g.hands[s]; h.splice(h.findIndex(x=>x.id===c.id),1);
@@ -1886,9 +1923,9 @@ function burnCard(s,c){
   if(count)(g.sideBy[s]=g.sideBy[s]||[]).push(c);
   else{ g.discard.push(...(g.sideBy[s]||[]),c); g.sideBy[s]=[]; }
   g.sideCard[s]={card:c,n,s};
-  say(`${nm(s)} turned ${c.rank==='JOKER'?'a Joker':cardText(c,c.rank)} sideways${n?`, ${n} out of ${MAXBURN}`:''}.`);
+  say(`${nm(s)} turned ${c.rank==='JOKER'?'a Joker':cardText(c,c.rank)} sideways${n?`, ${n} out of ${mb()}`:''}.`);
   g.selCard=null;g.rank=null;g.selPeg=null;g.moves=[];
-  if(n>=MAXBURN){ g.stuck[s]=0; const fo=freeOut(s); if(fo)return fo; sideBack(s); }
+  if(n>=mb()){ g.stuck[s]=0; const fo=freeOut(s); if(fo)return fo; sideBack(s); }
   endTurn();
 }
 
@@ -1921,6 +1958,7 @@ async function doMove(m,card,rank){
     g.lastPlay={s,card,rank}; g.selCard=null; g.rank=null;
     say(`${nm(s)} played ${cardText(card,rank)}.`);
     if(rank==='7')g.pend={rem:7,moved:[]};
+    if(rank==='9'&&m.steps===3&&g.rules.nine==='split')g.pend={r:'9',rem:9,moved:[]};
   }
   renderAll();
   const el=g.pegEl[m.o][m.i]; el.parentNode.appendChild(el);
@@ -1940,14 +1978,14 @@ async function doMove(m,card,rank){
   if(checkWin())return;
   if(g.pend&&g.pend.rem>0&&wasOwn&&controlled(s)[0]!==s){
     const mates=controlled(s).map(nm).join(' or ');
-    if(movesFor(s,'7',g.pend.rem).length){
-      say(`All of ${possessive(s)} pegs are in. The last ${g.pend.rem} of the 7 goes to ${mates}.`);
+    if(movesFor(s,pendR(),g.pend.rem).length){
+      say(`All of ${possessive(s)} pegs are in. The last ${g.pend.rem} of the ${pendR()} goes to ${mates}.`);
       if(isLocal(s))toast(`All pegs in! Move ${mates==='Teammate'?'your teammate':mates}'s pegs ${g.pend.rem} more.`);
     } else say(`All of ${possessive(s)} pegs are in, but ${mates} has no peg that can use the last ${g.pend.rem}.`);
   }
-  if(g.pend&&g.pend.rem>0&&movesFor(s,'7',g.pend.rem).length){
+  if(g.pend&&g.pend.rem>0&&movesFor(s,pendR(),g.pend.rem).length){
     g.busy=false;
-    if(isLocal(s)){g.phase='move';g.moves=movesFor(s,'7',g.pend.rem);g.rank='7';autoSel();renderAll();}
+    if(isLocal(s)){g.phase='move';g.moves=movesFor(s,pendR(),g.pend.rem);g.rank=pendR();autoSel();renderAll();}
     else if(isBot(s)&&isDriver()){g.phase='bot7';renderAll();botPick7();}
     else{g.phase='remote7';g.busy=true;renderAll();}
     return;
@@ -2032,9 +2070,9 @@ function botPlay(){
 }
 async function botPick7(){
   const g=G,s=g.turn; await dly(500); if(g!==G||!g.pend)return;
-  let best=null; for(const m of movesFor(s,'7',g.pend.rem)){const sc=score(m,null); if(!best||sc>best.sc)best={m,sc};}
+  let best=null; for(const m of movesFor(s,pendR(),g.pend.rem)){const sc=score(m,null); if(!best||sc>best.sc)best={m,sc};}
   if(!best){endTurn();return;}
-  const m=best.m; act({t:'move',s,cid:null,r:'7',o:m.o,i:m.i,to:m.to,st:m.steps,kd:m.kind});
+  const m=best.m; act({t:'move',s,cid:null,r:pendR(),o:m.o,i:m.i,to:m.to,st:m.steps,kd:m.kind});
 }
 
 /* ---------- toast ---------- */
@@ -2082,6 +2120,9 @@ function renderSettings(){
   $('#rulesNote').textContent=on?'These rules are locked during an online game. The host sets them before starting.':'You are in a party, so the host\'s rules will be used.';
   document.querySelectorAll('#segTeam button').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.v===opt.tm));b.disabled=lock;});
   document.querySelectorAll('#segShuf button').forEach(b=>{b.setAttribute('aria-pressed',String((b.dataset.v==='auto')===opt.autoshuffle));b.disabled=lock;});
+  document.querySelectorAll('#segFour button').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.v===opt.four));b.disabled=lock;});
+  document.querySelectorAll('#segNine button').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.v===opt.nine));b.disabled=lock;});
+  document.querySelectorAll('#segSide button').forEach(b=>{b.setAttribute('aria-pressed',String(+b.dataset.v===opt.side));b.disabled=lock;});
   document.querySelectorAll('#segDraw button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.v==='auto')===opt.autodraw)));
   document.querySelectorAll('#segSpeed button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.v===opt.speed)));
   $('#betOn').checked=opt.bet; $('#betOn').disabled=lock; $('#stake').value=opt.stake; $('#stake').disabled=lock;
@@ -2189,18 +2230,20 @@ const TR={
 };
 
 /* party options: picked by the host before making the party, shown to everyone in the lobby */
-const PDEF={mode:4,bet:false,stake:5,autoshuffle:true,first:'dice',tie:'reroll',tm:'entry'};
+const PDEF={mode:4,bet:false,stake:5,autoshuffle:true,first:'dice',tie:'reroll',tm:'entry',four:'fwd',nine:'one',side:3};
 const popts=Object.assign({},PDEF);
 try{const o=JSON.parse(store.get('pj-party')||'null'); if(o){
   if(o.mode===4||o.mode===6)popts.mode=o.mode; popts.bet=!!o.bet; if(o.stake>0)popts.stake=Math.min(9999,Math.floor(o.stake));
   popts.autoshuffle=o.autoshuffle!==false; if(o.first==='dice'||o.first==='host')popts.first=o.first;
-  if(o.tie==='reroll'||o.tie==='first')popts.tie=o.tie; if(o.tm==='finish'||o.tm==='entry'||o.tm==='home')popts.tm='entry'; }}catch(e){}
+  if(o.tie==='reroll'||o.tie==='first')popts.tie=o.tie; if(o.tm==='finish'||o.tm==='entry'||o.tm==='home')popts.tm='entry';
+  if(o.four==='back')popts.four='back'; if(o.nine==='split')popts.nine='split'; if(o.side===5)popts.side=5; }}catch(e){}
 function savePopts(){store.set('pj-party',JSON.stringify(popts));}
-const curOpts=()=>({bet:popts.bet,stake:popts.stake,autoshuffle:popts.autoshuffle,first:popts.first,tie:popts.tie,tm:popts.tm});
+const curOpts=()=>({bet:popts.bet,stake:popts.stake,autoshuffle:popts.autoshuffle,first:popts.first,tie:popts.tie,tm:popts.tm,four:popts.four,nine:popts.nine,side:popts.side});
 function optSummary(o){
   if(!o)return '';
   return [o.bet?`Betting on ($${o.stake} per peg)`:'Betting off', o.autoshuffle?'Auto shuffle':'Tap to shuffle',
     o.first==='dice'?`Dice decides who goes first${o.tie==='reroll'?' (ties roll again)':' (ties go to the first seat)'}`:'Host goes first',
+    o.four==='back'?'4 moves back 4':'4 moves forward', o.nine==='split'?'9 can split 3 + 3 + 3':'9 moves one peg', `${o.side===5?5:3} sideways cards to come out free`,
     'Landing on a teammate sends them to their lane entry'];
 }
 function optionsForm(o,mode,lockMode){
@@ -2212,6 +2255,9 @@ function optionsForm(o,mode,lockMode){
         <label class="field"><span class="lab">Betting</span>${sel('oBet',o.bet?'on':'off',[['off','Off'],['on','On']])}</label>
         <label class="field"${o.bet?'':' hidden'}><span class="lab">Stake per peg ($)</span><input class="tin" id="oStake" type="number" min="1" step="1" value="${o.stake}"></label>
         <label class="field"><span class="lab">Shuffle when the draw pile runs out</span>${sel('oShuf',o.autoshuffle?'auto':'tap',[['auto','Automatically'],['tap','Player taps to shuffle']])}</label>
+        <label class="field"><span class="lab">The 4 card</span>${sel('oFour',o.four==='back'?'back':'fwd',[['fwd','Moves forward 4'],['back','Moves back 4']])}</label>
+        <label class="field"><span class="lab">The 9 card</span>${sel('oNine',o.nine==='split'?'split':'one',[['one','Moves one peg 9'],['split','Can split 3 + 3 + 3 over 3 pegs']])}</label>
+        <label class="field"><span class="lab">Sideways cards to come out free</span>${sel('oSide',o.side===5?'5':'3',[['3','3 (1 out of 3)'],['5','5 (1 out of 5, older rule)']])}</label>
         <label class="field"><span class="lab">Who goes first</span>${sel('oFirst',o.first,[['dice','Highest dice roll'],['host','The host']])}</label>
         <label class="field"${o.first==='dice'?'':' hidden'}><span class="lab">When dice tie for highest</span>${sel('oTie',o.tie,[['reroll','Tied players roll again'],['first','First tied player in seat order']])}</label>
       </div></details>`;
@@ -2223,6 +2269,7 @@ function readOptsForm(){
   if(v('oShuf')!=null)popts.autoshuffle=v('oShuf')==='auto';
   if(v('oFirst')!=null)popts.first=v('oFirst');
   if(v('oTie')!=null)popts.tie=v('oTie');
+  if(v('oFour')!=null)popts.four=v('oFour'); if(v('oNine')!=null)popts.nine=v('oNine'); if(v('oSide')!=null)popts.side=+v('oSide')===5?5:3;
   popts.tm='entry';
   savePopts();
 }
@@ -3174,6 +3221,9 @@ seg('#segTeam','tm',false,null,saveOpts);
 seg('#segSpeed','speed',false,Number,saveOpts);
 seg('#segDraw','autodraw',false,v=>v==='auto',saveOpts);
 seg('#segShuf','autoshuffle',false,v=>v==='auto',saveOpts);
+seg('#segFour','four',false,null,saveOpts);
+seg('#segNine','nine',false,null,saveOpts);
+seg('#segSide','side',false,Number,saveOpts);
 $('#betOn').addEventListener('change',e=>{opt.bet=e.target.checked;saveOpts();renderScore();});
 $('#stake').addEventListener('input',e=>{const v=Math.max(1,Math.floor(+e.target.value||1));opt.stake=v;saveOpts();renderScore();});
 $('#newBtn').addEventListener('click',()=>{ if(isOnline()){ if(net.role==='host'){ if(!G.over&&!confirm('Start a new game? The current game will end.'))return; hostStart(); } return; } $('#ngModal').hidden=false; $('#ngStart').focus(); });
@@ -3184,7 +3234,7 @@ $('#ngModal').addEventListener('click',e=>{if(e.target.id==='ngModal')$('#ngModa
 
 $('#cancelBtn').addEventListener('click',()=>{if(G.pend)return; if(G.selCard||G.phase==='discard'){clearSel();renderAll();}});
 $('#drawBtn').addEventListener('click',onDeckClick);
-$('#burnBtn').addEventListener('click',()=>{if(!isLocal(G.turn)||G.busy||G.pend||G.stuck[G.turn]<1||G.stuck[G.turn]>=MAXBURN||!nothingOut(G.turn))return; clearSel(); G.phase='discard'; renderAll();});
+$('#burnBtn').addEventListener('click',()=>{if(!isLocal(G.turn)||G.busy||G.pend||G.stuck[G.turn]<1||G.stuck[G.turn]>=mb()||!nothingOut(G.turn))return; clearSel(); G.phase='discard'; renderAll();});
 /* full screen */
 function fsNative(){return document.fullscreenElement||document.webkitFullscreenElement;}
 function enterFS(){
@@ -3261,7 +3311,7 @@ function kbStartTarget(){
 function kbCard(i){
   const g=G; if(!g||g.over||diceOn()||g.waiting||g.busy)return;
   const hs=handSeat(); if(hs<0||g.turn!==hs||!isLocal(hs))return;
-  if(g.pend){toast('Finish your 7 first: pick a peg and a hole, then press Enter.');return;}
+  if(g.pend){toast(`Finish your ${pendR()} first: pick a peg and a hole, then press Enter.`);return;}
   if(g.phase==='draw'){toast(`Draw your card first. Press ${keyName(KEYS.map.draw)} or Enter.`);return;}
   const c=handSorted(hs)[i]; if(!c)return;
   if(g.phase==='discard'){
