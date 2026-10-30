@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>The Roaming of the Joker</title>
+<title>The Roaming Joker</title>
 <meta name="description" content="Team up, race your pegs home, and let the Joker jump the line. Play free with friends.">
-<meta property="og:title" content="The Roaming of the Joker">
+<meta property="og:title" content="The Roaming Joker">
 <meta property="og:description" content="Team up, race your pegs home, and let the Joker jump the line. Play free with friends.">
 <meta property="og:image" content="https://tacky09.github.io/Mow-down/roaming-of-the-joker/cover.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
@@ -337,7 +337,7 @@ body.fs .dock{max-height:100%;overflow:auto}
 .sphead{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;position:relative;padding-top:8px}
 .sphead::before{content:'';position:absolute;left:50%;top:0;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--dim);opacity:.45}
 .spdock.dragging{box-shadow:0 18px 50px rgba(0,0,0,.45)}.spdock.dragging .sphead{cursor:grabbing}
-.spdock.dragging iframe{pointer-events:none}
+.spdock.dragging iframe{pointer-events:none}.spdock.dragging{transition:none}
 /* board */
 #rot,#play{transition:transform .6s ease}
 .peg{transition:transform .07s linear;cursor:default;will-change:transform}
@@ -471,6 +471,50 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
 .rule[hidden]{display:none}
 .pcard .s.jv{writing-mode:vertical-rl;text-orientation:upright;font-size:clamp(10px,1.6vw,13px);font-weight:700;line-height:1.05;font-family:var(--f-display);letter-spacing:0;color:#7a3d9a;flex:none;white-space:nowrap;width:auto;height:auto}
 .copy{text-align:center;color:var(--dim);font-size:11px;padding:14px 0 18px}
+/* floating windows: collapse / expand */
+.wbtn{padding:4px 6px!important;min-width:0}.wbtn .ico{width:15px;height:15px}
+.spdock.min>*:not(.sphead):not(.vbar){position:absolute!important;width:1px!important;height:1px!important;overflow:hidden;opacity:0;pointer-events:none;clip-path:inset(50%)}
+.spdock.min .sphead a{display:none}
+.spdock.min{width:auto;min-width:200px}
+.spdock.big{width:min(640px,calc(100vw - 24px))}
+.spdock.big .spframe iframe{height:352px}
+.spdock.big .spnow img{width:96px;height:96px}
+.ytdock{top:76px;bottom:auto!important}
+.ytframe{border-radius:12px;overflow:hidden;background:#000}
+.ytframe iframe{display:block;width:100%;aspect-ratio:16/9;height:auto;border:0}
+/* voice panel, Discord style */
+.vpanel{left:auto;right:74px;width:min(290px,calc(100vw - 96px));padding:8px 8px 6px}
+.vpanel .sphead .lab{display:inline-flex;align-items:center;gap:6px}.vpanel .sphead .lab .ico{width:15px;height:15px}
+.vlist{list-style:none;margin:0;padding:2px 0;display:grid;gap:2px;max-height:240px;overflow:auto}
+.vlist li{display:flex;align-items:center;gap:9px;padding:5px 6px;border-radius:8px}
+.vlist li:hover{background:rgba(127,127,127,.12)}
+.vlist li.off{opacity:.45}
+.vav{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:700 14px var(--f-body);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);box-shadow:0 0 0 2px transparent;transition:box-shadow .12s}
+.vav.speak{box-shadow:0 0 0 2px var(--panel),0 0 0 4.5px #23a55a}
+.vlist .vn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:14px}
+.vlist .vn small{display:block;font-weight:500;color:var(--dim);font-size:11px}
+.vst{display:flex;gap:3px;color:#f23f43}.vst .ico{width:15px;height:15px}
+.vmodes{display:flex;justify-content:center}.vmodes .seg button{padding:5px 8px;font-size:12px}
+.vhint{margin:0;text-align:center;color:var(--dim);font-size:11.5px}
+.vbar{display:flex;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:6px}
+.vme{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
+.vme .vav{width:28px;height:28px;font-size:12px}
+.vme div{min-width:0}.vme b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vme small{display:block;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vb{width:34px;height:34px;padding:0!important;border-radius:8px;display:grid;place-items:center}
+.vb .ico{width:18px;height:18px}
+.vb[aria-pressed="true"]{color:#f23f43;background:rgba(242,63,67,.14)}
+.vb.join{width:auto;padding:0 10px!important;display:inline-flex;gap:6px;background:#23a55a;color:#fff;border-color:#23a55a}
+.vb.leave{background:#da373c;color:#fff;border-color:#da373c}
+.fab .icobtn.live{background:#23a55a;color:#fff;box-shadow:0 0 0 4px rgba(35,165,90,.35)}
+.fab .icobtn.muted{color:#f23f43}
+/* bottom of settings: refresh for this device + copyright */
+.setfoot{border-top:1px solid var(--line);padding-top:10px;margin-top:4px;display:grid;gap:6px;justify-items:center;text-align:center}
+.setfoot .lab{font-size:11px}
+.refrow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.refrow .ghost{font-size:12px;padding:5px 10px}
+.setfoot small{color:var(--dim);font-size:11px}
+.setfoot .copy{padding:2px 0 0}
+
 .tgt.mate{fill:rgba(80,210,175,.26);stroke:#4fd1b5}
 .tgt.kf{stroke:#fff;stroke-width:6;fill:rgba(255,255,255,.3);animation:none}
 .mark{fill:none;stroke-width:4;stroke-dasharray:7 5;pointer-events:none}
@@ -486,7 +530,7 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
 
 <div class="app">
   <header class="bar">
-    <div class="brand"><span class="logo" id="brandLogo"></span><h1>The Roaming of the Joker</h1></div>
+    <div class="brand"><span class="logo" id="brandLogo"></span><h1>The Roaming Joker</h1></div>
     <button class="partychip" id="barParty" type="button" hidden></button>
     <nav class="barbtns" aria-label="Main">
       <button class="ghost icobtn modebtn" id="modeBtn" type="button" aria-label="Switch day or night mode"></button>
@@ -572,6 +616,9 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
       <div class="joinrow"><input class="tin url" id="msQ" type="search" placeholder="Song or artist" autocomplete="off" aria-label="Search for music"><button class="primary icobtn" id="msGo" type="button" aria-label="Search"><span data-ico="search"></span></button></div>
       <p>30-second previews; Use sets the game music.</p>
       <ul class="mslist" id="msList"></ul></div>
+    <div class="rule"><span class="lab">YouTube player</span>
+      <div class="joinrow"><input class="tin url" id="ytUrl" type="url" inputmode="url" placeholder="Paste a YouTube video or playlist link" autocomplete="off" spellcheck="false" aria-label="YouTube link"><button class="primary" id="ytUse" type="button">Show</button></div>
+      <p>A video player you can drag, shrink or make bigger.</p></div>
     <div class="rule"><span class="lab">Spotify</span>
       <div class="joinrow"><input class="tin url" id="spUrl" type="url" placeholder="Paste a Spotify song, album or playlist link" autocomplete="off" aria-label="Spotify link"><button class="primary" id="spUse" type="button">Use</button></div>
       <p>Plays in a corner player.</p>
@@ -605,7 +652,10 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
     <div class="rule"><span class="lab">Your keys</span>
       <p>Click a key, then press a new one; taken keys swap.</p>
       <div class="keylist" id="keyList"></div>
-      <div><button class="ghost sm" id="keyReset" type="button">Reset to 1 to 6</button></div></div>
+      <div><button class="ghost sm" id="keyReset" type="button">Reset keys</button></div></div>
+    <div class="rule"><span class="lab">Voice</span>
+      <div class="seg vmodeseg"><button type="button" data-v="ptt" aria-pressed="true">Push to talk</button><button type="button" data-v="tap" aria-pressed="false">Tap to talk</button><button type="button" data-v="open" aria-pressed="false">Open mic</button></div>
+      <p>Change the Talk, Mute and Deafen keys in Your keys above.</p></div>
     <div class="rule"><span class="lab">Fixed keys</span>
       <table class="ctable"><tbody>
         <tr><td>Up, Down</td><td>Choose which peg to move.</td></tr>
@@ -707,6 +757,8 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
     <div id="histList" class="hist"></div>
     <div><button class="ghost sm" id="histClear" type="button">Clear history</button></div>
   </div>
+  <div class="setfoot"><span class="lab" id="refLab">Refresh</span><div class="refrow" id="refList"></div><small id="refHint"></small>
+    <p class="copy">© 2026 Misch. All rights reserved.</p></div>
 </div></div>
 
 <div id="party" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="partyTitle"><div class="box">
@@ -731,18 +783,29 @@ body.fs .side{min-height:0;max-height:100%;overflow:auto}
 
 <div id="partyFab" class="fab" hidden>
   <button class="ghost icobtn" id="chatBtn" type="button" title="Party chat" aria-label="Party chat"><span data-ico="chat"></span><span class="badge" id="chatBadge" hidden>0</span></button>
-  <button class="ghost icobtn" id="pttBtn" type="button" title="Turn on voice" aria-label="Turn on voice"></button>
+  <button class="ghost icobtn" id="voiceBtn" type="button" title="Voice" aria-label="Voice"><span data-ico="head"></span></button>
+  <button class="ghost icobtn" id="pttBtn" type="button" title="Join voice" aria-label="Join voice"></button>
 </div>
 <div id="talkPill" class="talkpill" hidden></div>
 <div id="chatBox" class="chatbox glass" hidden role="dialog" aria-label="Party chat">
   <div class="shead"><b>Party chat</b><span style="display:flex;gap:6px"><button class="ghost sm" id="voiceLeave" type="button" hidden>Voice off</button><button class="ghost sm" id="chatClose" type="button">Close</button></span></div>
   <ul id="chatList" class="chatlist"></ul>
   <div class="joinrow"><input class="tin url" id="chatIn" maxlength="200" placeholder="Message" autocomplete="off" aria-label="Chat message"><button class="primary icobtn" id="chatSend" type="button" aria-label="Send"><span data-ico="send"></span></button></div>
-  <p class="snote">Hold the mic button (or V) to talk to everyone with voice on.</p>
+</div>
+<div id="voicePanel" class="spdock vpanel glass" hidden role="dialog" aria-label="Voice">
+  <div class="sphead"><span class="lab"><span data-ico="head"></span>Voice</span><span style="display:flex;gap:6px" id="vHead"></span></div>
+  <ul class="vlist" id="vList"></ul>
+  <div class="vmodes"><div class="seg vmodeseg"><button type="button" data-v="ptt" aria-pressed="true">Push to talk</button><button type="button" data-v="tap" aria-pressed="false">Tap to talk</button><button type="button" data-v="open" aria-pressed="false">Open mic</button></div></div>
+  <p class="vhint" id="vHint"></p>
+  <div class="vbar"><div class="vme" id="vMe"></div>
+    <button class="ghost vb" id="vMute" type="button" aria-pressed="false"></button>
+    <button class="ghost vb" id="vDeaf" type="button" aria-pressed="false"></button>
+    <button class="ghost vb" id="vJoin" type="button"></button></div>
 </div>
 <div id="tutSpot" class="tutspot" hidden></div>
 <div id="tut" class="tutbox glass" hidden role="dialog" aria-live="polite" aria-label="Tutorial"></div>
 <div id="spDock" class="spdock glass" hidden></div>
+<div id="ytDock" class="spdock ytdock glass" hidden></div>
 <div id="toast" hidden role="status"></div>
 <div id="ytWrap" aria-hidden="true"><div id="ytMount"></div></div>
 
@@ -781,6 +844,12 @@ const ICON={
   chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.8A8 8 0 1 1 21 12z"/>',
   eye:'<path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/>',
   play:'<path d="M7 4.5v15l12-7.5z"/>',
+  minus:'<path d="M5 12h14"/>',
+  shrink:'<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
+  head:'<path d="M3.5 17v-4a8.5 8.5 0 0 1 17 0v4"/><rect x="2.5" y="14" width="5" height="7" rx="2"/><rect x="16.5" y="14" width="5" height="7" rx="2"/>',
+  headOff:'<path d="M3.5 17v-4a8.5 8.5 0 0 1 14.6-5.9M20.5 13v4"/><rect x="2.5" y="14" width="5" height="7" rx="2"/><rect x="16.5" y="14" width="5" height="7" rx="2"/><path d="M2.5 2.5l19 19"/>',
+  hang:'<path d="M2.5 14.5c5.2-4.6 13.8-4.6 19 0l-2.6 2.8-3.7-1.5v-2.7a12.5 12.5 0 0 0-6.4 0v2.7l-3.7 1.5z"/>',
+  refresh:'<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>',
   pause:'<path d="M8 5v14M16 5v14"/>',
   prev:'<path d="M6 5v14M19 5L9 12l10 7z"/>',
   next:'<path d="M18 5v14M5 5l10 7-10 7z"/>',
@@ -976,7 +1045,7 @@ const baseOf=o=>o*SP+8;
 function coord(o,p,i){ if(p<0)return geo.home[o][i]; if(p<T)return geo.track[(baseOf(o)+p)%T]; return geo.lane[o][p-T]; }
 
 /* ---------- online party state ---------- */
-const net={chat:[],unread:0,talking:new Set(),calls:new Map(),mic:null,watching:false,wantWatch:false,role:null,code:'',myId:null,tr:null,conns:new Map(),hostConn:null,players:[],seats:[],colors:[],mode:4,opts:null,
+const net={chat:[],unread:0,talking:new Set(),speak:new Set(),calls:new Map(),mic:null,watching:false,wantWatch:false,role:null,code:'',myId:null,tr:null,conns:new Map(),hostConn:null,players:[],seats:[],colors:[],mode:4,opts:null,
   started:false,mySeat:-1,status:'',err:'',sid:0,saved:null,prefill:''};
 const isOnline=()=>!!(G&&G.online);
 const playerOf=id=>net.players.find(p=>p.id===id);
@@ -1355,7 +1424,7 @@ function drawBoard(){
   h+=`</g><g id="targets"></g></g></g>`;
   /* middle of the table: draw pile on the left, played cards on the right (like UNO) */
   const cx=V.c[0], cy=V.c[1], w=2.6*U, ch=3.6*U, dx=cx-1.55*U, px=cx+1.55*U, py=cy-.45*U;
-  h+=`<g font-family="Arvo,Georgia,serif"><text x="${cx}" y="${cy-U*3.05}" text-anchor="middle" font-weight="700" font-size="${U*.5}" fill="${W.txt}" fill-opacity=".8" letter-spacing="${U*.05}" pointer-events="none">THE ROAMING OF THE JOKER</text>`;
+  h+=`<g font-family="Arvo,Georgia,serif"><text x="${cx}" y="${cy-U*3.05}" text-anchor="middle" font-weight="700" font-size="${U*.5}" fill="${W.txt}" fill-opacity=".8" letter-spacing="${U*.05}" pointer-events="none">THE ROAMING JOKER</text>`;
   h+=`<g id="deckPile" role="button" aria-label="Draw pile" tabindex="-1">
       <rect class="glow" x="${dx-w/2-U*.18}" y="${py-ch/2-U*.18}" width="${w+U*.36}" height="${ch+U*.36}" rx="${.35*U}" fill="none" stroke="#ffd45c" stroke-width="${U*.12}"/>
       <g id="deckStack"></g>
@@ -2201,6 +2270,7 @@ function hostMsg(c,m){
   if(!net.conns.has(c.id))return;
   if(m.k==='chat'){hostChat(c.id,m.text);return;}
   if(m.k==='voice'){const p=playerOf(c.id); if(p){p.voice=!!m.on; pushLobby();} return;}
+  if(m.k==='vstate'){const p=playerOf(c.id); if(p){p.mute=!!m.mute; p.deaf=!!m.deaf; pushLobby();} return;}
   if(m.k==='talk'){broadcast({k:'talk',id:c.id,on:!!m.on}); setTalk(c.id,!!m.on); return;}
   if(m.k==='sit')moveSeat(c.id,m.seat);
   else if(m.k==='color')partyColor(net.seats.indexOf(c.id),m.c);
@@ -2382,13 +2452,13 @@ const GAME_HOME=''; // the game's web address once it's on a site like GitHub Pa
 function gameUrl(){ if(/^https?:$/.test(location.protocol))return location.origin+location.pathname; return GAME_HOME; }
 function inviteUrl(code){ const g=gameUrl(); return g?g+'?join='+code:''; }
 function shareLink(url,text,done){
-  if(navigator.share){ navigator.share({title:'The Roaming of the Joker',text,url}).catch(e=>{ if(e&&e.name!=='AbortError')copyText(url,done); }); }
+  if(navigator.share){ navigator.share({title:'The Roaming Joker',text,url}).catch(e=>{ if(e&&e.name!=='AbortError')copyText(url,done); }); }
   else copyText(url,done);
 }
 function sharePartyLink(){
   const u=inviteUrl(net.code);
-  if(!u){copyText(`Join my Roaming of the Joker party! Code: ${net.code}`,'Code copied. Invite links work once the game is on a website.');return;}
-  shareLink(u,`Join my Roaming of the Joker party! Code ${net.code}`,'Invite link copied. Send it to your friends.');
+  if(!u){copyText(`Join my Roaming Joker party! Code: ${net.code}`,'Code copied. Invite links work once the game is on a website.');return;}
+  shareLink(u,`Join my Roaming Joker party! Code ${net.code}`,'Invite link copied. Send it to your friends.');
 }
 function renderInvite(){
   const g=gameUrl(), inParty=net.role&&net.status==='lobby'&&net.code, pu=inParty?inviteUrl(net.code):'';
@@ -2412,8 +2482,8 @@ function renderInvite(){
 $('#invBody').addEventListener('click',e=>{
   const id=e.target.closest('button')&&e.target.closest('button').id;
   if(id==='invParty')sharePartyLink();
-  else if(id==='invGame')shareLink(gameUrl(),'Play The Roaming of the Joker with me!','Game link copied.');
-  else if(id==='invWatch')shareLink(watchUrl(net.code),`Watch our Roaming of the Joker game! Code ${net.code}`,'Watch link copied.');
+  else if(id==='invGame')shareLink(gameUrl(),'Play The Roaming Joker with me!','Game link copied.');
+  else if(id==='invWatch')shareLink(watchUrl(net.code),`Watch our Roaming Joker game! Code ${net.code}`,'Watch link copied.');
   const q=e.target.closest('[data-qr]');
   if(q){ const slot=q.closest('.osum').querySelector('.qrslot'); if(slot.firstChild){slot.innerHTML='';return;} const box=document.createElement('div'); box.className='qrbox'; slot.appendChild(box); showQR(box,q.dataset.qr); }
 });
@@ -2564,52 +2634,130 @@ function toggleChat(force){
 /* ---------- push-to-talk voice (direct between players, needs the online version) ---------- */
 const voiceId=id=>id==='host'?PREFIX+net.code:id;
 function voicePeer(){return net.tr&&net.tr.peer;}
+const vk=a=>{try{return keyName(KEYS.map[a]);}catch(e){return ({ptt:'V',mute:'M',deaf:'N'})[a];}};
+const VS={mode:'ptt',mute:false,deaf:false,tx:false,open:false};
+try{const v=JSON.parse(store.get('pj-voice')||'null'); if(v){ if(['ptt','tap','open'].includes(v.mode))VS.mode=v.mode; VS.mute=!!v.mute; VS.deaf=!!v.deaf; }}catch(e){}
+const saveVS=()=>store.set('pj-voice',JSON.stringify({mode:VS.mode,mute:VS.mute,deaf:VS.deaf}));
+const pidOf=peer=>peer===voiceId('host')?'host':peer;
+/* who is talking: measured from the sound itself, like Discord's green ring */
+const VA={ctx:null,an:new Map(),timer:0};
+function vaWatch(pid,stream){
+  try{ if(!VA.ctx)VA.ctx=new (window.AudioContext||window.webkitAudioContext)(); if(VA.ctx.state==='suspended')VA.ctx.resume();
+    vaDrop(pid); const src=VA.ctx.createMediaStreamSource(stream), an=VA.ctx.createAnalyser(); an.fftSize=512; src.connect(an);
+    VA.an.set(pid,{an,src,buf:new Uint8Array(an.fftSize),hold:0}); if(!VA.timer)VA.timer=setInterval(vaTick,90); }catch(e){}
+}
+function vaDrop(pid){ const x=VA.an.get(pid); if(x){try{x.src.disconnect();}catch(e){} VA.an.delete(pid);} net.speak.delete(pid); }
+function vaTick(){
+  let ch=false; const now=Date.now();
+  VA.an.forEach((x,pid)=>{ x.an.getByteTimeDomainData(x.buf); let q=0; for(let i=0;i<x.buf.length;i++){const d=x.buf[i]-128;q+=d*d;}
+    if(Math.sqrt(q/x.buf.length)>3.5)x.hold=now+320; const on=now<x.hold;
+    if(on!==net.speak.has(pid)){on?net.speak.add(pid):net.speak.delete(pid); ch=true;} });
+  if(ch)renderVoice();
+  if(!VA.an.size){clearInterval(VA.timer);VA.timer=0;}
+}
+const speaking=id=>VA.an.has(id)?net.speak.has(id):net.talking.has(id);
 function onVoiceCall(call){ try{ call.answer(net.mic||undefined); hookCall(call); }catch(e){} }
 function hookCall(call){
-  net.calls.set(call.peer,call);
+  net.calls.set(call.peer,call); const pid=pidOf(call.peer);
   call.on('stream',rs=>{ let a=document.getElementById('va-'+call.peer);
     if(!a){a=document.createElement('audio');a.id='va-'+call.peer;a.autoplay=true;a.setAttribute('playsinline','');document.body.appendChild(a);}
-    a.srcObject=rs; a.volume=Math.max(.2,snd.vol/100); a.play().catch(()=>{}); });
-  const done=()=>{net.calls.delete(call.peer); const a=document.getElementById('va-'+call.peer); if(a)a.remove();};
+    a.srcObject=rs; a.muted=VS.deaf; a.volume=Math.max(.2,snd.vol/100); a.play().catch(()=>{}); vaWatch(pid,rs); });
+  const done=()=>{net.calls.delete(call.peer); vaDrop(pid); const a=document.getElementById('va-'+call.peer); if(a)a.remove(); renderVoice();};
   call.on('close',done); call.on('error',done);
+}
+function sendVState(){
+  const me=playerOf(net.myId); if(me){me.mute=VS.mute;me.deaf=VS.deaf;}
+  if(net.role==='host')pushLobby(); else net.hostConn&&net.hostConn.send({k:'vstate',mute:VS.mute,deaf:VS.deaf});
 }
 async function voiceJoin(){
   if(LOCAL||!window.Peer||!voicePeer()){toast('Voice works in online parties (not in local test mode).');return;}
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('This browser can\'t use a microphone here.');return;}
   try{ net.mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); }
   catch(e){ toast('Microphone blocked. Allow it in your browser to talk.'); return; }
-  net.mic.getAudioTracks().forEach(t=>t.enabled=false);
-  const me=playerOf(net.myId); if(me)me.voice=true;
-  if(net.role==='host')pushLobby(); else net.hostConn&&net.hostConn.send({k:'voice',on:true});
+  VS.tx=false; applyMic(true); vaWatch(net.myId,net.mic);
+  const me=playerOf(net.myId); if(me){me.voice=true;me.mute=VS.mute;me.deaf=VS.deaf;}
+  if(net.role==='host')pushLobby(); else if(net.hostConn){net.hostConn.send({k:'voice',on:true}); net.hostConn.send({k:'vstate',mute:VS.mute,deaf:VS.deaf});}
   const pr=voicePeer();
   net.players.filter(p=>p.voice&&p.id!==net.myId).forEach(p=>{ try{ const c=pr.call(voiceId(p.id),net.mic); if(c)hookCall(c);}catch(e){} });
-  toast('Voice on. Hold the mic button (or V) to talk.'); renderVoice();
+  toast(VS.mode==='open'?'Voice on. Your mic is open.':`Voice on. ${VS.mode==='ptt'?'Hold':'Tap'} the mic button or ${vk('ptt')} to talk.`);
+  toggleVoicePanel(true); renderVoice();
 }
 function voiceLeave(quiet){
   if(net.mic){net.mic.getTracks().forEach(t=>t.stop()); net.mic=null;}
   net.calls.forEach(c=>{try{c.close();}catch(e){}}); net.calls.clear();
   document.querySelectorAll('audio[id^="va-"]').forEach(a=>a.remove());
+  [...VA.an.keys()].forEach(vaDrop); net.speak.clear(); VS.tx=false;
   const me=playerOf(net.myId); if(me&&me.voice){me.voice=false; if(!quiet){ if(net.role==='host')pushLobby(); else net.hostConn&&net.hostConn.send({k:'voice',on:false}); }}
   net.talking.clear(); renderVoice();
 }
-function talk(on){
-  if(!net.mic)return; net.mic.getAudioTracks().forEach(t=>t.enabled=on);
-  if(net.role==='host'){broadcast({k:'talk',id:'host',on});setTalk('host',on);} else{net.hostConn&&net.hostConn.send({k:'talk',on});setTalk(net.myId,on);}
+/* the mic only sends sound when: not muted, not deafened, and (open mic, or talk held / tapped on) */
+const micLive=()=>!!net.mic&&!VS.mute&&!VS.deaf&&(VS.mode==='open'||VS.tx);
+function applyMic(silent){
+  const live=micLive(); if(net.mic)net.mic.getAudioTracks().forEach(t=>t.enabled=live);
+  if(!silent&&net.mic&&live!==net.talking.has(net.myId)){
+    if(net.role==='host')broadcast({k:'talk',id:'host',on:live}); else net.hostConn&&net.hostConn.send({k:'talk',on:live});
+    setTalk(net.myId,live);
+  } else renderVoice();
 }
+function talk(on){ if(on&&(VS.mute||VS.deaf)){ if(VS.deaf)toast('You\'re deafened. Undeafen to talk.'); else toast('You\'re muted. Unmute to talk.'); } VS.tx=on; applyMic(); }
+function setMute(m){ VS.mute=m; if(!m&&VS.deaf)VS.deaf=false; saveVS(); applyDeaf(); applyMic(); if(net.mic)sendVState(); }
+function setDeaf(d){ VS.deaf=d; saveVS(); applyDeaf(); applyMic(); if(net.mic)sendVState(); }
+function applyDeaf(){ document.querySelectorAll('audio[id^="va-"]').forEach(a=>a.muted=VS.deaf); }
+function setVMode(m){ VS.mode=m; VS.tx=false; saveVS(); applyMic(); }
 function setTalk(id,on){ on?net.talking.add(id):net.talking.delete(id); renderVoice(); }
+function toggleVoicePanel(force){ const p=$('#voicePanel'), open=force!=null?force:p.hidden; VS.open=open; p.hidden=!open||!net.role; renderVoice(); }
+const vAv=(p,id)=>{ const seat=p?net.seats.indexOf(p.id):-1, c=seat>=0&&net.colors[seat]?net.colors[seat]:'#5865f2';
+  return `<span class="vav${speaking(id)?' speak':''}" style="background:${c}">${esc(((p&&p.name)||'?').trim().charAt(0).toUpperCase()||'?')}</span>`; };
 function renderVoice(){
-  const b=$('#pttBtn'); if(!b)return; const on=!!net.mic;
-  b.classList.toggle('live',on&&net.talking.has(net.myId)); b.innerHTML=ico(on?'mic':'micOff');
-  b.title=on?'Hold to talk':'Turn on voice'; b.setAttribute('aria-label',b.title);
-  const names=[...net.talking].map(id=>{const p=playerOf(id);return p?p.name:'';}).filter(Boolean);
-  const tp=$('#talkPill'); tp.hidden=!names.length; tp.innerHTML=names.length?ico('mic')+esc(names.join(', '))+(names.length>1?' are':' is')+' talking':'';
+  const b=$('#pttBtn'); if(!b)return; const on=!!net.mic, k=vk('ptt');
+  const live=micLive();
+  b.classList.toggle('live',live&&(VS.mode!=='open'||speaking(net.myId))); b.classList.toggle('muted',on&&(VS.mute||VS.deaf));
+  b.innerHTML=ico(on&&!VS.mute&&!VS.deaf?'mic':'micOff');
+  b.title=!on?'Join voice':VS.mute||VS.deaf?'Muted':VS.mode==='ptt'?`Hold to talk (${k})`:VS.mode==='tap'?(VS.tx?'Tap to stop talking':'Tap to talk')+` (${k})`:'Open mic: tap to mute';
+  b.setAttribute('aria-label',b.title);
+  const vb=$('#voiceBtn'); vb.classList.toggle('live',[...net.speak].some(id=>id!==net.myId)||[...net.talking].some(id=>id!==net.myId&&!VA.an.has(id)));
+  /* who is talking, shown at the top while the panel is closed */
+  const names=net.players.filter(p=>p.id!==net.myId&&speaking(p.id)).map(p=>p.name);
+  const tp=$('#talkPill'), showPill=names.length&&$('#voicePanel').hidden; tp.hidden=!showPill; tp.innerHTML=showPill?ico('mic')+esc(names.join(', '))+(names.length>1?' are':' is')+' talking':'';
   const vl=$('#voiceLeave'); if(vl)vl.hidden=!on;
+  document.querySelectorAll('.vmodeseg button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.v===VS.mode)));
+  if(!net.role&&!$('#voicePanel').hidden)$('#voicePanel').hidden=true;
+  if($('#voicePanel').hidden)return;
+  const list=net.players.slice().sort((x,y)=>(y.voice?1:0)-(x.voice?1:0));
+  $('#vList').innerHTML=list.length?list.map(p=>{ const me=p.id===net.myId, inV=me?on:!!p.voice, mu=me?VS.mute:p.mute, de=me?VS.deaf:p.deaf;
+    return `<li class="${inV?'':'off'}">${vAv(p,p.id)}<span class="vn">${esc(p.name)}${me?' (you)':''}${inV?'':'<small>Not in voice</small>'}</span><span class="vst">${inV&&mu&&!de?ico('micOff'):''}${inV&&de?ico('headOff'):''}</span></li>`; }).join(''):'<li class="off">No one here yet.</li>';
+  const me=playerOf(net.myId)||{id:net.myId,name:myName()};
+  const st=!on?'Not in voice':VS.deaf?'Deafened':VS.mute?'Muted':VS.mode==='open'?'Open mic':VS.mode==='tap'?(VS.tx?'Talking · tap '+k+' to stop':'Tap '+k+' to talk'):'Hold '+k+' to talk';
+  $('#vMe').innerHTML=vAv(me,net.myId)+`<div><b>${esc(me.name||'You')}</b><small>${st}</small></div>`;
+  const mb=$('#vMute'); mb.setAttribute('aria-pressed',String(VS.mute||VS.deaf)); mb.innerHTML=ico(VS.mute||VS.deaf?'micOff':'mic'); mb.title=(VS.mute||VS.deaf?'Unmute':'Mute')+` (${vk('mute')})`; mb.setAttribute('aria-label',mb.title);
+  const db=$('#vDeaf'); db.setAttribute('aria-pressed',String(VS.deaf)); db.innerHTML=ico(VS.deaf?'headOff':'head'); db.title=(VS.deaf?'Undeafen':'Deafen')+` (${vk('deaf')})`; db.setAttribute('aria-label',db.title);
+  const jb=$('#vJoin'); jb.className='ghost vb '+(on?'leave':'join'); jb.innerHTML=on?ico('hang'):ico('head')+'Join'; jb.title=on?'Leave voice':'Join voice'; jb.setAttribute('aria-label',jb.title);
+  $('#vHint').textContent=!on?'Join to talk with your party.':VS.mode==='open'?'Everyone hears you unless you mute.':VS.mode==='tap'?`Tap the mic button or press ${k} to start and stop talking.`:`Hold the mic button or ${k} to talk.`;
+  const vh=$('#vHead'); if(!vh.firstChild)vh.innerHTML=winBtns()+'<button class="ghost sm" type="button" id="vClose">Close</button>';
 }
 const ptt=$('#pttBtn');
-ptt.addEventListener('pointerdown',e=>{ if(!net.mic){voiceJoin();return;} e.preventDefault(); try{ptt.setPointerCapture(e.pointerId);}catch(x){} talk(true); });
-['pointerup','pointercancel','lostpointercapture'].forEach(ev=>ptt.addEventListener(ev,()=>{ if(net.mic&&net.talking.has(net.myId))talk(false); }));
-document.addEventListener('keydown',e=>{ if(e.repeat||(e.key||'').toLowerCase()!=='v'||!net.mic)return; const t=e.target; if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))return; talk(true); });
-document.addEventListener('keyup',e=>{ if((e.key||'').toLowerCase()==='v'&&net.mic&&net.talking.has(net.myId))talk(false); });
+ptt.addEventListener('pointerdown',e=>{ if(!net.mic){voiceJoin();return;} e.preventDefault();
+  if(VS.mode==='ptt'){ try{ptt.setPointerCapture(e.pointerId);}catch(x){} talk(true); }
+  else if(VS.mode==='tap')talk(!VS.tx); else setMute(!VS.mute); });
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>ptt.addEventListener(ev,()=>{ if(VS.mode==='ptt'&&VS.tx)talk(false); }));
+addEventListener('blur',()=>{ if(VS.mode==='ptt'&&VS.tx)talk(false); });
+document.addEventListener('keydown',e=>{
+  if(!net.role||e.ctrlKey||e.metaKey||e.altKey)return; const t=e.target; if(t&&(/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.isContentEditable))return;
+  const k=normKey(e);
+  if(k===KEYS.map.ptt){ e.preventDefault(); if(e.repeat||!net.mic)return; if(VS.mode==='ptt')talk(true); else if(VS.mode==='tap')talk(!VS.tx); else setMute(!VS.mute); }
+  else if(k===KEYS.map.mute){ if(!e.repeat)setMute(!(VS.mute||VS.deaf)); }
+  else if(k===KEYS.map.deaf){ if(!e.repeat)setDeaf(!VS.deaf); }
+});
+document.addEventListener('keyup',e=>{ if(normKey(e)===KEYS.map.ptt&&VS.mode==='ptt'&&VS.tx)talk(false); });
+$('#voiceBtn').addEventListener('click',()=>toggleVoicePanel());
+$('#voicePanel').addEventListener('click',e=>{
+  const x=e.target.closest('button'); if(!x)return;
+  if(x.id==='vClose')toggleVoicePanel(false);
+  else if(x.id==='vMute')setMute(!(VS.mute||VS.deaf));
+  else if(x.id==='vDeaf')setDeaf(!VS.deaf);
+  else if(x.id==='vJoin'){ net.mic?voiceLeave(false):voiceJoin(); }
+});
+document.addEventListener('click',e=>{ const x=e.target.closest('.vmodeseg button'); if(x)setVMode(x.dataset.v); });
 $('#chatBtn').addEventListener('click',()=>toggleChat());
 $('#chatClose').addEventListener('click',()=>toggleChat(false));
 $('#chatSend').addEventListener('click',sendChat);
@@ -2766,7 +2914,7 @@ function spotifyShow(u){
   const web=`https://open.spotify.com/${p.type}/${p.id}`, local=!/^https?:$/.test(location.protocol);
   const warn=local?"Spotify's player only works when the game is opened from a website (like GitHub Pages), not as a file or in a preview. Use Open in Spotify for now."
                   :"If this stays blank, your browser is blocking Spotify's player. Use Open in Spotify instead.";
-  d.innerHTML=`<div class="sphead"><span class="lab">Spotify</span><span style="display:flex;gap:6px"><a class="ghost sm" href="https://accounts.spotify.com/login?continue=${encodeURIComponent(web)}" target="_blank" rel="noopener" title="Sign in once in this browser and the player here plays full songs">Sign in for full songs</a><a class="ghost sm" href="${web}" target="_blank" rel="noopener">Open in Spotify</a><button class="ghost sm" type="button" id="spClose">Close</button></span></div>
+  d.innerHTML=`<div class="sphead"><span class="lab">Spotify</span><span style="display:flex;gap:6px"><a class="ghost sm" href="https://accounts.spotify.com/login?continue=${encodeURIComponent(web)}" target="_blank" rel="noopener" title="Sign in once in this browser and the player here plays full songs">Sign in for full songs</a><a class="ghost sm" href="${web}" target="_blank" rel="noopener">Open in Spotify</a>${winBtns()}<button class="ghost sm" type="button" id="spClose">Close</button></span></div>
     <div class="spframe"><p class="spnote">Loading Spotify…</p><iframe src="https://open.spotify.com/embed/${p.type}/${p.id}" width="100%" height="152" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" title="Spotify player"></iframe></div>
     <p class="spwarn" id="spWarn" hidden>${warn}</p>
     <p class="spwarn">Hearing 30-second clips? Tap <b>Sign in for full songs</b>, sign in, then come back and press <b>Reload</b>. <button class="ghost sm" type="button" id="spReload">Reload</button></p>`;
@@ -2843,7 +2991,7 @@ async function spPremium(p){ // returns false if the Premium player can't be use
   try{ await spGetToken(); await loadSpSdk(); }catch(e){ return false; }
   spDockPremium();
   if(!SPF.player){
-    SPF.player=new Spotify.Player({name:'The Roaming of the Joker',getOAuthToken:cb=>{spGetToken().then(cb).catch(()=>{});},volume:Math.max(.05,snd.vol/100)});
+    SPF.player=new Spotify.Player({name:'The Roaming Joker',getOAuthToken:cb=>{spGetToken().then(cb).catch(()=>{});},volume:Math.max(.05,snd.vol/100)});
     SPF.player.addListener('ready',({device_id})=>{SPF.dev=device_id; if(SPF.pending){spPlay(SPF.pending);SPF.pending=null;}});
     SPF.player.addListener('not_ready',()=>{SPF.dev=null;});
     SPF.player.addListener('player_state_changed',st=>{SPF.state=st;SPF.stamp=Date.now();renderSpPlayer();});
@@ -2861,7 +3009,7 @@ function spFallback(){ const link=store.get('pj-spotify'); SPF.forceEmbed=true; 
 const fmtT=ms=>{ms=Math.max(0,ms|0);const s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
 function spDockPremium(){
   const d=$('#spDock'); d.hidden=false;
-  d.innerHTML=`<div class="sphead"><span class="lab">Spotify Premium</span><button class="ghost sm" type="button" id="spClose">Close</button></div>
+  d.innerHTML=`<div class="sphead"><span class="lab">Spotify Premium</span><span style="display:flex;gap:6px">${winBtns()}<button class="ghost sm" type="button" id="spClose">Close</button></span></div>
     <div class="spnow"><img id="spArt" alt="" width="56" height="56"><div><b id="spTitle">Starting…</b><small id="spArtist"></small></div></div>
     <div class="spctl"><button class="ghost icobtn" type="button" id="spPrev" aria-label="Previous song">${ico('prev')}</button>
       <button class="primary icobtn" type="button" id="spToggle" aria-label="Play or pause">${ico('pause')}</button>
@@ -2904,14 +3052,27 @@ $('#spCopyRedir').addEventListener('click',()=>copyText(spRedirect(),'Redirect U
 $('#spDisconnect').addEventListener('click',()=>{ spSaveTok(null); if(SPF.player){SPF.player.disconnect();SPF.player=null;SPF.dev=null;} renderSpSettings(); toast('Spotify disconnected.'); });
 renderSpSettings(); spFinishLogin();
 
-/* ---------- the Spotify player can be dragged anywhere by its top bar; the spot is remembered ---------- */
-(function(){
-  const d=$('#spDock'); let drag=null;
+/* ---------- floating windows (Spotify, YouTube, voice): drag by the top bar, collapse, make bigger; spot and size are remembered ---------- */
+function winBtns(){ return '<button class="ghost sm icobtn wbtn" type="button" data-w="min"></button><button class="ghost sm icobtn wbtn" type="button" data-w="big"></button>'; }
+const WSTACK=[];
+function winFront(d){ const i=WSTACK.indexOf(d); if(i>=0)WSTACK.splice(i,1); WSTACK.push(d); WSTACK.forEach((w,j)=>w.style.zIndex=16+j); }
+function floatWin(d,key){
+  let drag=null; d.addEventListener('pointerdown',()=>winFront(d),true); const pk='pj-'+key, sk='pj-'+key+'-st';
   const place=(x,y)=>{ const w=d.offsetWidth,h=d.offsetHeight; x=Math.max(6,Math.min(innerWidth-w-6,x)); y=Math.max(6,Math.min(innerHeight-h-6,y));
     Object.assign(d.style,{left:x+'px',top:y+'px',right:'auto',bottom:'auto'}); return [x,y]; };
-  const saved=()=>{try{return JSON.parse(store.get('pj-spdock')||'null');}catch(e){return null;}};
-  const restore=()=>{ const sv=saved(); if(sv&&!d.hidden)requestAnimationFrame(()=>place(sv[0]*innerWidth,sv[1]*innerHeight)); };
-  new MutationObserver(restore).observe(d,{attributes:true,attributeFilter:['hidden']});
+  const saved=()=>{try{return JSON.parse(store.get(pk)||'null');}catch(e){return null;}};
+  const st=()=>{try{return JSON.parse(store.get(sk)||'{}')||{};}catch(e){return {};}};
+  const clamp=()=>requestAnimationFrame(()=>{ if(d.hidden||!d.style.left)return; const r=d.getBoundingClientRect(); place(r.left,r.top); });
+  const applySt=()=>{ const s=st(), mn=!!s.min, bg=!!s.big&&!mn;
+    d.classList.toggle('min',mn); d.classList.toggle('big',bg);
+    d.querySelectorAll('.wbtn').forEach(b=>{ const isMin=b.dataset.w==='min';
+      b.innerHTML=ico(isMin?(mn?'plus':'minus'):(bg?'shrink':'expand'));
+      b.title=isMin?(mn?'Open':'Collapse'):(bg?'Make smaller':'Make bigger'); b.setAttribute('aria-label',b.title);
+      b.hidden=!isMin&&mn; }); };
+  const restore=()=>{ applySt(); if(!d.hidden)winFront(d); const sv=saved(); if(sv&&!d.hidden)requestAnimationFrame(()=>place(sv[0]*innerWidth,sv[1]*innerHeight)); };
+  new MutationObserver(restore).observe(d,{attributes:true,attributeFilter:['hidden'],childList:true});
+  d.addEventListener('click',e=>{ const b=e.target.closest('.wbtn'); if(!b)return; const s=st();
+    if(b.dataset.w==='min')s.min=!s.min; else s.big=!s.big; store.set(sk,JSON.stringify(s)); applySt(); clamp(); });
   d.addEventListener('pointerdown',e=>{
     const h=e.target.closest('.sphead'); if(!h||e.target.closest('button,a,input'))return;
     const r=d.getBoundingClientRect(); drag={dx:e.clientX-r.left,dy:e.clientY-r.top,id:e.pointerId};
@@ -2919,10 +3080,70 @@ renderSpSettings(); spFinishLogin();
   });
   d.addEventListener('pointermove',e=>{ if(!drag||e.pointerId!==drag.id)return; place(e.clientX-drag.dx,e.clientY-drag.dy); });
   const end=()=>{ if(!drag)return; drag=null; d.classList.remove('dragging');
-    const r=d.getBoundingClientRect(); store.set('pj-spdock',JSON.stringify([r.left/innerWidth,r.top/innerHeight])); };
+    const r=d.getBoundingClientRect(); store.set(pk,JSON.stringify([r.left/innerWidth,r.top/innerHeight])); };
   d.addEventListener('pointerup',end); d.addEventListener('pointercancel',end);
-  addEventListener('resize',()=>{ if(d.hidden||!d.style.left)return; const r=d.getBoundingClientRect(); place(r.left,r.top); });
-})();
+  addEventListener('resize',clamp);
+  applySt();
+}
+floatWin($('#spDock'),'spdock'); floatWin($('#ytDock'),'ytdock'); floatWin($('#voicePanel'),'vpanel');
+
+/* ---------- YouTube player you can see (the Music link above plays hidden in the background) ---------- */
+function ytParts(u){
+  u=(u||'').trim(); if(!u)return null;
+  const list=(u.match(/[?&]list=([A-Za-z0-9_-]+)/)||[])[1]||'';
+  const v=parseMusic(u), id=v&&v.yt?v.yt:'';
+  return id||list?{id,list}:null;
+}
+function ytShow(u){
+  const p=ytParts(u), d=$('#ytDock');
+  if(!p){toast('That isn\'t a YouTube link. Copy the link from YouTube (Share, then Copy) and paste it here.');return;}
+  if(snd.on)setMusic(false);
+  const q='autoplay=1&playsinline=1&rel=0&modestbranding=1'+(p.list?'&list='+p.list:'');
+  const src=p.id?`https://www.youtube-nocookie.com/embed/${p.id}?${q}`:`https://www.youtube-nocookie.com/embed/videoseries?${q}`;
+  const web=p.id?`https://www.youtube.com/watch?v=${p.id}${p.list?'&list='+p.list:''}`:`https://www.youtube.com/playlist?list=${p.list}`;
+  const local=!/^https?:$/.test(location.protocol);
+  d.innerHTML=`<div class="sphead"><span class="lab">YouTube</span><span style="display:flex;gap:6px"><a class="ghost sm" href="${web}" target="_blank" rel="noopener">Open on YouTube</a>${winBtns()}<button class="ghost sm" type="button" id="ytClose">Close</button></span></div>
+    <div class="ytframe"><iframe src="${src}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="YouTube player"></iframe></div>
+    ${local?'<p class="spwarn">YouTube videos only play when the game is opened from a website (like GitHub Pages), not as a file.</p>':''}`;
+  d.hidden=false; store.set('pj-yt',u);
+  toast('YouTube player is open. Drag its top bar to move it.');
+}
+$('#ytUse').addEventListener('click',()=>ytShow($('#ytUrl').value.trim()));
+$('#ytUrl').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();ytShow(e.target.value.trim());} e.stopPropagation(); });
+$('#ytUrl').value=store.get('pj-yt')||'';
+$('#ytDock').addEventListener('click',e=>{ if(e.target.id==='ytClose'){ const d=$('#ytDock'); d.hidden=true; d.innerHTML=''; } });
+
+/* ---------- refresh buttons for the kind of device you're on (bottom of Settings) ---------- */
+function devType(){
+  const ua=navigator.userAgent||'', touch=navigator.maxTouchPoints>1;
+  if(/iPad|Tablet|Silk|Kindle|PlayBook/.test(ua)||(/Macintosh/.test(ua)&&touch)||(/Android/.test(ua)&&!/Mobile/.test(ua)))return 'tablet';
+  if((navigator.userAgentData&&navigator.userAgentData.mobile)||/iPhone|iPod|Android.*Mobile|IEMobile|Opera Mini/.test(ua))return 'phone';
+  if(matchMedia('(pointer:coarse)').matches&&!matchMedia('(any-pointer:fine)').matches)return Math.min(screen.width,screen.height)>=600?'tablet':'phone';
+  return 'desktop';
+}
+let refArm='';
+function doRefresh(kind){
+  if(net.role&&refArm!==kind){ refArm=kind; renderRefresh(); toast('Refreshing leaves the party. Tap again to refresh anyway.'); setTimeout(()=>{refArm='';renderRefresh();},4000); return; }
+  if(kind==='spots'){ ['spdock','ytdock','vpanel'].forEach(k=>{store.set('pj-'+k,'null');store.set('pj-'+k+'-st','{}');});
+    ['#spDock','#ytDock','#voicePanel'].forEach(id=>{const d=$(id); d.removeAttribute('style'); d.classList.remove('min','big'); d.querySelectorAll('.wbtn').forEach(b=>b.hidden=false);});
+    toast('Players and the voice panel are back in their corners.'); return; }
+  if(kind==='hard'){ const u=new URL(location.href); u.searchParams.set('r',Date.now().toString(36)); location.replace(u.toString()); return; }
+  location.reload();
+}
+function renderRefresh(){
+  const t=devType(), mac=/Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
+  const name={desktop:'Computer',tablet:'Tablet',phone:'Phone'}[t];
+  const btns=t==='desktop'?[['soft','Refresh'],['hard','Hard refresh'],['spots','Reset window spots']]
+                          :[['soft','Refresh'],['hard','Get latest version'],['spots','Reset player spots']];
+  $('#refLab').textContent='Refresh · '+name;
+  $('#refList').innerHTML=btns.map(([k,n])=>`<button class="ghost sm" type="button" data-ref="${k}">${k==='soft'?ico('refresh'):''}${refArm===k?'Tap again':n}</button>`).join('');
+  $('#refHint').textContent=t==='desktop'?(mac?'Keys: ⌘R refreshes, ⌘⇧R hard refreshes.':'Keys: F5 refreshes, Ctrl+Shift+R hard refreshes.')
+    :t==='tablet'?'Get latest version skips the saved copy, so you get the newest update.'
+    :'You can also pull down on the page to refresh. Get latest version gets the newest update.';
+}
+$('#refList').addEventListener('click',e=>{ const b=e.target.closest('[data-ref]'); if(b)doRefresh(b.dataset.ref); });
+renderRefresh();
+
 /* top bars */
 function syncBars(){
   const on=isOnline(); renderChat();
@@ -2987,8 +3208,8 @@ document.addEventListener('keydown',e=>{
   if(G&&!G.busy&&!G.pend&&G.phase!=='discard'&&G.selCard){clearSel();renderAll();}
 });
 /* ---------- keyboard play ---------- */
-const KEYACT=[...Array(6).keys()].map(i=>({id:'c'+i,n:'Card '+(i+1)})).concat([{id:'draw',n:'Draw a card'},{id:'side',n:'Turn a card sideways'},{id:'bump',n:'Next peg you can bump'}]);
-const KDEF={c0:'1',c1:'2',c2:'3',c3:'4',c4:'5',c5:'6',draw:'d',side:'s',bump:'b'};
+const KEYACT=[...Array(6).keys()].map(i=>({id:'c'+i,n:'Card '+(i+1)})).concat([{id:'draw',n:'Draw a card'},{id:'side',n:'Turn a card sideways'},{id:'bump',n:'Next peg you can bump'},{id:'ptt',n:'Talk (voice)'},{id:'mute',n:'Mute mic'},{id:'deaf',n:'Deafen'}]);
+const KDEF={c0:'1',c1:'2',c2:'3',c3:'4',c4:'5',c5:'6',draw:'d',side:'s',bump:'b',ptt:'v',mute:'m',deaf:'n'};
 const KEYS={on:true,mode:'twice',auto:true,map:Object.assign({},KDEF)};
 try{const k=JSON.parse(store.get('pj-keys')||'null');
   if(k){ KEYS.on=k.on!==false; if(k.mode==='once'||k.mode==='twice')KEYS.mode=k.mode; KEYS.auto=k.auto!==false;
@@ -3009,7 +3230,7 @@ function renderKeys(){
 $('#settings').addEventListener('click',e=>{
   if(e.target.closest('[role=tab]')&&kcap){kcap=null;renderKeys();}
   const kb=e.target.closest('.keybtn'); if(kb){kcap=kcap===kb.dataset.key?null:kb.dataset.key;renderKeys();return;}
-  if(e.target.id==='keyReset'){KEYS.map=Object.assign({},KDEF);kcap=null;saveKeys();renderKeys();if(G)renderHand();toast('Card keys are back to 1 to 6.');return;}
+  if(e.target.id==='keyReset'){KEYS.map=Object.assign({},KDEF);kcap=null;saveKeys();renderKeys();if(G)renderHand();toast('Keys are back to the defaults.');return;}
   const sb=e.target.closest('#segKeys button,#segKeyMode button,#segKeyAuto button'); if(!sb)return;
   const id=sb.parentNode.id, v=sb.dataset.v;
   if(id==='segKeys')KEYS.on=v==='on'; else if(id==='segKeyMode')KEYS.mode=v; else KEYS.auto=v==='on';
@@ -3090,7 +3311,7 @@ document.addEventListener('keydown',e=>{
     const k=normKey(e), id=kcap; kcap=null;
     const other=Object.keys(KEYS.map).find(a=>a!==id&&KEYS.map[a]===k);
     if(other){KEYS.map[other]=KEYS.map[id]; toast(`That key was on "${KEYACT.find(x=>x.id===other).n}", so the two keys swapped.`);}
-    KEYS.map[id]=k; saveKeys(); renderKeys(); if(G)renderHand(); return;
+    KEYS.map[id]=k; saveKeys(); renderKeys(); renderVoice(); if(G)renderHand(); return;
   }
   if(!KEYS.on||!G||modalOpen())return;
   const t=e.target; if(t&&(/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.isContentEditable))return;
