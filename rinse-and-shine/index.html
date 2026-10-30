@@ -679,7 +679,7 @@ function brush(s,cx,cy,rp,n,pf,k){
   if(n.soap){if(!P.done&&amt[i]>.5)soap[i]=Math.min(255,soap[i]+16*k*(1-d2*.5));continue;}
   const f=1-d2*.6,sb=soap[i];if(sb>0)soap[i]=Math.max(0,sb-n.pow*k*.6*f);
   const a=amt[i];if(a<=0)continue;const t=typ[i],sf=1+2.2*sb/255,eff=n.pow*pf*f-T_RES[t]/sf;if(eff<=0)continue;
-  const rem=eff*k*(.55+rnd[i]*.0035)/(T_HARD[t]/sf)*1.2,na=a>rem?a-rem:0;amt[i]=na;removed+=a-na;if(col<0)col=i;}}
+  const rem=eff*k*(.55+rnd[i]*.0035)/(T_HARD[t]/sf)*3.4,na=a>rem?a-rem:0;amt[i]=na;removed+=a-na;if(col<0)col=i;}}
  P.rem-=removed;paintRect(s,x0,y0,x1,y1);return{removed,col};
 }
 function doSpray(dt,eyeO,target){
@@ -694,8 +694,8 @@ function doSpray(dt,eyeO,target){
   if(!hs.length){hp.copy(eyeO).addScaledVector(dirs[j],RANGE);hits.push(null);continue;}
   const hh=hs[0];hp.copy(hh.point);hits.push(hh);
   const s=hh.object.userData.surf;const dh=hh.distance;
-  if(s&&hh.uv){let r;if(n.r)r=n.r;else if(n.soap)r=Math.max(.06,dh*Math.tan(ang/2)*.5);else r=Math.max(.035,dh*Math.tan(ang/2)*2/(n.rays-1)*.62);
-   const pfD=pf*clamp(2.4/(.9+dh),.3,1.5),res=brush(s,hh.uv.x*s.w,(1-hh.uv.y)*s.h,Math.max(2.2,r*s.ppm),n,pfD,k);
+  if(s&&hh.uv){let r;if(n.r)r=n.r;else if(n.soap)r=Math.max(.06,dh*Math.tan(ang/2)*.5);else r=Math.max(.05,dh*Math.tan(ang/2)*2/(n.rays-1)*.8);
+   const pfD=pf*clamp(3.4/(.9+dh),.5,1.7),res=brush(s,hh.uv.x*s.w,(1-hh.uv.y)*s.h,Math.max(2.2,r*s.ppm),n,pfD,k);
    if(res&&res.removed>0){any=true;if(Math.random()<.5){const ci=res.col;addP(hp.x,hp.y,hp.z,(Math.random()-.5)*1.5,.5+Math.random()*1.5,(Math.random()-.5)*1.5,`rgb(${s.dr[ci]},${s.dg[ci]},${s.db[ci]})`,.6,'drop');}}}
   const mist=SET.mist==='off'?0:SET.mist==='some'?.35:.9;
   if(Math.random()<mist){const nn=hh.face?hh.face.normal:UP;addP(hp.x,hp.y,hp.z,(Math.random()-.5)*2+nn.x,1+Math.random()*2,(Math.random()-.5)*2+nn.z,n.soap?'#f4f7ff':'#dff0ff',.45+Math.random()*.35,'drop');}
