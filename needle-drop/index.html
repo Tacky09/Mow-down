@@ -512,7 +512,7 @@ async function findTrack(song){
 }
 
 /* ---------- Filters ---------- */
-const stages=()=>state.diff==="impossible"?STAGES_IMP:STAGES_FULL;
+const stages=()=>STAGES_FULL;
 const firstStage=()=>Math.min(state.startAt,stages().length-1);
 function setFilter(key,val){state[key]=val;store.set(key,val);renderControls();newRound()}
 
