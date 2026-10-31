@@ -1200,7 +1200,7 @@ function selectTool(k) {
 }
 function renderHotbar() {
   $('hotbar').innerHTML = TOOLS.map((t, i) => {
-    const a = t.ammo === Infinity ? '∞' : (t.cont ? Math.ceil(t.ammo) + '%' : t.ammo);
+    const a = t.ammo === Infinity ? 'MAX' : (t.cont ? Math.ceil(t.ammo) + '%' : t.ammo);
     return `<div class="slot${i === tool ? ' on' : ''}${t.ammo !== Infinity && t.ammo <= 0 ? ' empty' : ''}"><span class="k">${i + 1}</span><span class="ic">${t.ic}</span><span class="nm">${t.short}</span><span class="am">${a}</span></div>`;
   }).join('');
 }
@@ -1757,7 +1757,7 @@ function renderMenu() {
   }).join('');
   document.querySelectorAll('.mcard').forEach(b => b.addEventListener('click', () => goMission(b.dataset.id)));
 }
-const SHOTS = { sandbox: [[24, 20, 66], [24, 0, 18]], lockbox: [[34, 3, 28], [20, 4, 8]], gallery: [[17, 3.2, 26], [7, 4, 11]] };
+const SHOTS = { sandbox: [[38, 11, 40], [20, 2, 16]], lockbox: [[34, 3, 28], [20, 4, 8]], gallery: [[17, 3.2, 26], [7, 4, 11]] };
 function takeThumbs() {
   const keep = camera.position.clone(), kq = camera.quaternion.clone(), w = innerWidth, h = innerHeight;
   if (!w || !h) return;
@@ -1769,7 +1769,12 @@ function takeThumbs() {
   }
   vmGroups.forEach(g => { g.visible = g.userData.v; });
   camera.position.copy(keep); camera.quaternion.copy(kq);
+  if (!$('menu').classList.contains('hidden')) renderMenu();
+  if (game.m && THUMBS[game.m.id]) $('briefPic').style.backgroundImage = `url(${THUMBS[game.m.id]})`;
 }
+// the page can load while hidden (0x0); grab the thumbnails once it has a size
+addEventListener('resize', () => { if (!THUMBS.sandbox && innerWidth && innerHeight) setTimeout(takeThumbs, 50); });
+document.addEventListener('visibilitychange', () => { if (!THUMBS.sandbox && innerWidth && innerHeight) setTimeout(takeThumbs, 50); });
 function stepHud(dt) {
   if (!game.m) return;
   $('pTargets').textContent = targets.length ? game.collected + '/' + targets.length : '—';
