@@ -131,6 +131,9 @@ body.touch #hint{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 .volrow b{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
 .keybtn{min-width:110px;padding:6px 10px;border-radius:9px;background:var(--g-bg);border:1px solid var(--g-edge);font-weight:700}
 .keybtn.wait{background:var(--g-acc);color:var(--g-acc-ink)}
+.coderow{display:flex;gap:8px;flex-wrap:wrap}
+.coderow input{font:600 15px var(--f-body);letter-spacing:.06em;text-transform:uppercase;padding:8px 10px;border-radius:10px;border:1px solid var(--g-edge);background:var(--g-bg);color:var(--g-ink);width:170px;max-width:100%;-webkit-user-select:text;user-select:text}
+.codemsg{margin-top:10px}.codemsg.ok{color:var(--good)}
 .head{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .jobcard{display:flex;flex-direction:column;gap:6px;text-align:left;padding:12px;border-radius:14px;background:var(--g-bg2);border:1px solid var(--g-edge)}
@@ -778,7 +781,7 @@ let setTab='Controls',bindWait=null;
 function openSettings(back){settingsBack=back;bindWait=null;renderSettings();show('settings')}
 $('setClose').onclick=()=>{bindWait=null;if(settingsBack==='menu'){renderMenu();show('menu')}else show(settingsBack||'pause')};
 function renderSettings(){
- const tabs=$('setTabs');tabs.textContent='';for(const t of['Controls','Graphics','Audio']){const b=document.createElement('button');b.type='button';b.className='stab';b.textContent=t;b.setAttribute('aria-pressed',String(t===setTab));b.onclick=()=>{setTab=t;bindWait=null;renderSettings()};tabs.appendChild(b)}
+ const tabs=$('setTabs');tabs.textContent='';for(const t of['Controls','Graphics','Audio','Codes']){const b=document.createElement('button');b.type='button';b.className='stab';b.textContent=t;b.setAttribute('aria-pressed',String(t===setTab));b.onclick=()=>{setTab=t;bindWait=null;renderSettings()};tabs.appendChild(b)}
  const body=$('setBody');body.textContent='';const list=document.createElement('div');list.className='setlist';body.appendChild(list);
  const row=(label,el)=>{const r=document.createElement('div');r.className='setrow';const sp=document.createElement('span');sp.textContent=label;r.append(sp,el);list.appendChild(r)};
  const select=(opts,cur,on)=>{const s=document.createElement('select');for(const[v,t]of opts){const o=document.createElement('option');o.value=v;o.textContent=t;s.appendChild(o)}s.value=String(cur);s.onchange=()=>on(s.value);return s};
@@ -798,6 +801,13 @@ function renderSettings(){
   row('Water spray and mist',select([['lots','Lots'],['some','Some'],['off','Off (faster)']],SET.mist,v=>{SET.mist=v;saveSet()}));
   const w=document.createElement('div');w.className='swatches';for(const[id,name,c]of UI_COLORS){const b=document.createElement('button');b.type='button';b.className='swb';b.title=name;b.setAttribute('aria-label',name+' menus');b.setAttribute('aria-pressed',String(id===SET.ui));b.style.setProperty('--sw',c||'linear-gradient(135deg,#0c0c0e 50%,#fff 50%)');if(!c)b.style.background='linear-gradient(135deg,#0c0c0e 50%,#fff 50%)';b.onclick=()=>{SET.ui=id;saveSet();applyUi();renderSettings()};w.appendChild(b)}row('Menu color',w);
   row('Menu look',select([['light','Day (light)'],['dark','Night (dark)']],SET.look,v=>{SET.look=v;saveSet();applyUi()}));
+ }else if(setTab==='Codes'){
+  const w=document.createElement('div');w.className='coderow';const inp=document.createElement('input');inp.id='codeIn';inp.type='text';inp.placeholder='Type a code';inp.autocomplete='off';inp.spellcheck=false;inp.maxLength=24;
+  const go=document.createElement('button');go.type='button';go.className='btn sm';go.textContent='Redeem';w.append(inp,go);row('Enter a code',w);
+  const msg=document.createElement('p');msg.className='small codemsg';msg.setAttribute('aria-live','polite');msg.textContent=save.all?'Everything is unlocked.':'Codes unlock tips, upgrades and jobs.';body.appendChild(msg);
+  const redeem=()=>{const c=inp.value.trim().toUpperCase().replace(/\s+/g,'');if(!c){msg.textContent='Type a code first.';return}
+   const r=redeemCode(c);msg.textContent=r;msg.classList.toggle('ok',r.startsWith('Unlocked'));if(r.startsWith('Unlocked'))inp.value=''};
+  go.onclick=redeem;inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')redeem()});
  }else{
   const on=document.createElement('button');on.type='button';on.className='keybtn'+(SET.sound?' wait':'');on.textContent=SET.sound?'On':'Off';on.onclick=()=>{SET.sound=!SET.sound;saveSet();applyVol();renderSettings()};row('Sound',on);
   const pct=v=>Math.round(v*100)+'%';
@@ -808,6 +818,14 @@ function renderSettings(){
  }
 }
 
+function redeemCode(c){
+ if(c==='SHINEALL'||c==='UNLOCKALL'){
+  if(save.all&&save.pump===PUMP.length-1&&NOZ.every(n=>save.owned.includes(n.id)))return 'You already unlocked everything with this code.';
+  save.all=true;save.pump=PUMP.length-1;NOZ.forEach(n=>{if(!save.owned.includes(n.id))save.owned.push(n.id)});save.coins+=100000;persist();
+  $('coins').textContent=save.coins.toLocaleString();buildTips();ding();toast('<b>Everything unlocked</b> <em>+100,000</em>');
+  return 'Unlocked every job, every nozzle tip and the 4,200 PSI pump, plus 100,000 coins.';}
+ return 'That code doesn’t work. Check the spelling and try again.';
+}
 /* jobs / shop / complete */
 let modalBack=null;
 function openModal(html,back){$('sheet').innerHTML=html;modalBack=back;show('modal');$('sheet').querySelectorAll('[data-close]').forEach(b=>b.onclick=closeModal)}
@@ -815,7 +833,7 @@ function closeModal(){if(modalBack==='menu'){renderMenu();show('menu')}else if(m
 const head=(t,sub)=>`<div class="head"><div><h1>${t}</h1>${sub?`<p class="small">${sub}</p>`:''}</div><button class="btn ghost sm" data-close type="button">Back</button></div>`;
 function openJobs(back){
  openModal(head('Job board','Every surface you finish pays out. Finish every surface to complete the job and unlock the next one.')+'<div class="jobs" id="jobs"></div>',back);
- LEVELS.forEach((L,i)=>{const unlocked=i===0||save.done.includes(i-1),done=save.done.includes(i);const b=document.createElement('button');b.type='button';b.className='jobcard';b.disabled=!unlocked;
+ LEVELS.forEach((L,i)=>{const unlocked=i===0||save.done.includes(i-1)||save.all,done=save.done.includes(i);const b=document.createElement('button');b.type='button';b.className='jobcard';b.disabled=!unlocked;
   b.innerHTML=`<span class="n">${i+1}</span><span class="st ${done?'ok':''}">${done?'Done · wash it again':unlocked?(i===LV&&levelReady&&elapsed>0?'In progress':'Ready'):'Locked · finish job '+i}</span><span class="t"></span><span class="d"></span>`;
   b.querySelector('.t').textContent=L.name;b.querySelector('.d').textContent=L.client;b.onclick=()=>loadLevel(i,play);$('jobs').appendChild(b)});
 }
