@@ -644,7 +644,7 @@ function stepFire(dt) {
         continue;
       }
       burning.set(i, nl);
-      if (Math.random() < 0.075) {
+      if (Math.random() < 0.11) {
         const r = Math.random();
         if (r < 0.4) ignite(x, y + 1, z); else if (r < 0.55) ignite(x + 1, y, z); else if (r < 0.7) ignite(x - 1, y, z);
         else if (r < 0.85) ignite(x, y, z + 1); else if (r < 0.97) ignite(x, y, z - 1); else ignite(x, y - 1, z);
@@ -983,11 +983,11 @@ const vmMats = {};
 function vmMat(hex) {
   if (!vmMats[hex]) {
     const glow = ['#3cff6a', '#2fd4ff', '#ff8a1a', '#7dff7a', '#ff3b2f'].includes(hex);
-    vmMats[hex] = new THREE.MeshStandardMaterial({ color: C(hex), roughness: 0.6, metalness: ['#9aa1a9', '#7d8187', '#5b5f63'].includes(hex) ? 0.6 : 0.1, emissive: glow ? C(hex) : new THREE.Color(0), emissiveIntensity: glow ? 1.5 : 0 });
+    vmMats[hex] = new THREE.MeshStandardMaterial({ color: C(hex), roughness: 0.6, envMapIntensity: 0.45, metalness: ['#9aa1a9', '#7d8187', '#5b5f63'].includes(hex) ? 0.6 : 0.1, emissive: glow ? C(hex) : new THREE.Color(0), emissiveIntensity: glow ? 1.5 : 0 });
   }
   return vmMats[hex];
 }
-function vox(parts, u = 0.032) {
+function vox(parts, u = 0.021) {
   const g = new THREE.Group();
   for (const [x, y, z, w, h, d, hex] of parts) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w * u, h * u, d * u), vmMat(hex));
