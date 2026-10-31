@@ -5,55 +5,202 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wreckworks</title>
 <style>
-  :root { --ink: #f1ece4; --dim: rgba(241,236,228,0.6); --panel: rgba(12,12,14,0.62); --accent: #f0b23a; --red: #ff4b3e; }
+  :root {
+    --navy: #061430; --navy2: #0b2147; --panelA: rgba(24, 66, 118, 0.95); --panelB: rgba(8, 28, 62, 0.95);
+    --edge: #2fc6ff; --ink: #ffffff; --dim: #a9c8ea; --gold1: #ffe066; --gold2: #f5980f; --green1: #63f283; --green2: #13a94b;
+    --blue1: #4f9bff; --blue2: #1b4fd6; --purple1: #a35cff; --purple2: #5b1fc2; --red: #ff3d55;
+  }
   * { box-sizing: border-box; user-select: none; }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1a1d; color: var(--ink);
-    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--navy); color: var(--ink);
+    font-family: "Exo 2", "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
   #game { position: fixed; inset: 0; }
   canvas { display: block; }
-  .hud { position: fixed; z-index: 5; pointer-events: none; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
-  #crosshair { left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,0.9); box-shadow: 0 0 0 1px rgba(0,0,0,0.5); }
-  #hotbar { left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 6px; }
-  .slot { width: 84px; padding: 6px 6px 5px; border-radius: 6px; background: var(--panel); border: 1px solid rgba(255,255,255,0.08); font-size: 11px; line-height: 1.25; }
-  .slot b { display: block; color: var(--dim); font-size: 10px; }
-  .slot i { font-style: normal; color: var(--dim); }
-  .slot.on { background: rgba(240,178,58,0.25); border-color: var(--accent); }
-  .slot.on b { color: var(--accent); }
-  .slot.empty { opacity: 0.4; }
-  #toolName { left: 50%; bottom: 82px; transform: translateX(-50%); font-size: 15px; letter-spacing: 3px; text-transform: uppercase; }
-  #objective { left: 18px; top: 16px; background: var(--panel); padding: 10px 14px; border-radius: 8px; min-width: 240px; font-size: 14px; }
-  #objective h4 { margin: 0 0 4px; font-size: 11px; letter-spacing: 2px; color: var(--accent); }
-  #alarm { left: 50%; top: 14px; transform: translateX(-50%); font-size: 42px; font-weight: 800; color: var(--red); letter-spacing: 2px; display: none; }
-  #alarm small { display: block; font-size: 12px; letter-spacing: 4px; text-align: center; color: #ffb3ad; }
-  #health { left: 18px; bottom: 22px; width: 180px; height: 8px; border-radius: 4px; background: rgba(0,0,0,0.5); overflow: hidden; }
-  #health i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #e2463a, #f0b23a); }
-  #prompt { left: 50%; top: 58%; transform: translateX(-50%); font-size: 15px; background: var(--panel); padding: 6px 12px; border-radius: 6px; display: none; }
-  #toast { left: 50%; top: 22%; transform: translateX(-50%); font-size: 20px; font-weight: 700; opacity: 0; transition: opacity 0.3s; }
+  .it { font-style: italic; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3px; }
+  .hud { position: fixed; z-index: 5; pointer-events: none; text-shadow: 0 2px 3px rgba(0,0,0,0.55); }
+  body.inmenu .hud { display: none !important; }
+  .panel { background: linear-gradient(180deg, var(--panelA), var(--panelB)); border: 1px solid rgba(47,198,255,0.35); border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12); }
+
+  /* currency pills */
+  .pills { display: flex; gap: 10px; align-items: center; }
+  .pill { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 6px 0 3px; border-radius: 16px; background: rgba(3,12,32,0.78);
+    border: 1px solid rgba(255,255,255,0.08); font-weight: 800; font-size: 15px; min-width: 96px; }
+  .pill .ico { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; flex: none;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.4); }
+  .pill .ico.star { background: radial-gradient(circle at 35% 30%, #fff3a8, #f5b20f); }
+  .pill .ico.coin { background: radial-gradient(circle at 35% 30%, #ffe9a0, #d99412); }
+  .pill .ico.gem { background: radial-gradient(circle at 35% 30%, #b5ffb0, #19b04a); }
+  .pill .plus { margin-left: auto; width: 20px; height: 20px; border-radius: 5px; background: linear-gradient(180deg, var(--green1), var(--green2));
+    display: grid; place-items: center; font-size: 15px; line-height: 1; }
+  #topbar { right: 14px; top: 12px; }
+
+  /* mission / objective card */
+  #objective { left: 14px; top: 12px; width: 290px; overflow: hidden; }
+  #objective .oh { display: flex; align-items: center; gap: 10px; padding: 9px 12px 8px;
+    background: linear-gradient(90deg, rgba(245,152,15,0.95), rgba(245,152,15,0.35)); }
+  #objective .avatar { width: 38px; height: 38px; border-radius: 50%; flex: none; background: radial-gradient(circle at 40% 35%, #ffd27a, #c8641a);
+    border: 2px solid #fff; display: grid; place-items: center; font-size: 19px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+  #objTitle { font-size: 19px; line-height: 1; }
+  #objSub { font-size: 11px; font-weight: 700; color: #fff4d6; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+  #objText { padding: 10px 12px 12px; font-size: 14px; font-weight: 700; }
+  .bar { height: 10px; border-radius: 6px; background: #04102a; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.6); margin-top: 7px; }
+  .bar i { display: block; height: 100%; width: 0%; border-radius: 6px; background: linear-gradient(90deg, #2fd35a, #b8ff5a); transition: width 0.3s; }
+  .steps { display: flex; justify-content: space-between; margin-top: -14px; padding: 0 2px; }
+  .steps b { width: 18px; height: 18px; border-radius: 50%; background: #0b2147; border: 2px solid #3b6aa8; font-size: 10px; display: grid; place-items: center; }
+  .steps b.on { background: linear-gradient(180deg, var(--gold1), var(--gold2)); border-color: #fff; color: #5a2a00; }
+  .hint { font-size: 12px; color: var(--dim); font-weight: 600; margin-top: 8px; }
+
+  /* alarm timer, styled like a duel clock */
+  #alarm { left: 50%; top: 10px; transform: translateX(-50%); display: none; text-align: center; }
+  #alarm .clock { display: inline-flex; align-items: stretch; border-radius: 10px; overflow: hidden; box-shadow: 0 6px 16px rgba(0,0,0,0.5); }
+  #alarm .chip { background: linear-gradient(180deg, #ff5a6d, #c4122c); padding: 4px 12px; font-size: 13px; display: flex; align-items: center; }
+  #alarm .tv { background: rgba(3,12,32,0.9); padding: 2px 18px 4px; }
+  #alarm .tv small { display: block; font-size: 10px; color: var(--dim); letter-spacing: 2px; font-style: normal; }
+  #alarmT { font-size: 32px; line-height: 1; }
+  #alarm .sub { margin-top: 4px; font-size: 18px; color: #7dff8f; }
+  #alarm.low #alarmT { color: #ff6b7c; }
+
+  /* combo pop */
+  #combo { right: 22%; top: 38%; text-align: center; opacity: 0; transform: scale(0.8); transition: opacity 0.2s, transform 0.2s; }
+  #combo.show { opacity: 1; transform: scale(1); }
+  #combo .c1 { display: inline-block; padding: 3px 12px; border-radius: 8px; background: linear-gradient(180deg, var(--purple1), var(--purple2)); font-size: 16px; }
+  #combo .c2 { display: block; margin-top: 4px; font-size: 24px; color: #8dff6a; -webkit-text-stroke: 1px #0b4d1c; }
+
+  /* hotbar */
+  #toolName { left: 50%; bottom: 112px; transform: translateX(-50%) skewX(-12deg); padding: 4px 22px; font-size: 15px;
+    background: linear-gradient(90deg, rgba(27,79,214,0), rgba(27,79,214,0.95) 18%, rgba(91,31,194,0.95) 82%, rgba(91,31,194,0)); }
+  #hotbar { left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 7px; }
+  .slot { position: relative; width: 74px; height: 88px; border-radius: 12px; padding: 8px 4px 0; text-align: center;
+    background: linear-gradient(180deg, rgba(30,78,138,0.92), rgba(8,28,62,0.92)); border: 2px solid rgba(47,198,255,0.25);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.4); transition: transform 0.12s; }
+  .slot .k { position: absolute; left: 5px; top: 4px; font-size: 11px; font-weight: 900; color: var(--dim); font-style: italic; }
+  .slot .ic { font-size: 28px; line-height: 34px; display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+  .slot .nm { display: block; font-size: 10.5px; font-weight: 800; line-height: 1.1; height: 24px; overflow: hidden; }
+  .slot .am { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); padding: 1px 8px; border-radius: 8px; font-size: 11px; font-weight: 900;
+    background: #04102a; border: 1px solid rgba(47,198,255,0.4); white-space: nowrap; }
+  .slot.on { transform: translateY(-8px); border-color: var(--gold1);
+    background: linear-gradient(180deg, rgba(255,201,64,0.55), rgba(140,70,8,0.92)); box-shadow: 0 0 18px rgba(255,200,60,0.55), 0 8px 16px rgba(0,0,0,0.45); }
+  .slot.on .k { color: #fff3c4; }
+  .slot.on .am { background: linear-gradient(180deg, var(--gold1), var(--gold2)); color: #5a2a00; border-color: #fff; }
+  .slot.empty { filter: grayscale(1); opacity: 0.55; }
+
+  /* health */
+  #health { left: 14px; bottom: 22px; display: flex; align-items: center; gap: 8px; }
+  #health .heart { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 15px;
+    background: radial-gradient(circle at 35% 30%, #ff9aa6, #d4142f); box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+  #health .bar { width: 170px; height: 12px; margin: 0; border: 1px solid rgba(255,255,255,0.12); }
+
+  #crosshair { left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; }
+  #crosshair:before, #crosshair:after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 2px rgba(0,0,0,0.8); border-radius: 2px; }
+  #crosshair:before { left: 10px; top: 3px; width: 2px; height: 16px; }
+  #crosshair:after { top: 10px; left: 3px; height: 2px; width: 16px; }
+  #crosshair i { position: absolute; inset: 7px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.0); background: transparent; }
+
+  /* grab prompt, styled like the TAP button */
+  #prompt { left: 50%; top: 60%; transform: translateX(-50%); display: none; }
+  #prompt .wrap { display: flex; align-items: center; }
+  #prompt .tap { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; z-index: 1;
+    background: radial-gradient(circle at 40% 35%, #5fb1ff, #1b4fd6); border: 4px solid #cfeaff; box-shadow: 0 0 0 4px rgba(47,198,255,0.35), 0 6px 14px rgba(0,0,0,0.5);
+    animation: pulse 1s ease-in-out infinite; }
+  #prompt .lbl { margin-left: -12px; padding: 7px 18px 7px 22px; border-radius: 0 10px 10px 0; background: rgba(3,12,32,0.88); font-size: 16px; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 9px rgba(47,198,255,0.15), 0 6px 14px rgba(0,0,0,0.5); } }
+
+  #toast { left: 50%; top: 23%; transform: translateX(-50%); padding: 8px 70px; font-size: 26px; white-space: nowrap; opacity: 0; transition: opacity 0.3s;
+    background: linear-gradient(90deg, rgba(27,79,214,0), rgba(27,79,214,0.9) 22%, rgba(91,31,194,0.9) 78%, rgba(91,31,194,0)); }
   #toast.show { opacity: 1; }
   #markers { inset: 0; }
-  .mk { position: absolute; transform: translate(-50%, -50%); font-size: 11px; color: #ffe39a; text-align: center; white-space: nowrap; }
-  .mk:before { content: ""; display: block; width: 12px; height: 12px; margin: 0 auto 2px; border: 2px solid #ffd35a; transform: rotate(45deg); box-shadow: 0 0 8px rgba(255,200,60,0.8); }
-  .mk.exit { color: #9dffb0; } .mk.exit:before { border-color: #5aff7a; box-shadow: 0 0 8px rgba(90,255,120,0.8); border-radius: 50%; }
-  #damage { inset: 0; box-shadow: inset 0 0 160px rgba(200,0,0,0.75); opacity: 0; transition: opacity 0.2s; }
-  .screen { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
-    background: radial-gradient(ellipse at center, rgba(20,18,16,0.55), rgba(8,8,10,0.92)); }
-  .card { width: min(820px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; background: rgba(18,17,19,0.92); border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 14px; padding: 26px 30px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
-  .logo { font-size: 56px; font-weight: 900; letter-spacing: 6px; margin: 0; line-height: 1; }
-  .logo span { color: var(--accent); }
-  .tag { color: var(--dim); margin: 6px 0 18px; letter-spacing: 1px; }
-  .missions { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 18px; }
-  .mission { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 14px; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
-  .mission:hover { border-color: var(--accent); background: rgba(240,178,58,0.08); }
-  .mission h3 { margin: 0 0 6px; font-size: 17px; } .mission p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.4; }
-  .mission .meta { margin-top: 8px; font-size: 12px; color: var(--accent); }
-  .keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 4px 18px; font-size: 13px; color: var(--dim); }
-  kbd { background: #2c2b2f; color: var(--ink); border-radius: 4px; padding: 1px 6px; font-family: inherit; font-size: 12px; border: 1px solid #444; }
-  .btn { background: var(--accent); color: #1a1408; border: 0; border-radius: 8px; padding: 12px 26px; font: inherit; font-weight: 800; letter-spacing: 2px; cursor: pointer; margin: 6px 6px 0 0; }
-  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid rgba(255,255,255,0.25); }
+  .mk { position: absolute; transform: translate(-50%, -50%); font-size: 12px; font-weight: 900; font-style: italic; color: #fff; text-align: center; white-space: nowrap; }
+  .mk:before { content: "★"; display: grid; place-items: center; width: 24px; height: 24px; margin: 0 auto 3px; border-radius: 50%; font-size: 14px; color: #5a2a00; font-style: normal;
+    background: radial-gradient(circle at 35% 30%, #fff3a8, #f5b20f); border: 2px solid #fff; box-shadow: 0 0 10px rgba(255,200,60,0.9); }
+  .mk.exit:before { content: "➜"; color: #fff; background: radial-gradient(circle at 35% 30%, #a6ffb4, #13a94b); box-shadow: 0 0 10px rgba(90,255,120,0.9); }
+  #damage { inset: 0; box-shadow: inset 0 0 160px rgba(220,0,30,0.75); opacity: 0; transition: opacity 0.2s; }
+
+  /* screens */
+  .screen { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px;
+    background: radial-gradient(ellipse at 50% 25%, rgba(23,92,160,0.55), rgba(3,10,26,0.95) 70%); }
+  .wrapc { width: min(1040px, 100%); max-height: 100%; overflow: auto; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .logo { margin: 0; font-size: 46px; line-height: 0.95; font-style: italic; font-weight: 900; letter-spacing: 1px;
+    text-shadow: 0 4px 0 #0b2147, 0 8px 18px rgba(0,0,0,0.5); }
+  .logo span { background: linear-gradient(180deg, var(--gold1), var(--gold2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .ribbon { display: inline-block; padding: 6px 22px 6px 16px; font-size: 17px; transform: skewX(-12deg); margin: 4px 0 12px 6px;
+    background: linear-gradient(90deg, #0d3a78, rgba(13,58,120,0)); border-left: 4px solid var(--edge); }
+  .ribbon .pin { color: var(--red); margin-right: 6px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+  .mcard { position: relative; height: 330px; border-radius: 16px; overflow: hidden; cursor: pointer; border: 2px solid rgba(47,198,255,0.3);
+    background: #0b2147 center/cover no-repeat; box-shadow: 0 12px 28px rgba(0,0,0,0.5); transition: transform 0.15s, border-color 0.15s; text-align: left; color: #fff; font: inherit; padding: 0; }
+  .mcard:hover { transform: translateY(-4px); border-color: var(--gold1); }
+  .mcard:after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,20,48,0) 30%, rgba(6,20,48,0.55) 55%, rgba(6,20,48,0.96) 100%); }
+  .mcard > * { position: relative; z-index: 1; }
+  .mcard .num { position: absolute; right: 12px; top: 10px; font-size: 26px; font-weight: 900; font-style: italic; opacity: 0.9; }
+  .mcard .done { position: absolute; left: 12px; top: 12px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 17px;
+    background: linear-gradient(180deg, var(--green1), var(--green2)); border: 2px solid #fff; }
+  .mcard .body { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 16px; }
+  .mcard h3 { margin: 0 0 4px; font-size: 26px; font-style: italic; font-weight: 900; text-transform: uppercase; line-height: 1; text-shadow: 0 3px 8px rgba(0,0,0,0.6); }
+  .mcard p { margin: 0 0 10px; font-size: 12.5px; color: var(--dim); font-weight: 600; line-height: 1.35; height: 51px; overflow: hidden; }
+  .mcard .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { padding: 3px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 900; font-style: italic; text-transform: uppercase; background: rgba(3,12,32,0.85); border: 1px solid rgba(47,198,255,0.35); }
+  .tag.gold { background: linear-gradient(180deg, var(--gold1), var(--gold2)); color: #5a2a00; border-color: transparent; }
+  .tag.green { background: linear-gradient(180deg, var(--green1), var(--green2)); border-color: transparent; }
+  .keys { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; padding: 12px 16px; font-size: 13px; color: var(--dim); font-weight: 600; }
+  kbd { background: #0b2147; color: #fff; border-radius: 6px; padding: 1px 7px; font-family: inherit; font-size: 12px; font-weight: 800; border: 1px solid rgba(47,198,255,0.5); box-shadow: 0 2px 0 #020a1c; }
+  .btn { font-family: inherit; font-style: italic; font-weight: 900; font-size: 20px; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; border: 0; border-radius: 12px;
+    padding: 12px 36px; cursor: pointer; margin: 6px 8px 0 0; text-shadow: 0 2px 0 rgba(0,0,0,0.25);
+    background: linear-gradient(180deg, var(--green1), var(--green2)); box-shadow: 0 5px 0 #0a6b2e, 0 10px 20px rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.35); transition: transform 0.08s; }
+  .btn:hover { transform: translateY(-2px); filter: brightness(1.06); }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #0a6b2e, inset 0 2px 0 rgba(255,255,255,0.35); }
+  .btn.gold { background: linear-gradient(180deg, var(--gold1), var(--gold2)); color: #5a2a00; text-shadow: 0 1px 0 rgba(255,255,255,0.4); box-shadow: 0 5px 0 #a45a00, 0 10px 20px rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.5); }
+  .btn.blue { background: linear-gradient(180deg, var(--blue1), var(--blue2)); box-shadow: 0 5px 0 #0e2d86, 0 10px 20px rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.3); }
+  .btn.small { font-size: 15px; padding: 9px 22px; }
+
+  /* briefing */
+  .brief { display: grid; grid-template-columns: 1.1fr 1fr; gap: 0; overflow: hidden; }
+  .brief .pic { min-height: 340px; background: #0b2147 center/cover no-repeat; position: relative; }
+  .brief .pic:after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,28,62,0) 55%, rgba(8,28,62,0.95)); }
+  .brief .info { padding: 22px 24px; }
+  .brief h2 { margin: 0 0 4px; font-size: 34px; }
+  .brief p { color: var(--dim); font-weight: 600; line-height: 1.45; font-size: 14px; }
+  .goals { list-style: none; padding: 0; margin: 12px 0 16px; }
+  .goals li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(3,12,32,0.55); margin-bottom: 6px; font-weight: 800; font-size: 14px; }
+  .goals li b { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none; font-size: 13px; background: linear-gradient(180deg, var(--gold1), var(--gold2)); color: #5a2a00; }
+  @media (max-width: 720px) { .brief { grid-template-columns: 1fr; } .brief .pic { min-height: 170px; } .logo { font-size: 34px; } }
+
+  /* pause */
+  .pause { width: min(420px, 100%); text-align: center; padding: 24px; }
+
+  /* end screen with reward chest */
+  .endwrap { width: min(760px, 100%); text-align: center; }
+  .band { position: relative; margin: 0 -40px 18px; padding: 12px 0 14px; font-size: 44px; transform: skewY(-2deg);
+    background: linear-gradient(90deg, rgba(27,79,214,0), rgba(27,79,214,0.95) 15%, rgba(91,31,194,0.95) 85%, rgba(91,31,194,0)); text-shadow: 0 4px 0 rgba(0,0,0,0.3); }
+  .band.fail { background: linear-gradient(90deg, rgba(196,18,44,0), rgba(196,18,44,0.95) 15%, rgba(110,8,30,0.95) 85%, rgba(110,8,30,0)); }
+  .band small { display: block; font-size: 15px; font-style: normal; font-weight: 700; text-transform: none; letter-spacing: 0; color: #e8eeff; margin-top: 4px; }
+  .chest { display: grid; grid-template-columns: 190px 1fr; gap: 18px; align-items: center; padding: 20px 22px; border-radius: 18px; text-align: left;
+    background: linear-gradient(135deg, #7a2fe0, #3b1490 60%, #24105a); border: 1px solid rgba(214,170,255,0.4); box-shadow: 0 16px 40px rgba(0,0,0,0.5); }
+  .chest.fail { background: linear-gradient(135deg, #2b3d5c, #16223a 60%, #0d1528); border-color: rgba(150,180,220,0.3); }
+  .chest h3 { margin: 0 0 10px; font-size: 24px; }
+  .chestArt { position: relative; height: 150px; }
+  .chestArt .lid { position: absolute; left: 20px; right: 20px; top: 18px; height: 44px; border-radius: 22px 22px 6px 6px; background: linear-gradient(180deg, #ffe066, #e2900c); border: 3px solid #fff3c4; }
+  .chestArt .box { position: absolute; left: 20px; right: 20px; top: 58px; height: 74px; border-radius: 6px 6px 14px 14px; background: linear-gradient(180deg, #f2f4f8, #b9c2d2); border: 3px solid #fff; }
+  .chestArt .strap { position: absolute; left: 50%; top: 40px; width: 34px; height: 46px; margin-left: -17px; border-radius: 8px; background: linear-gradient(180deg, #ffe066, #c97a08); border: 3px solid #fff3c4; }
+  .chest.fail .chestArt .lid, .chest.fail .chestArt .strap { background: linear-gradient(180deg, #9aa6b8, #5d6a7f); border-color: #c9d2e0; }
+  .chestArt .glow { position: absolute; inset: -10px; background: radial-gradient(circle, rgba(255,220,120,0.55), rgba(255,220,120,0) 65%); }
+  .chest.fail .chestArt .glow { display: none; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .tile { border-radius: 10px; padding: 10px 6px 8px; text-align: center; background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.18); }
+  .tile .ti { font-size: 24px; display: block; }
+  .tile .tv { font-size: 16px; font-weight: 900; font-style: italic; display: block; margin-top: 2px; }
+  .tile .tl { font-size: 10px; font-weight: 800; color: #e3d2ff; text-transform: uppercase; letter-spacing: 1px; }
+  .rarity { margin-top: 10px; padding: 5px; border-radius: 6px; text-align: center; font-size: 12px; background: linear-gradient(90deg, #0d8f8f, #1fb7a4); letter-spacing: 1px; }
+  .chest.fail .rarity { background: linear-gradient(90deg, #7a1424, #b71c35); }
+  @media (max-width: 640px) { .chest { grid-template-columns: 1fr; } .chestArt { height: 120px; width: 190px; margin: 0 auto; } .tiles { grid-template-columns: repeat(2, 1fr); } .band { font-size: 30px; } }
   .hidden { display: none !important; }
-  #loading { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #141416; font-size: 18px; letter-spacing: 4px; }
+  #loading { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; align-content: center; gap: 16px; background: radial-gradient(ellipse at 50% 30%, #123d72, #040c1f 70%); }
+  #loading .bar { width: 260px; height: 12px; }
+  #loading .bar i { width: 100%; animation: load 1.2s ease-in-out infinite; }
+  @keyframes load { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
@@ -61,55 +208,88 @@
 
 <div class="hud" id="markers"></div>
 <div class="hud" id="damage"></div>
-<div class="hud" id="crosshair"></div>
-<div class="hud" id="objective"><h4 id="objTitle">SANDBOX</h4><div id="objText">Wreck whatever you like.</div></div>
-<div class="hud" id="alarm"><span id="alarmT">60.0</span><small>ALARM</small></div>
-<div class="hud" id="toolName"></div>
+<div class="hud" id="crosshair"><i></i></div>
+<div class="hud panel" id="objective">
+  <div class="oh"><div class="avatar">🧨</div><div><div class="it" id="objTitle">SANDBOX</div><div id="objSub">Free play</div></div></div>
+  <div id="objText">Wreck whatever you like.</div>
+</div>
+<div class="hud pills" id="topbar">
+  <div class="pill"><span class="ico star">★</span><span id="pTargets">0/0</span><span class="plus">+</span></div>
+  <div class="pill"><span class="ico coin">$</span><span id="pCash">0</span><span class="plus">+</span></div>
+  <div class="pill"><span class="ico gem">▦</span><span id="pBlocks">0</span><span class="plus">+</span></div>
+</div>
+<div class="hud" id="alarm">
+  <div class="clock it"><div class="chip">🚨 ALARM</div><div class="tv"><small>TIME LEFT</small><span id="alarmT">1:00</span></div></div>
+  <div class="sub it" id="alarmSub">GRAB IT ALL!</div>
+</div>
+<div class="hud" id="combo"><span class="c1 it" id="comboN">COMBO x0</span><span class="c2 it" id="comboW">NICE!</span></div>
+<div class="hud it" id="toolName"></div>
 <div class="hud" id="hotbar"></div>
-<div class="hud" id="health"><i id="hpBar"></i></div>
+<div class="hud" id="health"><span class="heart">❤</span><div class="bar"><i id="hpBar"></i></div></div>
 <div class="hud" id="prompt"></div>
-<div class="hud" id="toast"></div>
+<div class="hud it" id="toast"></div>
 
 <div id="menu" class="screen hidden">
-  <div class="card">
-    <h1 class="logo">WRECK<span>WORKS</span></h1>
-    <div class="tag">Everything breaks. Plan your route, then go loud.</div>
-    <div class="missions" id="missionList"></div>
-    <div class="keys">
+  <div class="wrapc">
+    <div class="head">
+      <h1 class="logo">WRECK<span>WORKS</span></h1>
+      <div class="pills">
+        <div class="pill"><span class="ico star">★</span><span id="mStars">0</span><span class="plus">+</span></div>
+        <div class="pill"><span class="ico coin">$</span><span id="mBank">0</span><span class="plus">+</span></div>
+      </div>
+    </div>
+    <div class="ribbon it"><span class="pin">●</span>MISSION SELECTOR · RIVERSIDE TOWN</div>
+    <div class="cards" id="missionList"></div>
+    <div class="keys panel">
       <div><kbd>WASD</kbd> move · <kbd>Space</kbd> jump · <kbd>Shift</kbd> run</div>
-      <div><kbd>Mouse</kbd> aim · <kbd>Left click</kbd> use tool</div>
-      <div><kbd>1</kbd>–<kbd>9</kbd> / <kbd>Wheel</kbd> switch tool</div>
-      <div><kbd>E</kbd> grab target · <kbd>Esc</kbd> pause</div>
-      <div><kbd>G</kbd> graphics: cinematic / fast</div>
+      <div><kbd>Mouse</kbd> aim · <kbd>Click</kbd> use tool</div>
+      <div><kbd>1</kbd>–<kbd>9</kbd> / <kbd>Wheel</kbd> tools</div>
+      <div><kbd>E</kbd> grab · <kbd>Esc</kbd> pause · <kbd>G</kbd> graphics</div>
     </div>
   </div>
 </div>
 <div id="brief" class="screen hidden">
-  <div class="card">
-    <h1 class="logo" id="briefTitle" style="font-size:40px">MISSION</h1>
-    <p class="tag" id="briefText"></p>
-    <button class="btn" id="briefGo">START</button>
-    <button class="btn ghost" id="briefBack">MISSIONS</button>
+  <div class="wrapc" style="width:min(900px,100%)">
+    <div class="panel brief">
+      <div class="pic" id="briefPic"></div>
+      <div class="info">
+        <div class="ribbon it" style="margin-left:0"><span class="pin">●</span>MISSION BRIEFING</div>
+        <h2 class="it" id="briefTitle">MISSION</h2>
+        <p id="briefText"></p>
+        <ul class="goals" id="briefGoals"></ul>
+        <button class="btn gold" id="briefGo">START</button>
+        <button class="btn blue small" id="briefBack">BACK</button>
+      </div>
+    </div>
   </div>
 </div>
 <div id="pause" class="screen hidden">
-  <div class="card" style="text-align:center">
-    <h1 class="logo" style="font-size:40px">PAUSED</h1>
-    <p class="tag">Click Resume to keep wrecking.</p>
-    <button class="btn" id="resumeBtn">RESUME</button>
-    <button class="btn ghost" id="restartBtn">RESTART</button>
-    <button class="btn ghost" id="menuBtn">MISSIONS</button>
+  <div class="panel pause">
+    <div class="ribbon it">PAUSED</div>
+    <p style="color:var(--dim);font-weight:600;margin:0 0 14px">Take a breather. The town will wait.</p>
+    <button class="btn gold" id="resumeBtn">RESUME</button><br>
+    <button class="btn blue small" id="restartBtn">RESTART</button>
+    <button class="btn blue small" id="menuBtn">MISSIONS</button>
   </div>
 </div>
 <div id="end" class="screen hidden">
-  <div class="card" style="text-align:center">
-    <h1 class="logo" id="endTitle" style="font-size:44px">MISSION COMPLETE</h1>
-    <p class="tag" id="endText"></p>
-    <button class="btn" id="endRetry">PLAY AGAIN</button>
-    <button class="btn ghost" id="endMenu">MISSIONS</button>
+  <div class="endwrap">
+    <div class="band it" id="endTitle">MISSION COMPLETE<small id="endText"></small></div>
+    <div class="chest" id="chest">
+      <div class="chestArt"><div class="glow"></div><div class="lid"></div><div class="box"></div><div class="strap"></div></div>
+      <div>
+        <h3 class="it" id="chestName">GOLD HEIST</h3>
+        <div class="tiles" id="endTiles"></div>
+        <div class="rarity it" id="rarity">RATING</div>
+      </div>
+    </div>
+    <div style="margin-top:20px">
+      <button class="btn" id="endRetry">PLAY AGAIN</button>
+      <button class="btn blue" id="endMenu">MISSIONS</button>
+    </div>
   </div>
 </div>
-<div id="loading">BUILDING THE TOWN…</div>
+<div id="loading"><h1 class="logo">WRECK<span>WORKS</span></h1><div class="bar"><i></i></div><div class="it" style="color:var(--dim);font-size:14px;letter-spacing:3px">BUILDING THE TOWN…</div></div>
 
 <script>
 'use strict';
@@ -471,6 +651,7 @@ function removeAt(x, y, z) {
   const i = I(x, y, z), v = grid[i];
   if (!v) return 0;
   grid[i] = 0; burning.delete(i); markDirty(x, y, z); pushSeeds(x, y, z);
+  if (game.started && !game.over) { game.blocks++; game.cash += VALUE[PMAT[v]] || 5; combo.n++; combo.t = 1.4; }
   return v;
 }
 // kind: 'explosion' | 'sledge' | 'bullet' | 'laser'
@@ -967,15 +1148,15 @@ function updatePlayer(dt) {
    TOOLS
    ========================================================= */
 const TOOLS = [
-  { id: 'sledge', name: 'Sledgehammer', ammo: Infinity },
-  { id: 'extinguisher', name: 'Extinguisher', ammo: Infinity },
-  { id: 'flame', name: 'Flamethrower', ammo: 100, cont: true },
-  { id: 'pipe', name: 'Pipe Bomb', ammo: 8 },
-  { id: 'bomb', name: 'Bomb', ammo: 4 },
-  { id: 'rocket', name: 'Rocket Launcher', ammo: 6 },
-  { id: 'm60', name: 'M60', ammo: 300 },
-  { id: 'laser', name: 'Laser Cutter', ammo: 100, cont: true },
-  { id: 'air', name: 'Air Strike', ammo: 1 }
+  { id: 'sledge', name: 'Sledgehammer', short: 'Sledge', ic: '🔨', ammo: Infinity },
+  { id: 'extinguisher', name: 'Extinguisher', short: 'Extinguish', ic: '🧯', ammo: Infinity },
+  { id: 'flame', name: 'Flamethrower', short: 'Flamer', ic: '🔥', ammo: 100, cont: true },
+  { id: 'pipe', name: 'Pipe Bomb', short: 'Pipe Bomb', ic: '🧨', ammo: 8 },
+  { id: 'bomb', name: 'Bomb', short: 'Bomb', ic: '💣', ammo: 4 },
+  { id: 'rocket', name: 'Rocket Launcher', short: 'Rocket', ic: '🚀', ammo: 6 },
+  { id: 'm60', name: 'M60', short: 'M60', ic: '🎯', ammo: 300 },
+  { id: 'laser', name: 'Laser Cutter', short: 'Laser', ic: '⚡', ammo: 100, cont: true },
+  { id: 'air', name: 'Air Strike', short: 'Air Strike', ic: '✈️', ammo: 1 }
 ];
 let tool = 0, firing = false, fireEdge = false, cooldown = 0, swingT = -1;
 const vmGroups = [];
@@ -1020,7 +1201,7 @@ function selectTool(k) {
 function renderHotbar() {
   $('hotbar').innerHTML = TOOLS.map((t, i) => {
     const a = t.ammo === Infinity ? '∞' : (t.cont ? Math.ceil(t.ammo) + '%' : t.ammo);
-    return `<div class="slot${i === tool ? ' on' : ''}${t.ammo !== Infinity && t.ammo <= 0 ? ' empty' : ''}"><b>${i + 1}</b>${t.name}<br><i>${a}</i></div>`;
+    return `<div class="slot${i === tool ? ' on' : ''}${t.ammo !== Infinity && t.ammo <= 0 ? ' empty' : ''}"><span class="k">${i + 1}</span><span class="ic">${t.ic}</span><span class="nm">${t.short}</span><span class="am">${a}</span></div>`;
   }).join('');
 }
 const _dir = new THREE.Vector3(), _tip = new THREE.Vector3();
@@ -1231,7 +1412,7 @@ const MISSIONS = [
     targets: [['painting', 20, 3, 46], ['painting', 38, 15, 40], ['laptop', 92, 3, 50], ['painting', 66, 27, 60], ['gold', 95, 39, 30], ['laptop', 38, 3, 138], ['gold', 170, 3, 25]] }
 ];
 const ESCAPE = { x0: 148 * V, x1: 188 * V, z0: 120 * V, z1: 176 * V };
-const game = { m: null, alarm: false, timeLeft: 0, collected: 0, over: false, started: false, t: 0 };
+const game = { m: null, alarm: false, timeLeft: 0, collected: 0, over: false, started: false, t: 0, cash: 0, blocks: 0, startT: 0 };
 const targets = [];
 function targetModel(kind) {
   const g = new THREE.Group();
@@ -1262,10 +1443,16 @@ function setupMission(m) {
 }
 function updateObjective() {
   const m = game.m;
-  if (!m || m.sandbox) { $('objText').innerHTML = 'Wreck whatever you like.<br><small style="opacity:.6">Everything is unlimited.</small>'; return; }
-  const left = targets.length - game.collected;
-  $('objText').innerHTML = left > 0 ? `Targets: <b>${game.collected} / ${targets.length}</b>` + (game.alarm ? '' : '<br><small style="opacity:.6">The first grab trips the alarm.</small>')
-    : '<b>All targets taken!</b><br>Get to the getaway truck (south-east).';
+  if (!m || m.sandbox) {
+    $('objSub').textContent = 'Free play · unlimited tools';
+    $('objText').innerHTML = 'Wreck whatever you like.<div class="hint">Every block you break pays out cash.</div>'; return;
+  }
+  const n = targets.length, left = n - game.collected;
+  $('objSub').textContent = game.alarm ? 'Alarm tripped!' : m.timer + 's alarm';
+  const steps = targets.map((_, i) => `<b class="${i < game.collected ? 'on' : ''}">${i + 1}</b>`).join('');
+  $('objText').innerHTML = (left > 0 ? `Grab the targets <span style="float:right">${game.collected}/${n}</span>` : '<span style="color:#8dff6a">All targets taken!</span>') +
+    `<div class="bar" style="margin-top:10px"><i style="width:${game.collected / n * 100}%"></i></div><div class="steps">${steps}</div>` +
+    `<div class="hint">${left > 0 ? (game.alarm ? 'Hurry! The cops are coming.' : 'The first grab trips the alarm. Blast your shortcuts first.') : 'Run to the getaway truck (south-east lot).'}</div>`;
 }
 function tryGrab() {
   let best = null, bd = 2.6;
@@ -1282,7 +1469,7 @@ function stepMission(dt) {
   if (!m) return;
   const tgt = tryGrab();
   $('prompt').style.display = tgt && !game.over ? 'block' : 'none';
-  if (tgt) $('prompt').innerHTML = `<kbd>E</kbd> Take ${tgt.kind}`;
+  if (tgt) $('prompt').innerHTML = `<div class="wrap"><div class="tap it">E</div><div class="lbl it">TAKE ${tgt.kind}</div></div>`;
   for (const t of targets) {
     if (t.taken) continue;
     t.g.userData.halo.material.opacity = 0.08 + Math.sin(game.t * 4) * 0.05;
@@ -1292,7 +1479,10 @@ function stepMission(dt) {
   }
   if (game.alarm && !game.over) {
     game.timeLeft -= dt;
-    $('alarmT').textContent = Math.max(0, game.timeLeft).toFixed(1);
+    const tl = Math.max(0, game.timeLeft);
+    $('alarmT').textContent = Math.floor(tl / 60) + ':' + String(Math.floor(tl % 60)).padStart(2, '0');
+    $('alarm').classList.toggle('low', tl < 10);
+    $('alarmSub').textContent = game.collected === targets.length ? 'GET TO THE TRUCK!' : (tl < 10 ? 'HURRY UP!' : 'GRAB IT ALL!');
     if (game.timeLeft <= 0) endGame(false, 'The police arrived before you got away. Busted!');
     const inZone = PL.p.x > ESCAPE.x0 && PL.p.x < ESCAPE.x1 && PL.p.z > ESCAPE.z0 && PL.p.z < ESCAPE.z1;
     if (game.collected === targets.length && inZone) endGame(true, `You got away with everything, ${game.timeLeft.toFixed(1)} seconds to spare.`);
@@ -1306,16 +1496,25 @@ function grab() {
   if (!game.alarm && !game.m.sandbox) {
     game.alarm = true; game.timeLeft = game.m.timer; $('alarm').style.display = 'block'; escapeMesh.visible = true;
     toast('ALARM! Grab the rest and get to the truck!'); SND.siren(true);
-  } else toast(`${t.kind} taken`);
+  } else toast(`${t.kind} taken!`);
   updateObjective();
 }
 function endGame(won, text) {
   if (game.over) return;
   game.over = true; SND.siren(false);
   document.exitPointerLock();
-  $('endTitle').textContent = won ? 'MISSION COMPLETE' : 'MISSION FAILED';
-  $('endTitle').style.color = won ? '' : 'var(--red)';
-  $('endText').textContent = text;
+  const m = game.m, n = targets.length, secs = game.t - game.startT;
+  const stars = won ? (game.timeLeft > m.timer * 0.4 ? 3 : game.timeLeft > m.timer * 0.15 ? 2 : 1) : 0;
+  const tier = ['BUSTED', 'BRONZE HEIST', 'SILVER HEIST', 'GOLD HEIST'][stars];
+  $('endTitle').innerHTML = (won ? 'MISSION COMPLETE' : 'MISSION FAILED') + '<small></small>';
+  $('endTitle').querySelector('small').textContent = text;
+  $('endTitle').classList.toggle('fail', !won); $('chest').classList.toggle('fail', !won);
+  $('chestName').textContent = won ? tier + ' CHEST' : 'NO PAYOUT';
+  const tile = (i, v, l) => `<div class="tile"><span class="ti">${i}</span><span class="tv">${v}</span><span class="tl">${l}</span></div>`;
+  $('endTiles').innerHTML = tile('⭐', n ? game.collected + '/' + n : '—', 'Targets') + tile('💰', fmtK(game.cash), 'Damage $') +
+    tile('🧱', fmtK(game.blocks), 'Blocks') + tile('⏱', won ? game.timeLeft.toFixed(1) + 's' : Math.floor(secs) + 's', won ? 'Spare' : 'Time');
+  $('rarity').textContent = won ? '★'.repeat(stars) + '☆'.repeat(3 - stars) + '  ' + tier : 'THE COPS GOT YOU';
+  if (won) saveBest(m.id, stars, game.cash);
   $('end').classList.remove('hidden');
 }
 function drawMarkers() {
@@ -1534,9 +1733,57 @@ document.addEventListener('pointerlockchange', () => {
 });
 function lockPointer() { initAudio(); canvas.requestPointerLock(); }
 function goMission(id) { location.search = '?m=' + id; }
-$('missionList').innerHTML = MISSIONS.map(m => `<button class="mission" data-id="${m.id}"><h3>${m.name}</h3><p>${m.desc}</p><div class="meta">${m.sandbox ? 'Unlimited tools' : (m.targets.length + ' targets · ' + m.timer + 's alarm')}</div></button>`).join('');
-document.querySelectorAll('.mission').forEach(b => b.addEventListener('click', () => goMission(b.dataset.id)));
-$('briefGo').addEventListener('click', () => { $('brief').classList.add('hidden'); game.started = true; lockPointer(); });
+const fmtK = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.floor(n));
+const VALUE = MAT_NAMES.map(nm => ({ glass: 40, metal: 25, brick: 15, concrete: 15, wood: 10, plaster: 8, tile: 10 })[nm] || 3);
+const combo = { n: 0, t: 0, shown: 0 };
+let BEST = {};
+try { BEST = JSON.parse(localStorage.getItem('ww-best') || '{}') || {}; } catch (e) { BEST = {}; }
+function saveBest(id, stars, cash) {
+  const b = BEST[id] || { stars: 0, cash: 0 };
+  BEST[id] = { stars: Math.max(b.stars, stars), cash: Math.max(b.cash, Math.floor(cash)) };
+  try { localStorage.setItem('ww-best', JSON.stringify(BEST)); } catch (e) { /* storage blocked */ }
+}
+const THUMBS = {};
+function renderMenu() {
+  let stars = 0, bank = 0;
+  for (const k in BEST) { stars += BEST[k].stars || 0; bank += BEST[k].cash || 0; }
+  $('mStars').textContent = stars + '/' + (MISSIONS.length - 1) * 3; $('mBank').textContent = fmtK(bank);
+  $('missionList').innerHTML = MISSIONS.map((m, i) => {
+    const b = BEST[m.id], st = b ? '★'.repeat(b.stars) + '☆'.repeat(3 - b.stars) : '☆☆☆';
+    const tags = m.sandbox ? '<span class="tag green">Unlimited tools</span><span class="tag">No timer</span>'
+      : `<span class="tag gold">${m.targets.length} targets</span><span class="tag">⏱ ${m.timer}s</span><span class="tag">${st}</span>`;
+    return `<button class="mcard" data-id="${m.id}" style="background-image:url(${THUMBS[m.id] || ''})">${b && b.stars ? '<span class="done">✓</span>' : ''}<span class="num">${i + 1}</span>
+      <div class="body"><h3>${m.name}</h3><p>${m.desc}</p><div class="tags">${tags}</div></div></button>`;
+  }).join('');
+  document.querySelectorAll('.mcard').forEach(b => b.addEventListener('click', () => goMission(b.dataset.id)));
+}
+const SHOTS = { sandbox: [[24, 20, 66], [24, 0, 18]], lockbox: [[34, 3, 28], [20, 4, 8]], gallery: [[17, 3.2, 26], [7, 4, 11]] };
+function takeThumbs() {
+  const keep = camera.position.clone(), kq = camera.quaternion.clone(), w = innerWidth, h = innerHeight;
+  if (!w || !h) return;
+  vmGroups.forEach(g => { g.userData.v = g.visible; g.visible = false; });
+  for (const id in SHOTS) {
+    camera.position.set(...SHOTS[id][0]); camera.lookAt(...SHOTS[id][1]);
+    renderFrame();
+    try { THUMBS[id] = renderer.domElement.toDataURL('image/jpeg', 0.72); } catch (e) { /* tainted */ }
+  }
+  vmGroups.forEach(g => { g.visible = g.userData.v; });
+  camera.position.copy(keep); camera.quaternion.copy(kq);
+}
+function stepHud(dt) {
+  if (!game.m) return;
+  $('pTargets').textContent = targets.length ? game.collected + '/' + targets.length : '—';
+  $('pCash').textContent = fmtK(game.cash); $('pBlocks').textContent = fmtK(game.blocks);
+  combo.t -= dt;
+  if (combo.t <= 0) { combo.n = 0; combo.shown = 0; $('combo').classList.remove('show'); }
+  else if (combo.n >= 25 && combo.n !== combo.shown) {
+    combo.shown = combo.n;
+    $('comboN').textContent = 'COMBO x' + combo.n;
+    $('comboW').textContent = combo.n > 1500 ? 'DEVASTATING!' : combo.n > 600 ? 'AMAZING!' : combo.n > 150 ? 'GREAT!' : 'NICE!';
+    $('combo').classList.add('show');
+  }
+}
+$('briefGo').addEventListener('click', () => { $('brief').classList.add('hidden'); document.body.classList.remove('inmenu'); game.started = true; game.startT = game.t; lockPointer(); });
 $('briefBack').addEventListener('click', () => { location.search = ''; });
 $('resumeBtn').addEventListener('click', () => lockPointer());
 $('restartBtn').addEventListener('click', () => location.reload());
@@ -1582,6 +1829,7 @@ function animate() {
   recoil *= Math.pow(0.0005, dt);
   // HUD
   $('hpBar').style.width = PL.hp + '%';
+  stepHud(dt);
   if (Math.floor(game.t * 10) % 2 === 0) drawMarkers();
   // camera shake
   shake *= Math.pow(0.03, dt);
@@ -1600,15 +1848,21 @@ setTimeout(() => {
   buildEnv();
   setQuality(ULTRA, false);
   onResize();
+  takeThumbs();
   let mid = null;
   try { mid = new URLSearchParams(location.search).get('m'); } catch (e) { /* no query */ }
   const m = MISSIONS.find(x => x.id === mid);
   if (m) {
     setupMission(m);
     $('briefTitle').textContent = m.name.toUpperCase(); $('briefText').textContent = m.desc;
+    $('briefPic').style.backgroundImage = THUMBS[m.id] ? `url(${THUMBS[m.id]})` : '';
+    const goals = m.sandbox ? [['∞', 'Every tool, unlimited ammo'], ['$', 'Rack up a damage bill'], ['🔥', 'Burn it, blast it, bring it down']]
+      : [['★', `Grab all ${m.targets.length} targets`], ['⏱', `First grab starts a ${m.timer}s alarm`], ['➜', 'Escape to the getaway truck']];
+    $('briefGoals').innerHTML = goals.map(g => `<li><b>${g[0]}</b>${g[1]}</li>`).join('');
     $('brief').classList.remove('hidden');
     PL.yaw = 0; camera.position.set(PL.p.x, PL.p.y + PL.eye, PL.p.z);
-  } else $('menu').classList.remove('hidden');
+  } else { renderMenu(); $('menu').classList.remove('hidden'); }
+  document.body.classList.add('inmenu');
   selectTool(0);
   $('loading').classList.add('hidden');
   animate();
