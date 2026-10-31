@@ -74,6 +74,44 @@
   .hidden { display: none !important; }
   #loading { position: fixed; inset: 0; background: linear-gradient(180deg, #4aa3ea, #2f7fd6); display: grid; place-items: center;
     z-index: 20; font-weight: 800; font-size: 22px; }
+
+  /* ---------- Soap Nuke ---------- */
+  #nukeHud { position: fixed; right: 18px; bottom: 104px; display: flex; align-items: center; gap: 8px; z-index: 5; pointer-events: none;
+    background: linear-gradient(180deg, #ffe14d, #ffb300); color: #3a2a00; padding: 6px 12px 6px 7px; border-radius: 16px; font-weight: 900; font-size: 13px;
+    border: 2px solid #fff; box-shadow: 0 3px 0 #b07800, 0 5px 12px rgba(0,0,0,0.3); }
+  #nukeHud .rad { width: 28px; height: 28px; border-radius: 50%; background: #1d1d1d; color: #ffd000; display: grid; place-items: center; font-size: 19px; }
+  #nukeHud b { font-size: 17px; }
+  #nukeHud kbd { background: #3a2a00; color: #fff; border-radius: 6px; padding: 1px 7px; font-family: inherit; }
+  body.cine #hud-job, body.cine #money, body.cine #nozzles, body.cine #crosshair, body.cine #nukeHud, body.cine #toast, body.cine #partlist { display: none !important; }
+  .cbar { position: fixed; left: 0; right: 0; height: 0; background: #000; z-index: 15; transition: height 0.8s ease; pointer-events: none; }
+  #cbTop { top: 0; } #cbBot { bottom: 0; }
+  body.cine .cbar { height: 9vh; }
+  #caption { position: fixed; left: 50%; bottom: calc(9vh + 26px); transform: translateX(-50%); width: min(90vw, 900px); z-index: 16; pointer-events: none;
+    text-align: center; font-weight: 800; font-size: clamp(16px, 2.3vw, 26px); text-shadow: 0 2px 6px #000c; opacity: 0; transition: opacity 0.5s; }
+  #caption.show { opacity: 1; }
+  #cineTitle { position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%) scale(0.8); z-index: 16; pointer-events: none; text-align: center;
+    white-space: pre-line; line-height: 0.95; font-weight: 900; font-size: clamp(34px, 7vw, 92px); color: #fff; -webkit-text-stroke: 3px #0f3f86;
+    text-shadow: 0 6px 0 #0f3f86, 0 12px 30px rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.4s, transform 0.4s; }
+  #cineTitle.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #flash { position: fixed; inset: 0; background: #fff; opacity: 0; z-index: 14; pointer-events: none; }
+  #alarm { position: fixed; inset: 0; z-index: 13; pointer-events: none; opacity: 0; box-shadow: inset 0 0 180px 70px rgba(255, 30, 30, 0.85); }
+  #skipHint { position: fixed; right: 16px; bottom: calc(9vh + 10px); z-index: 16; font-size: 12px; font-weight: 700; opacity: 0.75; display: none; text-shadow: 0 1px 3px #000; }
+  body.cine #skipHint { display: block; }
+  #launch { position: fixed; inset: 0; z-index: 17; display: none; place-items: center; pointer-events: none; }
+  #launch.show { display: grid; }
+  .launchBox { text-align: center; padding: 26px 44px 20px; border-radius: 26px; border: 6px solid #ffcc00; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    background: repeating-linear-gradient(45deg, #2b323c 0 18px, #333b47 18px 36px); animation: shakeIn 0.5s ease-out; }
+  @keyframes shakeIn { 0% { transform: scale(0.4) rotate(-8deg); opacity: 0; } 70% { transform: scale(1.06) rotate(2deg); opacity: 1; } 100% { transform: none; } }
+  .launchBox h2 { margin: 0; color: #ffcc00; font-size: 30px; letter-spacing: 2px; font-weight: 900; text-shadow: 0 3px 0 #000; }
+  .redbtn { position: relative; width: 150px; height: 150px; margin: 18px auto 16px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ff8a8a, #e01818 55%, #8a0000); box-shadow: 0 14px 0 #6a0000, 0 20px 30px rgba(0,0,0,0.5); }
+  .redbtn::after { content: "PUSH"; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-weight: 900; font-size: 26px; letter-spacing: 2px; text-shadow: 0 2px 0 #7a0000; }
+  .cover { position: absolute; inset: -14px; border-radius: 50%; background: rgba(170, 215, 255, 0.35); border: 4px solid rgba(255,255,255,0.75); transform-origin: 50% 0; }
+  #launch.press .cover { animation: lift 0.6s ease-out 0.5s forwards; }
+  #launch.press .redbtn { animation: press 0.3s ease-in 1.7s forwards; }
+  @keyframes lift { to { transform: perspective(400px) rotateX(-115deg); opacity: 0.5; } }
+  @keyframes press { to { transform: translateY(12px); box-shadow: 0 2px 0 #6a0000, 0 6px 12px rgba(0,0,0,0.5); background: radial-gradient(circle at 35% 30%, #ffc0c0, #ff3a3a 55%, #b00000); } }
+  .launchBox .cd { font-size: 58px; font-weight: 900; color: #fff; min-height: 68px; text-shadow: 0 4px 0 #000; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -99,6 +137,12 @@
 <div id="toast"></div>
 <div id="partlist"><h3>JOB: SUNNY BAKES VAN</h3><div id="plRows"></div></div>
 
+<div id="nukeHud"><span class="rad">☢</span><span>SOAP NUKE <b>∞</b></span><kbd>N</kbd></div>
+<div class="cbar" id="cbTop"></div><div class="cbar" id="cbBot"></div>
+<div id="alarm"></div><div id="flash"></div>
+<div id="cineTitle"></div><div id="caption"></div><div id="skipHint">ENTER: skip cutscene</div>
+<div id="launch"><div class="launchBox"><h2>☢ SOAP NUKE ARMED ☢</h2><div class="redbtn"><div class="cover"></div></div><div class="cd" id="countdown"></div></div></div>
+
 <div id="start" class="screen hidden">
   <div class="card">
     <div class="logo">GRIME<br>FIGHTER<span class="three">3D</span></div>
@@ -110,6 +154,7 @@
       <kbd>1 · 2 · 3</kbd><span>Nozzle: 0° blaster, 15° all-rounder, 40° wide fan</span>
       <kbd>Space</kbd><span>Jump (reach the roof!)</span>
       <kbd>Tab</kbd><span>Job list</span>
+      <kbd>N</kbd><span>SOAP NUKE: cleans the whole yard (unlimited!)</span>
     </div>
     <button class="btn" id="startBtn">START JOB</button>
   </div>
@@ -978,6 +1023,7 @@ function selectNozzle(n) {
   if (sprayFilter) sprayFilter.frequency.setTargetAtTime(nozzle.pitch, actx.currentTime, 0.05);
 }
 addEventListener('keydown', e => {
+  if (nuke && e.code === 'Enter') { e.preventDefault(); endNuke(); return; }
   if (e.code === 'Tab') { e.preventDefault(); $('partlist').classList.add('show'); renderPartList(); }
   if (!locked) return;
   keys[e.code] = true;
@@ -985,6 +1031,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit2') selectNozzle(2);
   if (e.code === 'Digit3') selectNozzle(3);
   if (e.code === 'Space' && onGround) { velY = 5.2; onGround = false; }
+  if (e.code === 'KeyN' && !nuke) startNuke();
 });
 addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'Tab') $('partlist').classList.remove('show'); });
 addEventListener('mousedown', e => { if (locked && e.button === 0) spraying = true; });
@@ -996,7 +1043,7 @@ addEventListener('mousemove', e => {
 });
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === renderer.domElement;
-  if (!locked) { spraying = false; for (const k in keys) keys[k] = false; if (started && !parts.every(p => p.done)) showStart(true); }
+  if (!locked) { spraying = false; for (const k in keys) keys[k] = false; if (started && !nuke && !parts.every(p => p.done)) showStart(true); }
 });
 function showStart(paused) {
   $('start').classList.remove('hidden');
@@ -1040,6 +1087,377 @@ function updatePlayer(dt) {
 }
 
 /* =========================================================
+   SOAP NUKE: a 2-minute cutscene that cleans the whole yard
+   ========================================================= */
+const NUKE_LEN = 120;
+const VAN_C = new THREE.Vector3(0, 1.6, -2);
+const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const cineRoot = new THREE.Group(); cineRoot.visible = false; scene.add(cineRoot);
+const CN = {}, _o = new THREE.Object3D();
+let nuke = null, nukesUsed = 0, cineBuilt = false;
+
+function buildCine() {
+  cineBuilt = true;
+  const M = (hex, o = {}) => new THREE.MeshStandardMaterial({ color: C(hex), roughness: 0.5, ...o });
+  // --- cargo plane ---
+  const plane = new THREE.Group(); cineRoot.add(plane);
+  const pm = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); plane.add(m); return m; };
+  pm(new THREE.CylinderGeometry(1.3, 1.0, 13, 18), M('#f4f6f8'), 0, 0, 0).rotation.z = Math.PI / 2;
+  pm(new THREE.SphereGeometry(1.3, 18, 12), M('#2468d8'), 6.5, 0, 0);
+  pm(new THREE.BoxGeometry(9, 0.35, 2.64), M('#ffc21a'), 0.5, 0.3, 0);
+  pm(new THREE.BoxGeometry(3.2, 0.3, 19), M('#2468d8'), 0.6, -0.3, 0);
+  pm(new THREE.BoxGeometry(2, 0.25, 6.5), M('#2468d8'), -5.9, 0.4, 0);
+  pm(new THREE.BoxGeometry(2.2, 3.2, 0.25), M('#ffc21a'), -5.9, 1.9, 0);
+  for (const z of [-4.8, 4.8]) pm(new THREE.CylinderGeometry(0.7, 0.7, 2.8, 14), M('#9aa3ad', { metalness: 0.6 }), 1.4, -0.9, z).rotation.z = Math.PI / 2;
+  CN.plane = plane;
+  // --- the soap bomb ---
+  const label = canvasTex(512, 256, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#8fdcff'); gr.addColorStop(1, '#2f9be8'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#ffffff'; g.fillRect(0, h * 0.37, w, h * 0.26);
+    g.fillStyle = '#1559b8'; g.font = '900 50px Arial'; g.textBaseline = 'middle';
+    for (const x of [18, 274]) g.fillText('SOAP NUKE', x, h / 2 + 2);
+    g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = 3;
+    for (let i = 0; i < 26; i++) { g.beginPath(); g.arc(Math.random() * w, Math.random() * h * 0.32, 5 + Math.random() * 12, 0, 7); g.stroke(); }
+  });
+  const bomb = new THREE.Group(); cineRoot.add(bomb);
+  bomb.add(new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 3.6, 28), [new THREE.MeshStandardMaterial({ map: label, roughness: 0.3 }), M('#2f9be8'), M('#2f9be8')]));
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M('#ffc21a', { roughness: 0.3 }));
+  nose.position.y = -1.8; bomb.add(nose);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 1, 0.9, 28), M('#2f9be8')); tail.position.y = 2.25; bomb.add(tail);
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2, f = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 0.12), M('#ffc21a'));
+    f.position.set(Math.cos(a) * 0.95, 2.45, Math.sin(a) * 0.95); f.rotation.y = -a; bomb.add(f);
+  }
+  bomb.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  CN.bomb = bomb;
+  CN.puffs = [];
+  for (let i = 0; i < 90; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+    sp.visible = false; cineRoot.add(sp); CN.puffs.push({ sp, life: 0 });
+  }
+  CN.puffNext = 0;
+  // --- shockwave dome + ring ---
+  CN.dome = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: C('#4fb8ff'), transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, fog: false }));
+  CN.ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.025, 8, 96), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
+  CN.ring.rotation.x = Math.PI / 2;
+  cineRoot.add(CN.dome, CN.ring);
+  // --- bubble mushroom cloud ---
+  const foam = ['#ffffff', '#e6f6ff', '#d3edff'].map((h, i) => M(h, { emissive: C(['#d6f0ff', '#bfe4ff', '#a9d9ff'][i]), emissiveIntensity: 0.35, flatShading: true, roughness: 0.8 }));
+  const ico = new THREE.IcosahedronGeometry(1, 1);
+  CN.mush = new THREE.Group(); CN.mush.position.set(0, 0, -2); cineRoot.add(CN.mush);
+  CN.stem = [];
+  for (let i = 0; i < 16; i++) { const m = new THREE.Mesh(ico, foam[i % 3]); CN.mush.add(m); CN.stem.push({ m, ox: rand(-1, 1), oz: rand(-1, 1), s: rand(0.8, 1.2) }); }
+  CN.cap = [];
+  for (let i = 0; i < 38; i++) {
+    const ring = i < 26, a = ring ? i / 26 * Math.PI * 2 : rand(0, Math.PI * 2), r = ring ? 1 : rand(0, 0.65);
+    const m = new THREE.Mesh(ico, foam[i % 3]); CN.mush.add(m);
+    CN.cap.push({ m, x: Math.cos(a) * r, z: Math.sin(a) * r, y: ring ? rand(-0.18, 0.12) : rand(0.18, 0.45), s: ring ? rand(0.38, 0.55) : rand(0.4, 0.6) });
+  }
+  CN.skirt = [];
+  for (let i = 0; i < 18; i++) { const m = new THREE.Mesh(ico, foam[i % 3]); CN.mush.add(m); CN.skirt.push(m); }
+  // --- bubbles ---
+  CN.bubbleMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 14, 10), new THREE.MeshStandardMaterial({
+    color: C('#eaf8ff'), transparent: true, opacity: 0.45, roughness: 0.05, metalness: 0.3, emissive: C('#7cc8ff'), emissiveIntensity: 0.3, depthWrite: false }), 260);
+  CN.bubbleMesh.frustumCulled = false; cineRoot.add(CN.bubbleMesh);
+  CN.bubbles = Array.from({ length: 260 }, () => ({ x: rand(-30, 30), y: rand(0, 26), z: rand(-30, 26), vy: rand(-1.4, 0.7), ph: rand(0, 6), s: rand(0.12, 0.6) }));
+  // --- rainbow ---
+  CN.rainbow = new THREE.Group(); CN.rainbow.position.set(0, -2, -22); cineRoot.add(CN.rainbow);
+  ['#ff4d4d', '#ff9a1f', '#ffe14d', '#4dd96b', '#3fa9ff', '#5a5dff', '#b04dff'].forEach((c, i) =>
+    CN.rainbow.add(new THREE.Mesh(new THREE.TorusGeometry(24 - i * 0.9, 0.46, 8, 72, Math.PI), new THREE.MeshBasicMaterial({ color: C(c), transparent: true, opacity: 0, depthWrite: false }))));
+  // --- sparkles on the clean van ---
+  const starTex = canvasTex(64, 64, (g, w) => {
+    g.translate(w / 2, w / 2); g.fillStyle = '#ffffff';
+    for (let k = 0; k < 4; k++) { g.rotate(Math.PI / 4); g.beginPath(); g.moveTo(0, -w * 0.48); g.lineTo(w * 0.07, 0); g.lineTo(0, w * 0.48); g.lineTo(-w * 0.07, 0); g.fill(); }
+  });
+  CN.sparks = [];
+  for (let i = 0; i < 48; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTex, color: i % 3 ? 0xffffff : 0xfff2a8, transparent: true, depthWrite: false }));
+    const side = Math.random();
+    if (side < 0.55) sp.position.set(Math.random() < 0.5 ? -1.22 : 1.22, rand(0.6, 3.3), rand(-4.4, 0.4));
+    else if (side < 0.8) sp.position.set(rand(-1.1, 1.1), rand(0.6, 2.8), 0.3);
+    else sp.position.set(rand(-1.1, 1.1), 3.36, rand(-4.3, -1.5));
+    sp.visible = false; cineRoot.add(sp); CN.sparks.push({ sp, ph: rand(0, 6), sp2: rand(2, 5) });
+  }
+  // --- confetti ---
+  CN.conf = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.14, 0.22), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), 420);
+  CN.conf.frustumCulled = false; cineRoot.add(CN.conf);
+  const cc = ['#ff4757', '#ffc312', '#2ed573', '#1e90ff', '#ff6bd6', '#ffffff'].map(h => new THREE.Color(h));
+  CN.confetti = Array.from({ length: 420 }, (_, i) => { CN.conf.setColorAt(i, cc[i % cc.length]); return { x: rand(-9, 9), y: 0, z: rand(-11, 7), vy: rand(1.2, 2.4), r: rand(0, 6), vr: rand(2, 7), ax: rand(0, 6) }; });
+  CN.conf.instanceColor.needsUpdate = true;
+}
+
+/* ---------- cutscene sound ---------- */
+function nzBuf() {
+  if (!nzBuf.b) {
+    const b = actx.createBuffer(1, actx.sampleRate * 3, actx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    nzBuf.b = b;
+  }
+  return nzBuf.b;
+}
+function track(n) { if (nuke) nuke.nodes.push(n); return n; }
+function env(g, t, peak, attack, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
+function tone(freq, start, dur, type = 'triangle', peak = 0.1, endFreq) {
+  if (!actx) return;
+  const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + start;
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (endFreq) o.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+  env(g, t, peak, Math.min(0.03, dur * 0.2), dur);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.05); track(o);
+}
+function noise(start, dur, peak, f0, f1, type = 'lowpass') {
+  if (!actx) return;
+  const src = actx.createBufferSource(); src.buffer = nzBuf(); src.loop = true;
+  const f = actx.createBiquadFilter(), g = actx.createGain(), t = actx.currentTime + start;
+  f.type = type; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  env(g, t, peak, Math.min(0.05, dur * 0.1), dur);
+  src.connect(f).connect(g).connect(actx.destination); src.start(t); src.stop(t + dur + 0.05); track(src);
+}
+const SND = {
+  siren(d) {
+    if (!actx) return;
+    const o = actx.createOscillator(), f = actx.createBiquadFilter(), g = actx.createGain(), t = actx.currentTime;
+    o.type = 'sawtooth'; f.type = 'lowpass'; f.frequency.value = 1800;
+    for (let k = 0; k < d * 2; k++) o.frequency.setValueAtTime(k % 2 ? 640 : 900, t + k * 0.5);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.2); g.gain.setValueAtTime(0.06, t + d - 1); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(f).connect(g).connect(actx.destination); o.start(t); o.stop(t + d + 0.1); track(o);
+  },
+  tick() { tone(880, 0, 0.12, 'square', 0.07); },
+  launch() { tone(220, 0, 1.2, 'sawtooth', 0.07, 1400); noise(0, 1.2, 0.2, 400, 4000, 'bandpass'); },
+  plane(d) { tone(78, 0, d, 'sawtooth', 0.045, 70); noise(0, d, 0.08, 500, 300); },
+  clunk() { tone(160, 0, 0.25, 'square', 0.1, 60); },
+  whistle(d) { tone(2600, 0, d, 'sine', 0.06, 240); },
+  boom() { noise(0, 5, 0.9, 1200, 60); tone(60, 0, 3.5, 'sine', 0.6, 28); tone(120, 0, 1.2, 'triangle', 0.3, 40); },
+  rumble(d) { noise(0, d, 0.22, 180, 60); },
+  pop() { tone(rand(500, 1300), 0, 0.07, 'sine', 0.045, rand(900, 2000)); },
+  chime() { [1318, 1568, 2093, 2637].forEach((f, i) => tone(f, i * 0.12, 0.9, 'triangle', 0.07)); },
+  music(d) {
+    const prog = [[523, 659, 784], [440, 523, 659], [349, 440, 523], [392, 494, 587]];
+    for (let i = 0, t = 0; t < d; i++, t += 0.25) {
+      const ch = prog[Math.floor(i / 8) % 4];
+      tone(ch[i % 3] * (i % 8 < 4 ? 1 : 2), t, 0.35, 'triangle', 0.045);
+      if (i % 8 === 0) tone(ch[0] / 2, t, 1.8, 'sine', 0.06);
+    }
+  },
+  fanfare() { [[523, 0], [659, 0.15], [784, 0.3], [1046, 0.45], [784, 0.75], [1046, 0.9]].forEach(([f, s]) => tone(f, s, 0.5, 'square', 0.055)); },
+  endChord() { [523, 659, 784, 1046].forEach(f => tone(f, 0, 2.6, 'triangle', 0.055)); }
+};
+const NUKE_SFX = [[0, () => SND.siren(11)], [2, SND.tick], [3, SND.tick], [4, SND.tick], [5, SND.launch], [6, () => SND.plane(16)],
+  [14, SND.clunk], [15, () => SND.whistle(9)], [24, SND.boom], [24.2, () => SND.rumble(18)], [56, SND.chime], [58, () => SND.music(36)],
+  [80, SND.fanfare], [112, SND.endChord]];
+
+/* ---------- on-screen text ---------- */
+const N_TITLES = [[24.6, 29.5, 'KA-SPLOOSH!'], [56, 62, 'SPARKLING!'], [80, 95, 'WHOLE MAP\nCLEANED! 100%']];
+const N_CAPS = [
+  [6, 12, '⚠ SOAP NUKE INBOUND ⚠   Please step away from the van'],
+  [14.3, 19, 'Bombs away!'],
+  [30, 39, 'The suds are rolling across the whole yard...'],
+  [42, 52, 'Years of caked-on grime... dissolving in seconds.'],
+  [64, 75, 'Look at that shine. You could eat breakfast off that bumper.'],
+  [82, 94, t => nuke.payout > 0 ? `Payout: +$${(nuke.payout * smooth(82, 90, t)).toFixed(2)}` : 'It was already spotless. Bonus style points!'],
+  [96, 108, () => `Soap nukes used: ${nukesUsed}   ·   Soap nukes left: ∞`],
+  [110, 116, 'Back to work, Grime Fighter!']
+];
+function pickText(list, t) { for (const [a, b, x] of list) if (t >= a && t < b) return typeof x === 'function' ? x(t) : x; return ''; }
+function setText(id, txt) {
+  const el = $(id);
+  if (txt) { if (el.textContent !== txt) el.textContent = txt; el.classList.add('show'); } else el.classList.remove('show');
+}
+
+/* ---------- start / end ---------- */
+function startNuke() {
+  if (nuke) return;
+  if (!cineBuilt) buildCine();
+  initAudio();
+  nukesUsed++;
+  spraying = false; stream.visible = core.visible = splash.visible = false;
+  if (sprayGain) sprayGain.gain.setTargetAtTime(0, actx.currentTime, 0.03);
+  let payout = 0;
+  for (const p of parts) if (!p.done) payout += p.value;
+  nuke = { t: 0, saved: { pos: camera.position.clone(), yaw, pitch }, fired: new Set(), nodes: [], surfaces: [], rr: 0,
+    cleanStarted: false, cleaned: false, paid: false, payout };
+  for (const p of CN.puffs) { p.life = 0; p.sp.visible = false; }
+  for (const c of CN.confetti) c.y = rand(10, 28);
+  cineRoot.visible = true;
+  document.body.classList.add('cine');
+  $('flash').style.transition = 'none';
+  $('launch').classList.remove('press'); $('launch').classList.add('show');
+  void $('launch').offsetWidth; $('launch').classList.add('press');
+  $('countdown').textContent = '';
+}
+function cleanAllNow() {
+  for (const p of parts) {
+    for (const s of p.surfaces) {
+      if (s.alpha.some(a => a)) { s.alpha.fill(0); composite(s, 0, 0, s.w, s.h); s.g.putImageData(s.work, 0, 0); s.tex.needsUpdate = true; }
+    }
+    p.left = 0;
+  }
+  if (nuke) nuke.cleaned = true;
+}
+function payOut() {
+  let pay = 0;
+  for (const p of parts) if (!p.done) { p.done = true; p.left = 0; pay += p.value; p.flash = 1; }
+  money += pay;
+  $('moneyText').textContent = '$' + money.toFixed(2);
+  if (nuke) nuke.paid = true;
+}
+function endNuke() {
+  if (!nuke) return;
+  if (!nuke.cleaned) cleanAllNow();
+  if (!nuke.paid) payOut();
+  for (const n of nuke.nodes) { try { n.stop(); } catch (e) { /* already stopped */ } }
+  const sv = nuke.saved;
+  nuke = null;
+  cineRoot.visible = false;
+  document.body.classList.remove('cine');
+  $('launch').classList.remove('show', 'press');
+  setText('cineTitle', ''); setText('caption', '');
+  $('alarm').style.opacity = 0;
+  $('flash').style.transition = 'opacity 1.2s'; $('flash').style.opacity = 0;
+  camera.position.copy(sv.pos); yaw = sv.yaw; pitch = sv.pitch; camera.rotation.set(pitch, yaw, 0);
+  renderPartList();
+  if (parts.every(p => p.done)) jobDone();
+  else if (!locked) showStart(true);
+}
+
+/* ---------- the cutscene itself ---------- */
+function updateNuke(dt) {
+  const n = nuke;
+  n.t += dt;
+  const t = n.t;
+  if (t >= NUKE_LEN) { endNuke(); return; }
+  NUKE_SFX.forEach(([at, fn], i) => { if (t >= at && !n.fired.has(i)) { n.fired.add(i); fn(); } });
+  if (t > 32 && t < 86 && Math.random() < 0.12) SND.pop();
+  for (const c of clouds) { c.position.x += c.userData.speed * dt; if (c.position.x > 340) c.position.x = -340; }
+
+  // screen overlays
+  $('alarm').style.opacity = t < 12 ? (0.55 + 0.45 * Math.sin(t * 8)) * (1 - smooth(10, 12, t)) : 0;
+  const cd = t < 2 ? '' : t < 3 ? '3' : t < 4 ? '2' : t < 5 ? '1' : 'LAUNCH!';
+  if ($('countdown').textContent !== cd) $('countdown').textContent = cd;
+  if (t >= 6.5 && $('launch').classList.contains('show')) $('launch').classList.remove('show', 'press');
+  let fl = 0;
+  if (t >= 24) fl = 1 - smooth(24.3, 26.5, t);
+  if (t >= 116) fl = Math.max(fl, smooth(116, 119.5, t));
+  $('flash').style.opacity = fl.toFixed(3);
+  setText('cineTitle', pickText(N_TITLES, t));
+  setText('caption', pickText(N_CAPS, t));
+
+  // plane + bomb
+  const px = -220 + (t - 6) * 27.5;
+  CN.plane.visible = t >= 6 && t < 22;
+  CN.plane.position.set(px, 62, -2);
+  let bx = 0, by;
+  const bz = -2;
+  if (t < 14) { bx = px; by = 59.2; } else { const k = clamp((t - 14) / 10, 0, 1); by = 59.2 - 57 * k * k; }
+  CN.bomb.visible = t >= 6 && t < 24;
+  CN.bomb.position.set(bx, by, bz);
+  CN.bomb.rotation.set(Math.sin(t * 3) * 0.06, t * 0.8, Math.cos(t * 2.3) * 0.06);
+  if (t > 14 && t < 24) for (let k = 0; k < 2; k++) {
+    const p = CN.puffs[CN.puffNext]; CN.puffNext = (CN.puffNext + 1) % CN.puffs.length;
+    p.life = 1; p.sp.visible = true; p.sp.position.set(bx + rand(-0.4, 0.4), by + 2.7, bz + rand(-0.4, 0.4));
+  }
+  for (const p of CN.puffs) {
+    if (p.life <= 0) continue;
+    p.life -= dt * 0.45;
+    if (p.life <= 0 || t > 30) { p.life = 0; p.sp.visible = false; continue; }
+    const sc = 1.2 + (1 - p.life) * 5; p.sp.scale.set(sc, sc, sc); p.sp.material.opacity = 0.65 * p.life;
+  }
+
+  // shockwave
+  const R = 2 + 150 * Math.pow(smooth(24, 31, t), 0.7);
+  CN.dome.visible = CN.ring.visible = t >= 24 && t < 34;
+  CN.dome.position.set(0, 0, -2); CN.dome.scale.set(R, R * 0.55, R); CN.dome.material.opacity = 0.5 * (1 - smooth(26, 34, t));
+  CN.ring.position.set(0, 0.3, -2); CN.ring.scale.set(R, R, R); CN.ring.material.opacity = 0.9 * (1 - smooth(27, 34, t));
+
+  // bubble mushroom cloud
+  CN.mush.visible = t >= 24 && t < 113;
+  if (CN.mush.visible) {
+    const fade = 1 - smooth(98, 112, t);
+    const capY = 6 + 46 * smooth(24, 40, t) + 10 * smooth(98, 112, t);
+    const capR = (4 + 18 * smooth(24, 36, t)) * (0.35 + 0.65 * fade);
+    const stemR = (2 + 5 * smooth(24, 34, t)) * fade * (1 - smooth(39, 47, t));
+    CN.stem.forEach((b, i) => {
+      const f = (i + 0.5) / CN.stem.length;
+      b.m.position.set(b.ox * stemR * 0.3 + Math.sin(t * 0.6 + i) * 0.4, f * capY, b.oz * stemR * 0.3);
+      b.m.scale.setScalar(Math.max(0.01, stemR * (1.25 - 0.5 * f) * b.s));
+    });
+    CN.cap.forEach(b => {
+      b.m.position.set(b.x * capR, capY + b.y * capR + Math.sin(t * 0.8 + b.x * 3) * 0.3, b.z * capR);
+      b.m.scale.setScalar(Math.max(0.01, b.s * capR * fade + 0.01));
+    });
+    const sr = 2 + 26 * smooth(24, 30, t), ss = Math.max(0.01, 3.2 * (1 - smooth(30, 46, t)));
+    CN.skirt.forEach((m, i) => { const a = i / CN.skirt.length * Math.PI * 2; m.position.set(Math.cos(a) * sr, 1, Math.sin(a) * sr); m.scale.setScalar(ss); });
+    CN.mush.rotation.y = t * 0.05;
+  }
+
+  // bubble rain
+  const bv = smooth(28, 32, t) * (1 - smooth(84, 90, t));
+  CN.bubbleMesh.visible = bv > 0.001;
+  if (CN.bubbleMesh.visible) {
+    _o.rotation.set(0, 0, 0);
+    CN.bubbles.forEach((b, i) => {
+      b.y += b.vy * dt; b.ph += dt;
+      if (b.y < 0) b.y = 26; else if (b.y > 28) b.y = 0;
+      _o.position.set(b.x + Math.sin(b.ph) * 0.5, b.y, b.z + Math.cos(b.ph * 0.8) * 0.5);
+      _o.scale.setScalar(b.s * bv); _o.updateMatrix(); CN.bubbleMesh.setMatrixAt(i, _o.matrix);
+    });
+    CN.bubbleMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // rainbow, sparkles, confetti
+  const rv = 0.75 * smooth(56, 62, t) * (1 - smooth(106, 112, t));
+  CN.rainbow.visible = rv > 0.001;
+  CN.rainbow.children.forEach(m => { m.material.opacity = rv; });
+  const sv = smooth(50, 54, t) * (1 - smooth(114, 118, t));
+  CN.sparks.forEach(s => { const k = Math.max(0, Math.sin(t * s.sp2 + s.ph)), sc = 0.5 * k * k * k * sv; s.sp.visible = sc > 0.01; s.sp.scale.set(sc, sc, sc); });
+  CN.conf.visible = t >= 80 && t < 106;
+  if (CN.conf.visible) {
+    CN.confetti.forEach((c, i) => {
+      c.y -= c.vy * dt; c.r += c.vr * dt;
+      if (c.y < 0.05) c.y = t < 98 ? rand(12, 18) : 0.05;
+      _o.position.set(c.x + Math.sin(c.r) * 0.3, c.y, c.z); _o.rotation.set(c.r, c.ax + c.r * 0.5, c.r * 0.7); _o.scale.setScalar(1);
+      _o.updateMatrix(); CN.conf.setMatrixAt(i, _o.matrix);
+    });
+    CN.conf.instanceMatrix.needsUpdate = true;
+  }
+
+  // the grime melts off everything as the suds roll through (a couple of surfaces per frame)
+  if (t >= 25 && !n.cleanStarted) {
+    n.cleanStarted = true;
+    for (const p of parts) for (const s of p.surfaces) if (s.alpha.some(a => a)) n.surfaces.push({ s, orig: s.alpha.slice() });
+  }
+  if (n.cleanStarted && !n.cleaned) {
+    if (t >= 47) cleanAllNow();
+    else if (n.surfaces.length) {
+      const keep = 1 - smooth(25, 46, t);
+      for (let k = 0; k < 2; k++) {
+        const e = n.surfaces[n.rr++ % n.surfaces.length], a = e.s.alpha, o = e.orig;
+        for (let i = 0; i < a.length; i++) a[i] = o[i] * keep;
+        composite(e.s, 0, 0, e.s.w, e.s.h); e.s.g.putImageData(e.s.work, 0, 0); e.s.tex.needsUpdate = true;
+      }
+    }
+  }
+  if (t >= 92 && !n.paid) payOut();
+
+  // camera
+  let pos, look;
+  if (t < 6) { const k = smooth(0, 6, t); pos = v3(7 - 2 * k, 3 - 0.6 * k, 8 - 2.5 * k); look = VAN_C; }
+  else if (t < 14) { pos = v3(-34, 5, 30); look = v3(px * 0.85, 40, -2); }
+  else if (t < 18) { pos = v3(bx + 12, by + 7, bz + 16); look = v3(bx, by, bz); }
+  else if (t < 21) { pos = v3(5, 0.5, 7); look = v3(bx, by, bz); }
+  else if (t < 24) { const k = smooth(21, 24, t); pos = v3(3.8 - k, 1.5, 4.4 - k); look = VAN_C; }
+  else if (t < 40) { const a = 0.55 + 0.5 * smooth(24, 40, t); pos = v3(Math.sin(a) * 74, 12, -2 + Math.cos(a) * 74); look = v3(0, 6 + 22 * smooth(24, 40, t), -2); }
+  else if (t < 56) { const a = 1.6 + 1.6 * smooth(40, 56, t); pos = v3(Math.sin(a) * 10, 3, -2 + Math.cos(a) * 10); look = VAN_C; }
+  else if (t < 80) { const k = smooth(56, 80, t); pos = v3(8 - 3.5 * k, 2.4 - 0.5 * k, 10 - 4 * k); look = v3(0, 4.5, -6); }
+  else if (t < 100) { const a = -0.7 + 1.4 * smooth(80, 100, t); pos = v3(Math.sin(a) * 8, 1.3, -2 + Math.cos(a) * 8); look = v3(0, 1.8, -2); }
+  else { const k = smooth(100, 118, t); pos = v3(6 + 34 * k, 3 + 52 * k, 8 + 40 * k); look = v3(0, 0, -2); }
+  camera.position.copy(pos);
+  if (t >= 24 && t < 33) { const sh = 0.8 * (1 - smooth(24, 33, t)); camera.position.x += rand(-sh, sh); camera.position.y += rand(-sh, sh) * 0.6; }
+  camera.lookAt(look);
+}
+
+/* =========================================================
    MAIN LOOP
    ========================================================= */
 const clock = new THREE.Clock();
@@ -1048,6 +1466,12 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   idleT += dt;
+  if (nuke) {
+    updateNuke(dt);
+    stepSpray(droplets, dt, 9.8, 0.985); stepSpray(mist, dt, -0.4, 0.96);
+    renderer.clear(); renderer.render(scene, camera);
+    return;
+  }
   if (locked) updatePlayer(dt);
   else if (!started) {   // slow drift on the title screen
     yaw = 0.36 + Math.sin(idleT * 0.15) * 0.18; camera.rotation.set(pitch, yaw, 0);
@@ -1081,7 +1505,7 @@ function animate() {
 }
 function jobDone() {
   document.exitPointerLock();
-  $('doneText').textContent = `The van is sparkling. You earned $${money.toFixed(2)}.`;
+  $('doneText').textContent = `The van is sparkling. You earned $${money.toFixed(2)}.` + (nukesUsed ? ` Soap nukes used: ${nukesUsed} (unlimited left!)` : '');
   $('done').classList.remove('hidden');
 }
 function onResize() {
