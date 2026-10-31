@@ -152,7 +152,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(C('#cfe8fb'), 80, 460);
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 1500);
 camera.rotation.order = 'YXZ';
-camera.position.set(0, 1.7, 9.5);
+camera.position.set(0, 1.7, 7.2);
 camera.rotation.x = -0.12;
 
 // The washer is drawn in its own little scene on top of the world, so it never clips into walls
@@ -450,34 +450,47 @@ function makeNoise(w, h, cell) {
   };
 }
 const GRIME = {
-  mud:    { dark: [62, 47, 30], light: [124, 98, 62], moss: [84, 92, 42], base: 0.5, spread: 1.9 },
-  glass:  { dark: [88, 80, 66], light: [150, 138, 112], moss: [96, 100, 70], base: 0.38, spread: 1.8 },
-  ground: { dark: [44, 40, 34], light: [104, 94, 76], moss: [74, 84, 44], base: 0.48, spread: 1.7 },
-  tire:   { dark: [70, 56, 38], light: [128, 104, 70], moss: [84, 90, 50], base: 0.42, spread: 1.6 }
+  // cake: thick grime colour, dust: thin film colour, rust: orange-brown blotches, moss: green tint
+  mud:    { cake: [46, 32, 20], dust: [128, 104, 74], rust: [118, 62, 26], moss: [70, 78, 36], cover: 0.62, edge: 3.2, film: 0.42, rustAmt: 0.55, mossAmt: 0.25 },
+  glass:  { cake: [72, 60, 44], dust: [150, 134, 108], rust: [110, 80, 50], moss: [90, 96, 64], cover: 0.5, edge: 2.6, film: 0.5, rustAmt: 0.1, mossAmt: 0.15 },
+  ground: { cake: [36, 31, 25], dust: [112, 100, 82], rust: [92, 64, 38], moss: [62, 74, 36], cover: 0.6, edge: 2.8, film: 0.4, rustAmt: 0.2, mossAmt: 0.55 },
+  tire:   { cake: [58, 42, 26], dust: [134, 112, 80], rust: [104, 70, 40], moss: [70, 80, 44], cover: 0.6, edge: 3.0, film: 0.5, rustAmt: 0.15, mossAmt: 0.2 }
 };
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 function makeGrime(s, kind, vertical) {
   const { w, h } = s, P = GRIME[kind], ppm = s.ppmX;
-  const n1 = makeNoise(w, h, ppm * 0.9), n2 = makeNoise(w, h, ppm * 0.32), n3 = makeNoise(w, h, ppm * 0.11), n4 = makeNoise(w, h, ppm * 0.04);
-  const tone = makeNoise(w, h, ppm * 0.18), moss = makeNoise(w, h, ppm * 0.55);
-  const streak = new Float32Array(w);
-  if (vertical) for (let x = 0; x < w; x++) streak[x] = Math.random() < 0.05 ? rand(0.12, 0.3) : 0;
-  for (let x = 1; x < w - 1; x++) if (streak[x] === 0 && (streak[x - 1] || streak[x + 1])) streak[x] = 0.5 * (streak[x - 1] || streak[x + 1]);
+  const n1 = makeNoise(w, h, ppm * 0.75), n2 = makeNoise(w, h, ppm * 0.28), n3 = makeNoise(w, h, ppm * 0.09), n4 = makeNoise(w, h, ppm * 0.03);
+  const rustN = makeNoise(w, h, ppm * 0.35), mossN = makeNoise(w, h, ppm * 0.6), tone = makeNoise(w, h, ppm * 0.15);
+  // drips: some columns get a long grime streak running down from the top
+  const drip = new Float32Array(w);
+  if (vertical) {
+    let x = 0;
+    while (x < w) {
+      x += Math.round(rand(0.08, 0.35) * ppm);
+      const width = Math.max(2, Math.round(rand(0.01, 0.035) * ppm)), str = rand(0.25, 0.6);
+      for (let k = 0; k < width && x + k < w; k++) drip[x + k] = Math.max(drip[x + k], str * Math.sin(Math.PI * (k + 0.5) / width));
+    }
+  }
   let total = 0;
   for (let y = 0; y < h; y++) {
-    const vy = y / h;
+    const vy = y / h;   // 0 at the top of the face, 1 at the bottom
     for (let x = 0; x < w; x++) {
-      const v = n1(x, y) * 0.45 + n2(x, y) * 0.28 + n3(x, y) * 0.17 + n4(x, y) * 0.10;
-      let a = P.base + (v - 0.5) * P.spread;
-      if (vertical) a += vy * 0.32 - 0.08 + streak[x] * vy;
-      if (Math.random() < 0.004) a += 0.5;
-      a = clamp(a, 0.22, 1);
-      const i = y * w + x;
-      const A = Math.round(a * 255);
+      const v = n1(x, y) * 0.5 + n2(x, y) * 0.27 + n3(x, y) * 0.15 + n4(x, y) * 0.08;
+      let heavy = v + (P.cover - 0.5);
+      if (vertical) heavy += (vy - 0.45) * 0.38 + drip[x] * vy * 0.7;
+      // crisp caked blotches over a thin dusty film
+      const cake = smooth(0.5 - 0.5 / P.edge, 0.5 + 0.5 / P.edge, heavy);
+      let a = P.film + (1 - P.film) * cake;
+      a = clamp(a + (Math.random() - 0.5) * 0.06, 0, 1);
+      const i = y * w + x, A = Math.round(a * 255);
       s.alpha[i] = A; total += A;
-      const t = clamp((tone(x, y) - 0.25) * 1.6, 0, 1);
-      let r = lerp(P.dark[0], P.light[0], t), g = lerp(P.dark[1], P.light[1], t), b = lerp(P.dark[2], P.light[2], t);
-      const m = clamp((moss(x, y) - 0.6) * 2.6, 0, 1);
-      r = lerp(r, P.moss[0], m); g = lerp(g, P.moss[1], m); b = lerp(b, P.moss[2], m);
+      // colour: thin film is light dust, thick cake is dark; rust and moss blotches on top
+      const t = clamp(cake * 0.85 + (tone(x, y) - 0.5) * 0.5, 0, 1);
+      let r = lerp(P.dust[0], P.cake[0], t), g = lerp(P.dust[1], P.cake[1], t), b = lerp(P.dust[2], P.cake[2], t);
+      const ru = smooth(0.55, 0.75, rustN(x, y)) * P.rustAmt * cake;
+      r = lerp(r, P.rust[0], ru); g = lerp(g, P.rust[1], ru); b = lerp(b, P.rust[2], ru);
+      const mo = smooth(0.6, 0.85, mossN(x, y)) * P.mossAmt * (vertical ? vy : 1);
+      r = lerp(r, P.moss[0], mo); g = lerp(g, P.moss[1], mo); b = lerp(b, P.moss[2], mo);
       s.dirt[i * 3] = r; s.dirt[i * 3 + 1] = g; s.dirt[i * 3 + 2] = b;
     }
   }
@@ -499,7 +512,7 @@ function oilStains(s, n) {
 function composite(s, x0, y0, x1, y1) {
   const W = s.w, c = s.clean.data, o = s.work.data;
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-    const i = y * W + x, p = i * 4, a = s.alpha[i] / 255 * 0.97;
+    const i = y * W + x, p = i * 4, a = s.alpha[i] / 255;
     o[p] = c[p] + (s.dirt[i * 3] - c[p]) * a;
     o[p + 1] = c[p + 1] + (s.dirt[i * 3 + 1] - c[p + 1]) * a;
     o[p + 2] = c[p + 2] + (s.dirt[i * 3 + 2] - c[p + 2]) * a;
@@ -730,35 +743,43 @@ function buildVan() {
    ========================================================= */
 const gun = new THREE.Group();
 gunScene.add(gun);
-const GUN_POS = new THREE.Vector3(0.3, -0.3, -0.52);
+const GUN_POS = new THREE.Vector3(0.21, -0.215, -0.4);
 gun.position.copy(GUN_POS);
-gun.rotation.set(0.04, 0.06, 0);
+gun.rotation.set(0.1, 0.12, -0.05);
 const tipMarker = new THREE.Object3D();
 let nozzleTip;
 (function buildGun() {
-  const white = new THREE.MeshStandardMaterial({ color: C('#f4f6f8'), roughness: 0.35 });
-  const blue = new THREE.MeshStandardMaterial({ color: C('#2b6fe0'), roughness: 0.4 });
-  const metal = new THREE.MeshStandardMaterial({ color: C('#b8bec6'), roughness: 0.3, metalness: 0.8 });
-  const yellow = new THREE.MeshStandardMaterial({ color: C('#ffc312'), roughness: 0.4 });
-  const glove = new THREE.MeshStandardMaterial({ color: C('#ff9a1f'), roughness: 0.7 });
-  const sleeve = new THREE.MeshStandardMaterial({ color: C('#eef1f4'), roughness: 0.8 });
+  const M = (hex, rough = 0.4, metal = 0) => new THREE.MeshStandardMaterial({ color: C(hex), roughness: rough, metalness: metal });
+  const white = M('#f3f5f8', 0.3), blue = M('#2468d8', 0.35), navy = M('#1b3f86', 0.5), metal = M('#c3c9d1', 0.25, 0.85);
+  const yellow = M('#ffc21a', 0.4), glove = M('#f4f5f7', 0.75), cuff = M('#ff9a1f', 0.6), suit = M('#2a62cc', 0.8), hose = M('#2b2e33', 0.7), dark = M('#30343a', 0.5);
   const add = (geo, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); gun.add(o); return o; };
-  add(new THREE.CylinderGeometry(0.052, 0.058, 0.3, 20), white, 0, 0, 0, Math.PI / 2);
-  add(new THREE.SphereGeometry(0.058, 20, 12), white, 0, 0, 0.15);
-  add(new THREE.SphereGeometry(0.052, 20, 12), white, 0, 0, -0.15);
-  add(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 20), blue, 0, 0, -0.04, Math.PI / 2);
-  add(new THREE.CylinderGeometry(0.061, 0.061, 0.02, 20), blue, 0, 0, 0.08, Math.PI / 2);
-  add(new THREE.BoxGeometry(0.046, 0.16, 0.06), blue, 0, -0.09, 0.08, -0.35);
-  add(new THREE.CylinderGeometry(0.024, 0.024, 0.06, 14), yellow, 0, 0, -0.2, Math.PI / 2);
-  add(new THREE.CylinderGeometry(0.012, 0.012, 0.56, 12), metal, 0, 0, -0.5, Math.PI / 2);
-  nozzleTip = add(new THREE.CylinderGeometry(0.018, 0.015, 0.05, 14), new THREE.MeshStandardMaterial({ color: C('#ff4757'), roughness: 0.4 }), 0, 0, -0.79, Math.PI / 2);
-  tipMarker.position.set(0, 0, -0.82); gun.add(tipMarker);
-  // hands
-  add(new THREE.BoxGeometry(0.075, 0.1, 0.095), glove, 0.005, -0.095, 0.1, -0.35);
-  add(new THREE.BoxGeometry(0.06, 0.04, 0.09), glove, -0.03, -0.045, 0.05, -0.2);
-  add(new THREE.CylinderGeometry(0.05, 0.058, 0.3, 14), sleeve, 0.04, -0.2, 0.26, 0.9);
-  add(new THREE.BoxGeometry(0.07, 0.07, 0.085), glove, -0.02, -0.03, -0.27, 0.1);
-  add(new THREE.CylinderGeometry(0.042, 0.05, 0.3, 14), sleeve, -0.13, -0.16, -0.18, 1.0, 0.9, 0);
+  const cyl = (r1, r2, len, seg = 20) => new THREE.CylinderGeometry(r1, r2, len, seg);
+  const Z = Math.PI / 2;
+  // body
+  add(cyl(0.038, 0.043, 0.2), white, 0, 0, -0.02, Z);
+  add(new THREE.SphereGeometry(0.043, 20, 14), white, 0, 0, 0.08);
+  add(cyl(0.046, 0.046, 0.026), blue, 0, 0, -0.115, Z);
+  add(cyl(0.044, 0.044, 0.012), blue, 0, 0, 0.035, Z);
+  add(new THREE.BoxGeometry(0.018, 0.012, 0.15), blue, 0, 0.041, -0.02);
+  add(new THREE.BoxGeometry(0.03, 0.016, 0.03), blue, 0, 0.046, 0.06);
+  // grip, trigger and guard
+  add(new THREE.BoxGeometry(0.038, 0.13, 0.052), navy, 0, -0.08, 0.045, -0.32);
+  add(new THREE.BoxGeometry(0.012, 0.045, 0.014), yellow, 0, -0.05, -0.012, -0.25);
+  add(new THREE.BoxGeometry(0.01, 0.01, 0.07), navy, 0, -0.085, -0.01);
+  // gloved hand round the grip
+  add(new THREE.BoxGeometry(0.066, 0.08, 0.075), glove, 0.004, -0.09, 0.055, -0.32);
+  for (let k = 0; k < 3; k++) add(new THREE.BoxGeometry(0.06, 0.022, 0.028), glove, 0.002, -0.068 - k * 0.024, 0.005 + k * 0.008, -0.32);
+  add(new THREE.BoxGeometry(0.024, 0.022, 0.06), glove, -0.032, -0.045, 0.03, -0.1, 0.35, 0);
+  add(cyl(0.043, 0.046, 0.034), cuff, 0.008, -0.15, 0.085, -0.32);
+  add(cyl(0.05, 0.062, 0.34), suit, 0.03, -0.29, 0.14, -0.55);
+  // hose from the bottom of the grip
+  add(cyl(0.012, 0.012, 0.3, 10), hose, -0.005, -0.27, 0.07, -0.15);
+  // lance + nozzle
+  add(cyl(0.017, 0.017, 0.04), yellow, 0, 0, -0.145, Z);
+  add(cyl(0.0085, 0.0085, 0.42, 12), metal, 0, 0, -0.37, Z);
+  add(cyl(0.013, 0.013, 0.03), dark, 0, 0, -0.585, Z);
+  nozzleTip = add(cyl(0.015, 0.012, 0.026, 14), M('#ff4757', 0.4), 0, 0, -0.61, Z);
+  tipMarker.position.set(0, 0, -0.625); gun.add(tipMarker);
 })();
 
 /* ---------- water stream + spray particles ---------- */
@@ -768,7 +789,7 @@ const NOZZLES = {
   3: { name: '40° Wide Fan', radius: 0.27, power: 15, endR: 0.17, color: '#2ed573', pitch: 850 }
 };
 let nozzle = NOZZLES[1];
-const streamMat = new THREE.MeshBasicMaterial({ color: C('#eaf7ff'), transparent: true, opacity: 0.5, depthWrite: false, fog: false });
+const streamMat = new THREE.MeshBasicMaterial({ color: C('#eaf7ff'), transparent: true, opacity: 0.6, depthWrite: false, fog: false });
 const coreMat = new THREE.MeshBasicMaterial({ color: C('#ffffff'), transparent: true, opacity: 0.75, depthWrite: false, fog: false });
 const streamGeos = {}, coreGeo = new THREE.CylinderGeometry(0.006, 0.006, 1, 8, 1, true).translate(0, 0.5, 0);
 for (const k in NOZZLES) streamGeos[k] = new THREE.CylinderGeometry(NOZZLES[k].endR, 0.012, 1, 14, 1, true).translate(0, 0.5, 0);
@@ -788,7 +809,9 @@ function makeSpray(count, size, opacity) {
   pts.frustumCulled = false; scene.add(pts);
   return { pts, pos, vel: new Float32Array(count * 3), life: new Float32Array(count), next: 0, count };
 }
-const droplets = makeSpray(700, 0.05, 0.95), mist = makeSpray(160, 0.45, 0.22);
+const droplets = makeSpray(600, 0.034, 0.9), mist = makeSpray(160, 0.5, 0.2);
+const splash = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false }));
+splash.visible = false; splash.renderOrder = 6; scene.add(splash);
 function emit(sys, p, n, nrm, spd, up) {
   for (let k = 0; k < n; k++) {
     const i = sys.next; sys.next = (sys.next + 1) % sys.count;
@@ -909,6 +932,7 @@ function updateWashing(dt) {
   tipWorld.applyQuaternion(camera.quaternion).add(camera.position);
   const end = hit ? hit.point.clone() : raycaster.ray.at(10, new THREE.Vector3());
   stream.visible = core.visible = spraying;
+  splash.visible = false;
   if (sprayGain) sprayGain.gain.setTargetAtTime(spraying ? 0.16 : 0, actx.currentTime, 0.05);
   if (!spraying) return;
   aimDir.subVectors(end, tipWorld);
@@ -922,7 +946,10 @@ function updateWashing(dt) {
   if (hit) {
     const nrm = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : UP.clone();
     const reflect = aimDir.clone().reflect(nrm).multiplyScalar(0.6).add(nrm);
-    emit(droplets, hit.point, Math.round(10 + nozzle.radius * 40), reflect, 2.2, 0.6);
+    emit(droplets, hit.point, Math.round(6 + nozzle.radius * 26), reflect, 1.7, 0.5);
+    splash.visible = true;
+    splash.position.copy(hit.point).addScaledVector(nrm, 0.03);
+    splash.scale.setScalar((nozzle.radius * 2.4 + 0.08) * rand(0.85, 1.15));
     if (Math.random() < 0.6) emit(mist, hit.point, 1, nrm, 0.6, 0.3);
     if (aimed && !aimed.done) {
       const s = (Array.isArray(hit.object.material) ? hit.object.material[hit.face.materialIndex] : hit.object.material).userData.surface;
