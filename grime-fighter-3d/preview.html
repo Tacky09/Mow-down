@@ -271,7 +271,7 @@ void main() {
     c = mix(hor, vec3(0.30, 0.34, 0.29), smoothstep(0.0, -0.25, h));
   }
   c *= 1.32;
-  gl_FragColor = vec4(srgb > 0.5 ? pow(c * 0.78, vec3(1.0 / 2.2)) : c, 1.0);
+  gl_FragColor = linearToOutputTexel(vec4(srgb > 0.5 ? c * 0.78 : c, 1.0));
 }`;
 const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 48, 24), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
@@ -391,18 +391,19 @@ function addWet(mat, strength) {
     sh.fragmentShader = 'uniform sampler2D tReflect;\nuniform sampler2D tPuddle;\nuniform float wetStrength;\nuniform float wetOn;\nvarying vec4 vReflUv;\nvarying vec3 vWPos;\n' +
       sh.fragmentShader
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-  float pn = texture2D(tPuddle, vWPos.xz * 0.045).r;
-  float puddle = smoothstep(0.54, 0.6, pn) * wetStrength;
-  float damp = smoothstep(0.42, 0.56, pn) * wetStrength;
+  float pn = texture2D(tPuddle, vWPos.xz * 0.085).r;
+  float rip = texture2D(tPuddle, vWPos.xz * 1.7).r - 0.5;
+  float puddle = smoothstep(0.6, 0.64, pn) * wetStrength;
+  float damp = smoothstep(0.5, 0.62, pn) * wetStrength;
   roughnessFactor = mix(roughnessFactor, 0.05, puddle);
   roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.7, damp);`)
         .replace('#include <tonemapping_fragment>', `{
     vec3 Vv = normalize(vViewPosition);
     float ndv = clamp(dot(normalize(normal), Vv), 0.0, 1.0);
     float fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
-    vec2 ruv = vReflUv.xy / vReflUv.w + normal.xz * 0.015 * (1.0 - puddle);
+    vec2 ruv = vReflUv.xy / vReflUv.w + normal.xz * 0.02 * (1.0 - puddle) + vec2(rip) * 0.006;
     vec3 refl = texture2D(tReflect, ruv).rgb;
-    float k = (mix(0.0, 0.1, damp) + mix(0.0, 0.78, puddle)) * mix(0.45, 1.0, fres) * wetOn;
+    float k = (mix(0.0, 0.08, damp) + mix(0.0, 0.62, puddle)) * mix(0.35, 1.0, fres) * wetOn;
     gl_FragColor.rgb = mix(gl_FragColor.rgb * mix(1.0, 0.72, max(puddle, damp * 0.4)), refl, k);
   }
   #include <tonemapping_fragment>`);
@@ -1798,7 +1799,7 @@ void main() {
     col /= wsum;
   }
   col = toSRGB(aces(col));
-  col = mix(col, col * col * (3.0 - 2.0 * col), 0.22);          // gentle filmic contrast
+  col = mix(col, col * col * (3.0 - 2.0 * col), 0.35);          // gentle filmic contrast
   float l = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(vec3(l), col, 0.94) * vec3(0.985, 1.0, 1.02);       // slightly muted, cool overcast grade
   gl_FragColor = vec4(col, 1.0);
@@ -1839,8 +1840,8 @@ function initPost() {
     radius: { value: 0.75 }, intensity: { value: 1.6 }, bias: { value: 0.015 } });
   P.blur = fsPass(BLUR_FRAG, { tAO: { value: null }, tDepth: { value: null }, texel: V2(), cNear: { value: camera.near }, cFar: { value: camera.far } });
   P.comp = fsPass(COMP_FRAG, { tColor: { value: null }, tAO: { value: null }, tDepth: { value: null }, texel: V2(), focus: { value: 8 }, aperture: { value: 0.55 },
-    maxCoc: { value: 7 }, cNear: { value: camera.near }, cFar: { value: camera.far }, exposure: { value: 0.95 }, aoAmt: { value: 1 } });
-  P.final = fsPass(FINAL_FRAG, { tIn: { value: null }, texel: V2(), ca: { value: 0.012 }, time: { value: 0 }, grain: { value: 0.03 } });
+    maxCoc: { value: 7 }, cNear: { value: camera.near }, cFar: { value: camera.far }, exposure: { value: 1.0 }, aoAmt: { value: 1 } });
+  P.final = fsPass(FINAL_FRAG, { tIn: { value: null }, texel: V2(), ca: { value: 0.0055 }, time: { value: 0 }, grain: { value: 0.03 } });
   WET.u.tPuddle.value = periodicNoise(256, 4, 5);
 }
 function sizePost() {
