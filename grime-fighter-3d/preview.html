@@ -404,14 +404,14 @@ function addWet(mat, strength) {
   float puddle = smoothstep(0.575, 0.615, pn) * wetStrength;
   float damp = smoothstep(0.5, 0.62, pn) * wetStrength;
   roughnessFactor = mix(roughnessFactor, 0.05, puddle);
-  roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.7, damp);`)
+  roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.85, damp);`)
         .replace('#include <tonemapping_fragment>', `{
     vec3 Vv = normalize(vViewPosition);
     float ndv = clamp(dot(normalize(normal), Vv), 0.0, 1.0);
     float fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
     vec2 ruv = vReflUv.xy / vReflUv.w + normal.xz * 0.02 * (1.0 - puddle) + vec2(rip) * 0.006;
     vec3 refl = texture2D(tReflect, ruv).rgb;
-    float k = (mix(0.0, 0.08, damp) + mix(0.0, 0.62, puddle)) * mix(0.35, 1.0, fres) * wetOn;
+    float k = (mix(0.0, 0.035, damp) + mix(0.0, 0.55, puddle)) * mix(0.3, 1.0, fres) * wetOn;
     gl_FragColor.rgb = mix(gl_FragColor.rgb * mix(1.0, 0.72, max(puddle, damp * 0.4)), refl, k);
   }
   #include <tonemapping_fragment>`);
@@ -1063,7 +1063,7 @@ const GUNMAT = {};
   const M = (hex, rough = 0.4, metal = 0) => new THREE.MeshStandardMaterial({ color: C(hex), roughness: rough, metalness: metal });
   const white = M('#f3f5f8', 0.3), blue = M('#2468d8', 0.35), navy = M('#1b3f86', 0.5), metal = M('#c3c9d1', 0.25, 0.85);
   const yellow = M('#ffc21a', 0.4), glove = M('#e4e8ee', 0.8), cuff = M('#ff9a1f', 0.6), suit = M('#2a62cc', 0.8), hose = M('#2b2e33', 0.7), dark = M('#30343a', 0.5);
-  Object.assign(GUNMAT, { glove, cuff, suit });
+  Object.assign(GUNMAT, { glove, cuff, suit, white, blue });
   const add = (geo, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); gun.add(o); return o; };
   const cyl = (r1, r2, len, seg = 20) => new THREE.CylinderGeometry(r1, r2, len, seg);
   const Z = Math.PI / 2;
@@ -1810,7 +1810,7 @@ void main() {
     }
     col /= wsum;
   }
-  col = toSRGB(aces(col * mix(1.0, 1.3, body)));                       // bodycams run hot
+  col = toSRGB(aces(col * mix(1.0, 1.15, body)));                       // bodycams run hot
   col = mix(col, col * col * (3.0 - 2.0 * col), mix(0.35, 0.15, body));   // filmic contrast
   float l = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(vec3(l), col, mix(0.94, 0.8, body)) * mix(vec3(0.985, 1.0, 1.02), vec3(1.03, 1.0, 0.95), body);
@@ -1818,7 +1818,7 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`;
 const FINAL_FRAG = `
-uniform sampler2D tIn; uniform vec2 texel; uniform float ca, time, grain;
+uniform sampler2D tIn; uniform vec2 texel; uniform float ca, time, grain, body;
 varying vec2 vUv;
 vec3 fxaa(vec2 uv) {
   vec3 nw = texture2D(tIn, uv + vec2(-1.0, -1.0) * texel).rgb, ne = texture2D(tIn, uv + vec2(1.0, -1.0) * texel).rgb;
@@ -1854,10 +1854,10 @@ void main() {
   if (body > 0.5) {                                                              // blown-out highlight glow
     vec3 g = vec3(0.0);
     for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; g += texture2D(tIn, uv + vec2(cos(a), sin(a)) * texel * 16.0).rgb; }
-    c += max(g / 8.0 - 0.7, 0.0) * 1.1;
+    c += max(g / 8.0 - 0.78, 0.0) * 0.9;
   }
   c *= mix(1.0, 1.0 - 0.5 * smoothstep(0.35, 1.05, rn2), body);                  // heavy falloff
-  c *= mix(1.0, 1.0 - smoothstep(0.92, 1.08, rn2), body);                         // dark rounded corners
+  c *= mix(1.0, 1.0 - smoothstep(0.8, 1.0, rn2), body);                         // dark rounded corners
   float n = fract(sin(dot(vUv * 1000.0 + time, vec2(12.9898, 78.233))) * 43758.5453);
   c += (n - 0.5) * (grain + body * 0.025);
   gl_FragColor = vec4(c, 1.0);
@@ -1919,6 +1919,8 @@ function setLens(on, announce) {
   GUNMAT.glove.color.copy(C(BODY ? '#1f2124' : '#e4e8ee')); GUNMAT.glove.roughness = BODY ? 0.95 : 0.8;
   GUNMAT.cuff.color.copy(C(BODY ? '#34383d' : '#ff9a1f'));
   GUNMAT.suit.color.copy(C(BODY ? '#2c3036' : '#2a62cc'));
+  GUNMAT.white.color.copy(C(BODY ? '#3a3d42' : '#f3f5f8')); GUNMAT.white.roughness = BODY ? 0.55 : 0.3;
+  GUNMAT.blue.color.copy(C(BODY ? '#c99a1e' : '#2468d8'));
   $('vignette').style.display = BODY && ULTRA ? 'none' : '';
   if (announce) toast(BODY ? 'Lens: <em>Bodycam</em>' : 'Lens: <em>Cinematic</em>');
 }
