@@ -393,7 +393,7 @@ function addWet(mat, strength) {
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
   float pn = texture2D(tPuddle, vWPos.xz * 0.085).r;
   float rip = texture2D(tPuddle, vWPos.xz * 1.7).r - 0.5;
-  float puddle = smoothstep(0.6, 0.64, pn) * wetStrength;
+  float puddle = smoothstep(0.575, 0.615, pn) * wetStrength;
   float damp = smoothstep(0.5, 0.62, pn) * wetStrength;
   roughnessFactor = mix(roughnessFactor, 0.05, puddle);
   roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.7, damp);`)
@@ -470,7 +470,7 @@ function buildScenery() {
     h.scale.set(rand(25, 55), rand(8, 18), rand(25, 45));
   }
   // rocky snow-capped mountains (vertex-coloured: rock fading into snow)
-  const rockA = C('#5d6167'), rockB = C('#7b7f84'), snowC = C('#eef2f6'), tmp = new THREE.Color();
+  const rockA = C('#6b6e72'), rockB = C('#868a8e'), snowC = C('#e9eef3'), tmp = new THREE.Color();
   for (let i = 0; i < 16; i++) {
     const a = rand(-Math.PI * 0.95, -Math.PI * 0.05) + (i % 3 === 0 ? Math.PI : 0), r = rand(250, 360);
     const hgt = rand(80, 160), rad = hgt * rand(0.6, 0.85);
@@ -483,7 +483,7 @@ function buildScenery() {
       x *= sc; z *= sc; y += (n - 0.5) * hgt * 0.1 * (1 - fy);
       pos.setXYZ(k, x, y, z);
       tmp.copy(rockA).lerp(rockB, clamp(n * 1.4 - 0.2, 0, 1));
-      tmp.lerp(snowC, smooth(0.55, 0.68, fy + (n - 0.5) * 0.35));
+      tmp.lerp(snowC, smooth(0.5, 0.76, fy + (n - 0.5) * 0.16));
       col[k * 3] = tmp.r; col[k * 3 + 1] = tmp.g; col[k * 3 + 2] = tmp.b;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -524,7 +524,7 @@ function buildYard() {
   ag.lineCap = 'round';
   for (let k = 0; k < 16; k++) {   // cracks
     let x = rand(0, N), y = rand(0, N), an = rand(0, 6.28);
-    ag.strokeStyle = 'rgba(14,14,16,0.85)'; ag.lineWidth = rand(1, 2.4); ag.beginPath(); ag.moveTo(x, y);
+    ag.strokeStyle = 'rgba(16,16,18,0.6)'; ag.lineWidth = rand(0.6, 1.4); ag.beginPath(); ag.moveTo(x, y);
     for (let st = 0; st < 34; st++) { an += rand(-0.6, 0.6); x += Math.cos(an) * rand(5, 15); y += Math.sin(an) * rand(5, 15); ag.lineTo(x, y); }
     ag.stroke();
   }
@@ -1745,7 +1745,7 @@ void main() {
   vec3 dx = abs(pr.z - p.z) < abs(p.z - pl.z) ? pr - p : p - pl;
   vec3 dy = abs(pu.z - p.z) < abs(p.z - pd.z) ? pu - p : p - pd;
   vec3 n = normalize(cross(dx, dy));
-  float sr = min(radius * proj[1][1] / -p.z * 0.5, 0.12);
+  float sr = min(radius * proj[1][1] / -p.z * 0.5, 0.07);
   float rot = ign(gl_FragCoord.xy) * 6.2831853, r2 = radius * radius, sum = 0.0;
   for (int i = 0; i < 16; i++) {
     float fi = float(i) + 0.5, a = fi * 2.3999632 + rot;
@@ -1755,7 +1755,7 @@ void main() {
     sum += f * f * f * max((vn - bias) / (0.01 + vv), 0.0);
   }
   float ao = max(0.0, 1.0 - sum * intensity / (r2 * r2 * r2) * (5.0 / 16.0));
-  gl_FragColor = vec4(vec3(ao * ao), 1.0);
+  gl_FragColor = vec4(vec3(ao), 1.0);
 }`;
 const BLUR_FRAG = `
 uniform sampler2D tAO; uniform sampler2D tDepth; uniform vec2 texel; uniform float cNear, cFar;
@@ -1776,7 +1776,7 @@ uniform float focus, aperture, maxCoc, cNear, cFar, exposure, aoAmt;
 varying vec2 vUv;
 ` + LIN_DEPTH + `
 float coc(float z) { return clamp(aperture * abs(z - focus) / max(z, 0.1), 0.0, 1.0) * maxCoc; }
-vec3 tap(vec2 uv) { return texture2D(tColor, uv).rgb * mix(1.0, texture2D(tAO, uv).r, aoAmt); }
+vec3 tap(vec2 uv) { return texture2D(tColor, uv).rgb * mix(1.0, max(texture2D(tAO, uv).r, 0.38), aoAmt); }
 vec3 RRTAndODTFit(vec3 v) { vec3 a = v * (v + 0.0245786) - 0.000090537; vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081; return a / b; }
 vec3 aces(vec3 c) {
   const mat3 IM = mat3(vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
@@ -1837,7 +1837,7 @@ let rtW = 0, rtH = 0;
 function initPost() {
   const V2 = () => ({ value: new THREE.Vector2() });
   P.ao = fsPass(AO_FRAG, { tDepth: { value: null }, projInv: { value: new THREE.Matrix4() }, proj: { value: new THREE.Matrix4() }, res: V2(),
-    radius: { value: 0.75 }, intensity: { value: 1.6 }, bias: { value: 0.015 } });
+    radius: { value: 0.5 }, intensity: { value: 0.75 }, bias: { value: 0.015 } });
   P.blur = fsPass(BLUR_FRAG, { tAO: { value: null }, tDepth: { value: null }, texel: V2(), cNear: { value: camera.near }, cFar: { value: camera.far } });
   P.comp = fsPass(COMP_FRAG, { tColor: { value: null }, tAO: { value: null }, tDepth: { value: null }, texel: V2(), focus: { value: 8 }, aperture: { value: 0.55 },
     maxCoc: { value: 7 }, cNear: { value: camera.near }, cFar: { value: camera.far }, exposure: { value: 1.0 }, aoAmt: { value: 1 } });
