@@ -339,37 +339,9 @@ function createWashableStructures() {
 generateWashableObject(new THREE.BoxGeometry(8, 5, 0.4), "Main Concrete Face Wall", new THREE.Vector3(0, 2.5, -4), '#95a5a6', '#4a3b2c');
 // Target 2: Side detailing pillar structure
 generateWashableObject(new THREE.BoxGeometry(2, 4, 2), "Driveway Column pillar", new THREE.Vector3(-6, 2, -2), '#bdc3c7', '#3d2e20');
-// Target 3: Patio slab in front of the wall (aim down to scrub it)
-generateWashableObject(new THREE.BoxGeometry(8, 0.2, 5), "Stone Patio", new THREE.Vector3(0, 0.1, 1.5), '#d9cbb0', '#4f4232');
-// Target 4: Family car parked on the right
-generateWashableObject(new THREE.BoxGeometry(4.2, 1.0, 2.0), "Car Body", new THREE.Vector3(7, 0.85, 1), '#c0392b', '#3b2a1e');
-generateWashableObject(new THREE.BoxGeometry(2.4, 0.8, 1.8), "Car Roof & Windows", new THREE.Vector3(6.8, 1.75, 1), '#a9d6e5', '#3f3328');
-const tireMat = new THREE.MeshStandardMaterial({ color: 0x1e1e1e, roughness: 0.9 });
-[[5.6, 0.1], [5.6, 1.9], [8.4, 0.1], [8.4, 1.9]].forEach(([x, z]) => {
-const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.35, 18), tireMat);
-tire.rotation.x = Math.PI / 2;
-tire.position.set(x, 0.45, z);
-tire.castShadow = true;
-scene.add(tire);
-});
-// Target 5: Wooden fence running along the left side, in two panels
-generateWashableObject(new THREE.BoxGeometry(0.15, 1.8, 6), "Wooden Fence (Front)", new THREE.Vector3(-11, 0.9, 3), '#c8a070', '#4a3a28');
-generateWashableObject(new THREE.BoxGeometry(0.15, 1.8, 6), "Wooden Fence (Back)", new THREE.Vector3(-11, 0.9, -4), '#c8a070', '#4a3a28');
-const postMat = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.9 });
-[6.1, -0.5, -7.1].forEach(z => {
-const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.2, 0.3), postMat);
-post.position.set(-11, 1.1, z);
-post.castShadow = true;
-scene.add(post);
-});
-// Target 6: Garden shed in the back corner (walls + roof)
-generateWashableObject(new THREE.BoxGeometry(4, 3, 3), "Garden Shed Walls", new THREE.Vector3(9, 1.5, -8), '#e8dcc0', '#3e3226');
-generateWashableObject(new THREE.BoxGeometry(4.6, 0.3, 3.6), "Garden Shed Roof", new THREE.Vector3(9, 3.15, -8), '#5d6d7e', '#2a221a');
 }
 function generateWashableObject(geometry, name, position, cleanColorHex, dirtColorHex) {
-const texSize = 1024;
-// Dirt splotches scale with the texture so the look stays the same at any resolution
-const texScale = texSize / 512;
+const texSize = 512;
 // Build dynamic underlying backing 2D canvas buffer state engine context layout framework
 const canvas = document.createElement('canvas');
 canvas.width = texSize;
@@ -386,7 +358,7 @@ ctx.fillRect(0, 0, texSize, texSize);
 for(let i=0; i<30; i++) {
 ctx.fillStyle = '#2c1e15';
 ctx.beginPath();
-ctx.arc(Math.random()*texSize, Math.random()*texSize, (Math.random()*40 + 20) * texScale, 0, Math.PI*2);
+ctx.arc(Math.random()*texSize, Math.random()*texSize, Math.random()*40 + 20, 0, Math.PI*2);
 ctx.fill();
 }
 const texture = new THREE.CanvasTexture(canvas);
@@ -489,8 +461,7 @@ const uv = hit.uv;
 // Extrapolate exact matching canvas space texture map coordinate indexes pixel allocations
 const cx = Math.floor(uv.x * canvas.width);
 const cy = Math.floor((1 - uv.y) * canvas.height); // Flip coordinate space orientation axis inversion properties
-// Nozzle radii are tuned for a 512px texture; scale them so cleaning speed stays the same at higher resolution
-const rad = Math.round(activeNozzle.radius * canvas.width / 512);
+const rad = activeNozzle.radius;
 // Modify frame buffers textures data mapping
 let pixelsChanged = false;
 for (let x = -rad; x < rad; x++) {
