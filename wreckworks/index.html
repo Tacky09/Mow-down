@@ -216,21 +216,22 @@ MAT_NAMES.forEach((n, i) => { MAT_ID[n] = i; });
 const MINFO = MAT_NAMES.map(n => MATS[n]);
 const PAL = new Float32Array(256 * 3), PMAT = new Uint8Array(256);
 let palCount = 1;
+const NV = 3;
 const palCache = {};
 function P(hex, mat, vary = 0.1) {
   const k = hex + mat;
   if (palCache[k]) return palCache[k];
-  if (palCount + 6 > 255) throw new Error('palette full');
+  if (palCount + NV > 255) { console.warn('palette full'); return palCache[Object.keys(palCache)[0]]; }
   const base = palCount, c = C(hex);
-  for (let i = 0; i < 6; i++) {
-    const f = 1 + ((i - 2.5) / 2.5) * vary;
+  for (let i = 0; i < NV; i++) {
+    const f = 1 + ((i - 1) / 1) * vary;
     PAL[(base + i) * 3] = c.r * f; PAL[(base + i) * 3 + 1] = c.g * f; PAL[(base + i) * 3 + 2] = c.b * f;
     PMAT[base + i] = MAT_ID[mat];
   }
-  palCount += 6;
+  palCount += NV;
   return (palCache[k] = base);
 }
-const vr = b => b + ((Math.random() * 6) | 0);
+const vr = b => b + ((Math.random() * NV) | 0);
 const shade = (hex, f) => { const c = new THREE.Color(hex).multiplyScalar(f); return '#' + c.getHexString(); };
 
 /* =========================================================
