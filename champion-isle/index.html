@@ -47,7 +47,7 @@
   <canvas id="hudCanvas" width="800" height="480"></canvas>
 </div>
 <div class="hint">
-  <b>WASD / Arrows</b> move &nbsp;·&nbsp; <b>E</b> talk / advance &nbsp;·&nbsp; <b>Space</b> start
+  <b>WASD / Arrows</b> move &nbsp;·&nbsp; <b>E</b> talk / advance &nbsp;·&nbsp; <b>Space</b> start / action
   &nbsp;·&nbsp; <b>Esc</b> leave &nbsp;·&nbsp; <b>M</b> sound on/off
 </div>
 
@@ -80,9 +80,9 @@ const STATES = Object.freeze({
 });
 const game = {
   state: STATES.MENU, tick: 0, stateTick: 0,
-  scrolls: 0, wins: 0, losses: 0,
-  beatChampion: false, talkedToCoach: false,
-  doorArmed: true, shake: 0, muted: false, result: null
+  beaten: new Set(), wins: 0, losses: 0,
+  talked: new Set(), sport: 'tt', actors: null,
+  doorArmed: true, shake: 0, muted: false, result: null, orbit: null
 };
 function setState(s) { game.state = s; game.stateTick = 0; }
 
@@ -120,6 +120,11 @@ function panel(x, y, w, h, border = '#f0a020', fill = '#120e26') {
   px(x + 3, y + 3, w - 6, h - 6, '#000');
   px(x + 5, y + 5, w - 10, h - 10, fill);
 }
+function bar(x, y, w, h, frac, color, bg = '#3a3370') {
+  px(x, y, w, h, '#000');
+  px(x + 2, y + 2, w - 4, h - 4, bg);
+  px(x + 2, y + 2, (w - 4) * clamp(frac, 0, 1), h - 4, color);
+}
 function wrap(str, maxW) {
   const words = str.split(' '), lines = [];
   let cur = '';
@@ -129,6 +134,21 @@ function wrap(str, maxW) {
   }
   if (cur) lines.push(cur);
   return lines;
+}
+// Arrow icon: 0 up, 1 down, 2 left, 3 right
+function drawArrow(cx, cy, dir, s, color) {
+  ctx.save();
+  ctx.translate(Math.round(cx), Math.round(cy));
+  ctx.rotate([-Math.PI / 2, Math.PI / 2, Math.PI, 0][dir]);
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(s, 0); ctx.lineTo(-s * 0.7, -s * 0.85); ctx.lineTo(-s * 0.7, s * 0.85); ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+function keyBox(cx, cy, dir, state) {
+  const border = state === 'done' ? '#5cdc6a' : state === 'fail' ? '#e04848' : state === 'now' ? '#ffd84a' : '#3a3370';
+  panel(cx - 22, cy - 22, 44, 44, border, state === 'done' ? '#1f4a2a' : state === 'fail' ? '#4a1f1f' : '#120e26');
+  drawArrow(cx, cy, dir, 11, state === 'todo' ? '#9a8fb0' : '#ffffff');
 }
 
 /* =========================================================
@@ -148,6 +168,13 @@ const isDown = (...c) => c.some(k => held.has(k));
 const hit = (...c) => c.some(k => pressed.has(k));
 const UP = ['ArrowUp', 'KeyW'], DOWN = ['ArrowDown', 'KeyS'];
 const LEFT = ['ArrowLeft', 'KeyA'], RIGHT = ['ArrowRight', 'KeyD'];
+function pressedDir() {
+  if (hit(...UP)) return 0;
+  if (hit(...DOWN)) return 1;
+  if (hit(...LEFT)) return 2;
+  if (hit(...RIGHT)) return 3;
+  return -1;
+}
 
 /* =========================================================
    AUDIO (Web Audio chiptune blips)
@@ -172,9 +199,13 @@ const SFX = {
   blip: (f = 880) => tone(f, 0.03, 'square', 0.03),
   select: () => { tone(523, 0.08); tone(784, 0.12, 'square', 0.06, 0, 0.08); },
   move: () => tone(440, 0.04, 'square', 0.04),
+  good: () => tone(988, 0.06, 'square', 0.05, 200),
   hit: () => tone(620, 0.05, 'square', 0.07, 120),
   hitAI: () => tone(440, 0.05, 'square', 0.07, 80),
   bounce: () => tone(900, 0.025, 'triangle', 0.08),
+  twang: () => tone(220, 0.12, 'triangle', 0.09, 380),
+  thud: () => tone(140, 0.1, 'square', 0.08, -60),
+  splash: () => tone(1400, 0.05, 'triangle', 0.04, -900),
   wall: () => tone(300, 0.03, 'triangle', 0.07),
   score: () => { tone(784, 0.08); tone(988, 0.08, 'square', 0.06, 0, 0.08); tone(1319, 0.16, 'square', 0.06, 0, 0.16); },
   miss: () => { tone(330, 0.1, 'square', 0.06, -80); tone(220, 0.18, 'square', 0.06, -60, 0.1); },
@@ -209,7 +240,7 @@ function drawHudParticles() {
 }
 
 /* =========================================================
-   2D PIXEL SPRITES (dialogue portraits + results screen)
+   2D PIXEL SPRITES (portraits)
    ========================================================= */
 function makeSprite(rows, pal) {
   const h = rows.length, w = rows[0].length;
@@ -230,10 +261,66 @@ const CAT_SPRITE = makeSprite([
   '.k........k.', 'kok......kbk', 'kookkkkkkbbk', 'koowwwwwwbbk', 'kwwkwwwwkwwk', 'kwwkwwwwkwwk',
   'kwwwwppwwwwk', '.kwwwwwwwwk.', '.kwoowwbbwk.', '.kwoowwbbwk.', '.kwwwkkwwwk.', '.kkk....kkk.'
 ], { k: '#1b1420', w: '#f6efe0', o: '#e8822e', b: '#2b2530', p: '#f39ab4' });
-const TANUKI_SPRITE = makeSprite([
+const CHAMP_ROWS = [
   '.kk......kk.', 'kbbk....kbbk', 'kbrrrrrrrrbk', 'kttttttttttk', 'kbbbttttbbbk', 'kbwbttttbwbk',
   'kttttkkttttk', '.kttccccttk.', '.kggggggggk.', '.kgggrrgggk.', '.kggggggggk.', '.kkk....kkk.'
-], { k: '#1b1420', b: '#4a3428', r: '#e0403a', t: '#b07a4a', w: '#ffffff', c: '#f1dcb4', g: '#f2f2f2' });
+];
+const isLight = c => { const n = parseInt(c.slice(1), 16); return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255) > 480; };
+const eyeColor = p => isLight(p.mask) ? '#1b1420' : '#ffffff';
+const makePortrait = p => makeSprite(CHAMP_ROWS, { k: '#1b1420', b: p.mask, r: p.accent, t: p.fur, w: eyeColor(p), c: p.muzzle, g: p.outfit });
+
+/* =========================================================
+   CHAMPIONS + EVENTS
+   ========================================================= */
+const ORDER = ['tt', 'archery', 'skate', 'rugby', 'climb', 'swim', 'run', 'judo'];
+const CHAMPS = {
+  tt: { name: 'COACH TANUKI', sport: 'TABLE TENNIS', tile: [16, 5],
+    pal: { fur: '#b07a4a', mask: '#4a3428', accent: '#e0403a', muzzle: '#f1dcb4', outfit: '#f2f2f2' },
+    taunt: 'Ha! Come back when your paws are faster!' },
+  archery: { name: 'KITSUNE KAI', sport: 'ARCHERY', tile: [5, 5],
+    pal: { fur: '#e8822e', mask: '#ffffff', accent: '#ffd84a', muzzle: '#ffffff', outfit: '#3f8f3f' },
+    taunt: 'The wind whispers. You simply did not listen.',
+    intro: ['Hmph. A cat with a bow? This I must see.', 'I am KITSUNE KAI. My arrows never stray from the gold.',
+      'Five arrows each. Hold to steady your aim, and mind the wind.'],
+    beat: 'Your aim was truer than mine today.' },
+  skate: { name: 'RIPPLE THE OTTER', sport: 'SKATEBOARD', tile: [20, 5],
+    pal: { fur: '#8a5a3a', mask: '#5a3a22', accent: '#30d0f0', muzzle: '#e8d0b0', outfit: '#7a4ac8' },
+    taunt: 'Gnarly try, dude. But the street is mine!',
+    intro: ['Yo! A cat on four wheels? Radical.', "I'm RIPPLE THE OTTER. I've landed every trick on this street.",
+      'Hit the ramps and punch in the arrow combos before you land.'],
+    beat: 'Whoa... that line was SICK. Respect.' },
+  rugby: { name: 'BIG BORU', sport: 'RUGBY', tile: [8, 9],
+    pal: { fur: '#7a6a5a', mask: '#3a3030', accent: '#ffffff', muzzle: '#d8a0a0', outfit: '#c8302a' },
+    taunt: 'HRRMPH! Nobody gets past my line!',
+    intro: ['HRRMPH! You think you can get past MY line?', 'I am BIG BORU. My team has never let a try through.',
+      'Three plays. Score two tries and the scroll is yours. SPACE to sidestep!'],
+    beat: 'HRRMPH... you are slipperier than an eel.' },
+  climb: { name: 'SAGE THE GOAT', sport: 'CLIMBING', tile: [20, 9],
+    pal: { fur: '#f2f2e8', mask: '#9a9aa8', accent: '#f0a020', muzzle: '#e8e0d0', outfit: '#3060c0' },
+    taunt: 'Baa. The mountain does not hurry. Nor did you.',
+    intro: ['Baa. The summit is quiet. I like it that way.', 'I am SAGE THE GOAT. No one climbs faster on this rock.',
+      'Alternate your paws, and hold fast when stones fall.'],
+    beat: 'Baa! The summit is yours. Well climbed.' },
+  swim: { name: 'SHELLY THE TURTLE', sport: 'SWIMMING', tile: [9, 12],
+    pal: { fur: '#5cae4a', mask: '#2c6b30', accent: '#ffd84a', muzzle: '#d8e8a0', outfit: '#1f8f9b' },
+    taunt: 'Slow on land, rocket in water! Better luck next splash!',
+    intro: ['Oh, hello! Fancy a little dip?', "I'm SHELLY THE TURTLE. Slow on land, rocket in water!",
+      "Time your strokes in the green, and don't forget to breathe."],
+    beat: 'Splendid! You swim like a fish... a cat fish!' },
+  run: { name: 'HARU THE HARE', sport: 'MARATHON', tile: [18, 12],
+    pal: { fur: '#d8d8e0', mask: '#a0a0b0', accent: '#ffffff', muzzle: '#ffe0e8', outfit: '#e05a9a' },
+    taunt: 'Hop hop! Pace yourself next time!',
+    intro: ['Hop hop! Can you keep up?', "I'm HARU THE HARE. I never lose a race... well, almost never.",
+      "Tap SPACE to run, but don't burn out. W to jump the hurdles!"],
+    beat: 'You out-paced me! I need a carrot and a nap.' },
+  judo: { name: 'MASTER KUMA', sport: 'JUDO', tile: [16, 9],
+    pal: { fur: '#6a4a30', mask: '#3a2818', accent: '#1b1420', muzzle: '#c8a078', outfit: '#f2f2f2' },
+    taunt: 'Balance is everything. Yours was lacking.',
+    intro: ['...', 'I am MASTER KUMA. Balance is everything.',
+      'Mash SPACE to push me back, and press the matching arrow to counter my grabs. Two throws win.'],
+    beat: 'Your balance... is greater than mine. I bow to you.' }
+};
+for (const k of ORDER) CHAMPS[k].portrait = makePortrait(CHAMPS[k].pal);
 
 /* =========================================================
    THREE.JS RENDERER + SHARED 3D HELPERS
@@ -268,12 +355,12 @@ function addLights(scene, sky, ground, shadowSize) {
   sun.shadow.mapSize.set(2048, 2048);
   const s = sun.shadow.camera;
   s.left = -shadowSize; s.right = shadowSize; s.top = shadowSize; s.bottom = -shadowSize;
-  s.near = 1; s.far = 50; s.updateProjectionMatrix();
+  s.near = 1; s.far = 60; s.updateProjectionMatrix();
   scene.add(sun); scene.add(sun.target);
   return sun;
 }
 
-/* ---------- 3D particle pool (paddle hits, bounces, points) ---------- */
+/* ---------- 3D particle pool ---------- */
 function makeParticlePool(scene, count = 160) {
   const pool = [];
   for (let i = 0; i < count; i++) {
@@ -340,44 +427,49 @@ function makeCat() {
   box(0.09, 0.09, 0.12, '#2b2530', 0, 0.2, -0.24, tail).rotation.x = -0.9;
   return { group: g, body, head, legs, tail };
 }
-function makeTanuki() {
+function makeChampion(p) {
   const g = new THREE.Group();
   const body = new THREE.Group(); g.add(body);
-  box(0.5, 0.42, 0.48, '#f2f2f2', 0, 0.45, 0, body);
-  box(0.52, 0.08, 0.5, '#e0403a', 0, 0.4, 0, body);
-  box(0.16, 0.1, 0.04, '#e0403a', 0.14, 0.36, 0.26, body);
+  const eye = eyeColor(p);
+  box(0.5, 0.42, 0.48, p.outfit, 0, 0.45, 0, body);
+  box(0.52, 0.08, 0.5, p.accent, 0, 0.4, 0, body);
+  box(0.16, 0.1, 0.04, p.accent, 0.14, 0.36, 0.26, body);
   const head = new THREE.Group(); head.position.set(0, 0.86, 0.04); body.add(head);
-  box(0.5, 0.42, 0.42, '#b07a4a', 0, 0, 0, head);
-  box(0.52, 0.08, 0.44, '#e0403a', 0, 0.15, 0, head);
-  box(0.06, 0.06, 0.2, '#e0403a', 0, 0.15, -0.28, head);
-  box(0.18, 0.1, 0.02, '#4a3428', -0.13, 0.02, 0.215, head);
-  box(0.18, 0.1, 0.02, '#4a3428', 0.13, 0.02, 0.215, head);
-  box(0.06, 0.06, 0.03, '#ffffff', -0.12, 0.03, 0.22, head);
-  box(0.06, 0.06, 0.03, '#ffffff', 0.12, 0.03, 0.22, head);
-  box(0.22, 0.12, 0.08, '#f1dcb4', 0, -0.1, 0.22, head);
+  box(0.5, 0.42, 0.42, p.fur, 0, 0, 0, head);
+  box(0.52, 0.08, 0.44, p.accent, 0, 0.15, 0, head);
+  box(0.06, 0.06, 0.2, p.accent, 0, 0.15, -0.28, head);
+  box(0.18, 0.1, 0.02, p.mask, -0.13, 0.02, 0.215, head);
+  box(0.18, 0.1, 0.02, p.mask, 0.13, 0.02, 0.215, head);
+  box(0.06, 0.06, 0.03, eye, -0.12, 0.03, 0.22, head);
+  box(0.06, 0.06, 0.03, eye, 0.12, 0.03, 0.22, head);
+  box(0.22, 0.12, 0.08, p.muzzle, 0, -0.1, 0.22, head);
   box(0.06, 0.05, 0.03, '#1b1420', 0, -0.06, 0.26, head);
-  box(0.12, 0.12, 0.08, '#4a3428', -0.18, 0.26, 0, head);
-  box(0.12, 0.12, 0.08, '#4a3428', 0.18, 0.26, 0, head);
-  const legs = [legPivot(body, -0.14, 0.12, '#4a3428'), legPivot(body, 0.14, 0.12, '#4a3428'),
-    legPivot(body, -0.14, -0.12, '#4a3428'), legPivot(body, 0.14, -0.12, '#4a3428')];
+  box(0.12, 0.12, 0.08, p.mask, -0.18, 0.26, 0, head);
+  box(0.12, 0.12, 0.08, p.mask, 0.18, 0.26, 0, head);
+  const legs = [legPivot(body, -0.14, 0.12, p.mask), legPivot(body, 0.14, 0.12, p.mask),
+    legPivot(body, -0.14, -0.12, p.mask), legPivot(body, 0.14, -0.12, p.mask)];
   const tail = new THREE.Group(); tail.position.set(0, 0.36, -0.26); body.add(tail);
-  box(0.16, 0.16, 0.18, '#b07a4a', 0, 0, -0.08, tail);
-  box(0.17, 0.17, 0.08, '#4a3428', 0, 0, -0.18, tail);
-  box(0.14, 0.14, 0.1, '#b07a4a', 0, 0, -0.26, tail);
+  box(0.16, 0.16, 0.18, p.fur, 0, 0, -0.08, tail);
+  box(0.17, 0.17, 0.08, p.mask, 0, 0, -0.18, tail);
+  box(0.14, 0.14, 0.1, p.fur, 0, 0, -0.26, tail);
   return { group: g, body, head, legs, tail };
 }
-function animateCritter(c, moving, phase) {
-  const sw = moving ? Math.sin(phase * 0.35) * 0.7 : 0;
+function animateCritter(c, moving, phase, speed = 0.35) {
+  const sw = moving ? Math.sin(phase * speed) * 0.7 : 0;
   c.legs[0].rotation.x = sw; c.legs[3].rotation.x = sw;
   c.legs[1].rotation.x = -sw; c.legs[2].rotation.x = -sw;
-  c.body.position.y = moving ? Math.abs(Math.sin(phase * 0.35)) * 0.05 : Math.sin(game.tick / 25) * 0.015;
+  c.body.position.y = moving ? Math.abs(Math.sin(phase * speed)) * 0.05 : Math.sin(game.tick / 25) * 0.015;
   c.tail.rotation.y = Math.sin(game.tick / 9) * 0.5;
+}
+function voxelTree(x, z, base, parent) {
+  box(0.22, 0.75, 0.22, '#6b4426', x, base + 0.37, z, parent);
+  box(0.95, 0.5, 0.95, '#2c6b30', x, base + 0.95, z, parent);
+  box(0.65, 0.42, 0.65, '#3f8f3f', x, base + 1.38, z, parent);
+  box(0.32, 0.26, 0.32, '#5fb35a', x, base + 1.7, z, parent);
 }
 
 /* =========================================================
    ISLAND SCENE (overworld + menu backdrop)
-   ~ water  s sand  g grass  p path  f flowers  T tree  r rock
-   A arena (row 4 = lanterns)  D arena door  P torii pillar
    ========================================================= */
 const MAP = [
   '~~~~~~~~~~~~~~~~~~~~~~~~~',
@@ -411,7 +503,6 @@ island.background = new THREE.Color('#8fd3ff');
 island.fog = new THREE.Fog('#8fd3ff', 20, 48);
 addLights(island, 0xcfeeff, 0x4a7a3a, 15);
 
-// animated low-poly sea
 const seaGeo = new THREE.PlaneGeometry(90, 70, 45, 35);
 seaGeo.rotateX(-Math.PI / 2);
 const sea = new THREE.Mesh(seaGeo, new THREE.MeshPhongMaterial({ color: '#2b6fd6', flatShading: true, shininess: 80, transparent: true, opacity: 0.92 }));
@@ -437,15 +528,9 @@ function buildIsland() {
     const col = t === 's' ? (alt ? '#e8d08a' : '#e2c77e')
       : (t === 'p' || t === 'D') ? (alt ? '#c9a46a' : '#c19c62')
       : (alt ? '#5cae4a' : '#55a544');
-    const ground = box(1, 1, 1, col, x, top - 0.5, z, g);
-    ground.castShadow = false;
-
-    if (t === 'T') {
-      box(0.22, 0.75, 0.22, '#6b4426', x, top + 0.37, z, g);
-      box(0.95, 0.5, 0.95, '#2c6b30', x, top + 0.95, z, g);
-      box(0.65, 0.42, 0.65, '#3f8f3f', x, top + 1.38, z, g);
-      box(0.32, 0.26, 0.32, '#5fb35a', x, top + 1.7, z, g);
-    } else if (t === 'r') {
+    box(1, 1, 1, col, x, top - 0.5, z, g).castShadow = false;
+    if (t === 'T') voxelTree(x, z, top, g);
+    else if (t === 'r') {
       box(0.72, 0.45, 0.6, '#7d7f8c', x, top + 0.22, z, g).rotation.y = hash(c, r) * 1.5;
       box(0.4, 0.25, 0.35, '#a3a6b4', x + 0.08, top + 0.5, z - 0.05, g).rotation.y = hash(c, r, 2);
     } else if (t === 'f') {
@@ -456,7 +541,6 @@ function buildIsland() {
         box(0.12, 0.08, 0.12, cols[i % 4], fx, top + 0.19, fz, g);
       }
     } else if (t === 'A' && r === 4) {
-      // stone lanterns lining the arena entrance
       box(0.32, 0.12, 0.32, '#6d6d78', x, top + 0.06, z, g);
       box(0.16, 0.42, 0.16, '#9a9aa8', x, top + 0.33, z, g);
       box(0.28, 0.2, 0.28, '#9a9aa8', x, top + 0.64, z, g);
@@ -464,11 +548,12 @@ function buildIsland() {
       box(0.42, 0.1, 0.42, '#6d6d78', x, top + 0.79, z, g);
     }
   }
-  buildArena(g);
+  buildArenaHouse(g);
   buildTorii(g);
+  buildSportProps(g);
   island.add(g);
 }
-function buildArena(g) {
+function buildArenaHouse(g) {
   const cx = tx(13), cz = (tz(2) + tz(3)) / 2, base = 0.18;
   box(6.9, 0.22, 2.1, '#c9bfa8', cx, base + 0.11, cz, g);
   box(6.6, 1.7, 1.8, '#efe6d2', cx, base + 0.85, cz, g);
@@ -478,7 +563,6 @@ function buildArena(g) {
   box(5.8, 0.3, 2.2, '#c8402f', cx, base + 2.3, cz, g);
   box(4.0, 0.28, 1.4, '#c8402f', cx, base + 2.6, cz, g);
   box(4.4, 0.14, 0.3, '#2a1a14', cx, base + 2.8, cz, g);
-  // door + sign
   const dz = cz + 0.91;
   box(1.0, 1.3, 0.05, '#5a3a22', tx(13), base + 0.65, dz, g);
   box(0.78, 1.14, 0.06, '#1d1210', tx(13), base + 0.57, dz + 0.01, g);
@@ -487,7 +571,6 @@ function buildArena(g) {
   disc.rotation.x = Math.PI / 2; disc.position.set(tx(13) - 0.25, base + 1.5, dz + 0.06); g.add(disc);
   box(0.06, 0.1, 0.03, '#c48a4a', tx(13) - 0.18, base + 1.42, dz + 0.06, g);
   box(0.07, 0.07, 0.03, '#ffffff', tx(13) + 0.3, base + 1.54, dz + 0.06, g);
-  // banners
   for (const ox of [-3.6, 3.6]) {
     box(0.06, 2.4, 0.06, '#3a2a20', cx + ox, base + 1.2, cz + 1.0, g);
     box(0.5, 0.3, 0.03, '#f0a020', cx + ox + (ox < 0 ? 0.28 : -0.28), base + 2.2, cz + 1.0, g);
@@ -504,32 +587,81 @@ function buildTorii(g) {
   box(3.3, 0.1, 0.38, '#2a1a14', tx(13), base + 2.13, z, g);
   box(0.16, 0.38, 0.06, '#2a1a14', tx(13), base + 1.8, z + 0.1, g);
 }
+// Little themed props next to each champion so the island hints at every sport
+function buildSportProps(g) {
+  const B = 0.18;
+  { // archery target
+    const [c, r] = CHAMPS.archery.tile, x = tx(c) + 0.75, z = tz(r) - 0.35;
+    box(0.06, 0.7, 0.06, '#6b4426', x, B + 0.35, z - 0.05, g);
+    [[0.32, '#f4f4f4'], [0.22, '#e0403a'], [0.11, '#ffd84a']].forEach(([rad, col], i) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 0.05, 16), mat(col));
+      m.rotation.x = Math.PI / 2; m.position.set(x, B + 0.7, z + i * 0.02); m.castShadow = true; g.add(m);
+    });
+  }
+  { // skate ramp + board
+    const [c, r] = CHAMPS.skate.tile, x = tx(c) + 0.8, z = tz(r) - 0.2;
+    box(0.8, 0.06, 0.7, '#c8a060', x, B + 0.2, z, g).rotation.z = 0.4;
+    box(0.5, 0.04, 0.16, '#7a4ac8', x - 0.1, B + 0.05, z + 0.55, g);
+  }
+  { // rugby posts
+    const [c, r] = CHAMPS.rugby.tile, x = tx(c), z = tz(r) - 0.7;
+    box(0.06, 1.4, 0.06, '#ffffff', x - 0.4, B + 0.7, z, g);
+    box(0.06, 1.4, 0.06, '#ffffff', x + 0.4, B + 0.7, z, g);
+    box(0.86, 0.06, 0.06, '#ffffff', x, B + 0.5, z, g);
+  }
+  { // climbing flag on the big rock
+    const x = tx(20), z = tz(8);
+    box(0.04, 0.9, 0.04, '#3a2a20', x, B + 0.95, z, g);
+    box(0.32, 0.2, 0.03, '#f0a020', x + 0.17, B + 1.28, z, g);
+  }
+  { // swim ring + towel on the beach
+    const [c, r] = CHAMPS.swim.tile, x = tx(c) + 0.75, z = tz(r) + 0.6;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.08, 6, 12), mat('#ff6b6b'));
+    ring.rotation.x = Math.PI / 2; ring.position.set(x, 0.12, z); ring.castShadow = true; g.add(ring);
+    box(0.5, 0.02, 0.8, '#30a0f0', x - 1.4, 0.07, z, g);
+  }
+  { // marathon start arch
+    const [c, r] = CHAMPS.run.tile, x = tx(c) + 0.85, z = tz(r);
+    box(0.06, 1.2, 0.06, '#ffffff', x, B + 0.6, z - 0.45, g);
+    box(0.06, 1.2, 0.06, '#ffffff', x, B + 0.6, z + 0.45, g);
+    box(0.08, 0.24, 1.0, '#e05a9a', x, B + 1.15, z, g);
+  }
+  { // judo mat
+    const [c, r] = CHAMPS.judo.tile, x = tx(c), z = tz(r);
+    box(1.3, 0.04, 1.3, '#c8302a', x, B + 0.02, z, g).castShadow = false;
+    box(1.1, 0.05, 1.1, '#c8c070', x, B + 0.03, z, g).castShadow = false;
+  }
+}
 buildIsland();
 const islandParticles = makeParticlePool(island, 60);
 
 const player = { x: tx(13), z: tz(12), y: 0.12, angle: Math.PI, moving: false, anim: 0, r: 0.28 };
 const catModel = makeCat();
 island.add(catModel.group);
-catModel.group.traverse(o => { if (o.isMesh) o.castShadow = true; });
-const npc = { x: tx(16), z: tz(5), r: 0.35 };
-const tanukiModel = makeTanuki();
-tanukiModel.group.position.set(npc.x, groundTop('g'), npc.z);
-island.add(tanukiModel.group);
 
+// one NPC per champion
+const npcs = ORDER.map(key => {
+  const [c, r] = CHAMPS[key].tile;
+  const model = makeChampion(CHAMPS[key].pal);
+  const n = { key, x: tx(c), z: tz(r), r: 0.35, model };
+  model.group.position.set(n.x, groundTop(MAP[r][c]) + (key === 'judo' ? 0.05 : 0), n.z);
+  island.add(model.group);
+  return n;
+});
 const doorTile = { c: 13, r: 4 };
 function blocked(x, z) {
   const r = player.r;
   for (const [ox, oz] of [[-r, -r], [r, -r], [-r, r], [r, r]]) if (SOLID.has(tileAt(x + ox, z + oz))) return true;
-  return Math.hypot(x - npc.x, z - npc.z) < r + npc.r;
+  return npcs.some(n => Math.hypot(x - n.x, z - n.z) < r + n.r);
 }
 const camPos = new THREE.Vector3(0, 9, 10), camLook = new THREE.Vector3();
 
 /* =========================================================
    DIALOGUE SYSTEM
    ========================================================= */
-const dlg = { speaker: '', portrait: null, lines: [], i: 0, shown: 0, onDone: null, canLeave: false };
-function openDialogue(speaker, portrait, lines, onDone = null, canLeave = false) {
-  Object.assign(dlg, { speaker, portrait, lines, i: 0, shown: 0, onDone, canLeave });
+const dlg = { speaker: '', portrait: null, lines: [], i: 0, shown: 0, onDone: null, onLeave: null };
+function openDialogue(speaker, portrait, lines, onDone = null, onLeave = null) {
+  Object.assign(dlg, { speaker, portrait, lines, i: 0, shown: 0, onDone, onLeave });
   setState(STATES.DIALOGUE);
 }
 function updateDialogue() {
@@ -542,7 +674,7 @@ function updateDialogue() {
   }
   if (hit('Escape')) {
     setState(STATES.OVERWORLD);
-    if (dlg.canLeave) { player.z = tz(5) + 0.2; player.angle = 0; }
+    if (dlg.onLeave) dlg.onLeave();
     return;
   }
   if (hit('KeyE', 'Enter')) {
@@ -579,19 +711,14 @@ function drawDialogue() {
   if (dlg.shown >= dlg.lines[dlg.i].length && Math.floor(game.tick / 20) % 2 === 0) {
     text('▼ E', bx + bw - 54, by + bh - 14, { size: 14, color: '#ffd84a' });
   }
-  if (dlg.canLeave) text('ESC: leave', bx + bw - 170, by + bh - 14, { size: 12, color: '#9a8fb0' });
+  if (dlg.onLeave) text('ESC: leave', bx + bw - 170, by + bh - 14, { size: 12, color: '#9a8fb0' });
 }
 
 /* =========================================================
    MENU STATE
    ========================================================= */
-const EVENTS = [
-  { name: 'TABLE TENNIS', open: true, icon: iconPingPong },
-  { name: 'ARCHERY', icon: iconArchery }, { name: 'SKATEBOARD', icon: iconSkate },
-  { name: 'RUGBY', icon: iconRugby }, { name: 'CLIMBING', icon: iconClimb },
-  { name: 'SWIMMING', icon: iconSwim }, { name: 'MARATHON', icon: iconRun },
-  { name: 'JUDO', icon: iconJudo }
-];
+const ICONS = { tt: iconPingPong, archery: iconArchery, skate: iconSkate, rugby: iconRugby,
+  climb: iconClimb, swim: iconSwim, run: iconRun, judo: iconJudo };
 const menu = { sel: 0 };
 function iconPingPong(cx, cy) {
   pixelCircle(cx - 4, cy - 4, 15, '#7a1d18'); pixelCircle(cx - 4, cy - 4, 13, '#e0403a');
@@ -634,22 +761,20 @@ function iconJudo(cx, cy) {
   px(cx - 5, cy - 7, 10, 12, '#111');
   px(cx - 10, cy + 5, 6, 16, '#222'); px(cx + 4, cy + 5, 6, 14, '#222');
 }
-function drawLock(cx, cy) {
-  px(cx, cy + 6, 12, 10, '#ffd84a');
-  px(cx + 2, cy, 2, 6, '#ffd84a'); px(cx + 8, cy, 2, 6, '#ffd84a'); px(cx + 2, cy, 8, 2, '#ffd84a');
-  px(cx + 5, cy + 9, 2, 4, '#7a4a10');
+function drawCheck(x, y) {
+  px(x, y + 6, 4, 4, '#5cdc6a'); px(x + 4, y + 9, 4, 4, '#5cdc6a');
+  px(x + 8, y + 5, 4, 4, '#5cdc6a'); px(x + 12, y + 1, 4, 4, '#5cdc6a');
 }
 function updateMenu() {
-  const n = EVENTS.length;
+  const n = ORDER.length;
   if (hit(...LEFT)) { menu.sel = (menu.sel + n - 1) % n; SFX.move(); }
   if (hit(...RIGHT)) { menu.sel = (menu.sel + 1) % n; SFX.move(); }
   if (hit(...UP, ...DOWN)) { menu.sel = (menu.sel + 4) % n; SFX.move(); }
-  if (hit('Space', 'Enter')) { SFX.select(); setState(STATES.OVERWORLD); }
-  // slow orbit around the island
+  if (hit('Space', 'Enter')) { SFX.select(); setState(STATES.OVERWORLD); return; }
+  if (hit('KeyE')) { SFX.select(); startSport(ORDER[menu.sel]); return; }
   const a = game.tick * 0.0025;
   camera.position.set(Math.sin(a) * 15, 9.5, Math.cos(a) * 12);
   camera.lookAt(0, 0, 0);
-  animateCritter(catModel, false, 0);
   catModel.group.position.set(player.x, player.y, player.z);
 }
 function drawMenuHud() {
@@ -658,41 +783,44 @@ function drawMenuHud() {
   text('CHAMPION ISLE', W / 2, 70 + bob, { size: 50, color: '#f0a020', align: 'center', shadow: '#7a2a10' });
   text('~ 3D SPORTS QUEST ~', W / 2, 100, { size: 16, color: '#f4ecd8', align: 'center' });
   const tw = 80, gap = 12, gx = (W - (tw * 4 + gap * 3)) / 2;
-  EVENTS.forEach((ev, i) => {
+  ORDER.forEach((key, i) => {
     const x = gx + (i % 4) * (tw + gap), y = 122 + Math.floor(i / 4) * (tw + gap);
     const sel = i === menu.sel;
     const border = sel ? (Math.floor(game.tick / 10) % 2 ? '#ffd84a' : '#f0a020') : '#3a3370';
     panel(x, y, tw, tw, border, '#2a2550');
-    ev.icon(x + tw / 2, y + tw / 2);
-    if (!ev.open) { ctx.globalAlpha = 0.45; px(x + 5, y + 5, tw - 10, tw - 10, '#000'); ctx.globalAlpha = 1; drawLock(x + tw - 22, y + tw - 24); }
-    else px(x + 6, y + 6, 8, 8, '#5cdc6a');
+    ICONS[key](x + tw / 2, y + tw / 2);
+    if (game.beaten.has(key)) drawCheck(x + tw - 24, y + tw - 22);
   });
-  const ev = EVENTS[menu.sel];
-  text(ev.name + (ev.open ? '  ·  ARENA OPEN' : '  ·  COMING SOON'), W / 2, 322,
-    { size: 16, color: ev.open ? '#5cdc6a' : '#c8bfe0', align: 'center' });
+  const key = ORDER[menu.sel], c = CHAMPS[key];
+  text(`${c.sport}  ·  vs ${c.name}${game.beaten.has(key) ? '  ·  ✓' : ''}`, W / 2, 322,
+    { size: 15, color: game.beaten.has(key) ? '#5cdc6a' : '#c8bfe0', align: 'center' });
   if (Math.floor(game.tick / 30) % 2 === 0) {
-    text('PRESS SPACE TO START', W / 2, 368, { size: 22, color: '#ffffff', align: 'center', shadow: '#e0403a' });
+    text('PRESS SPACE TO EXPLORE THE ISLAND', W / 2, 364, { size: 20, color: '#ffffff', align: 'center', shadow: '#e0403a' });
   }
-  text('MOVE: WASD/ARROWS   TALK/ACTION: E', W / 2, 400, { size: 12, color: '#c8bfe0', align: 'center', bold: false });
+  text('ARROWS: pick an event   ·   E: quick play it', W / 2, 396, { size: 13, color: '#c8bfe0', align: 'center' });
+  text(`SCROLLS ${game.beaten.size}/8`, W / 2, 420, { size: 13, color: '#ffd84a', align: 'center' });
 }
 
 /* =========================================================
    OVERWORLD STATE
    ========================================================= */
-function coachLines() {
-  if (game.beatChampion) return [
-    'You returned my serve... and then some!',
-    'The Table Tennis Scroll is yours. Wear it with pride.',
-    'The other arenas open soon. Come back and beat me again any time!'
-  ];
-  return [
-    'Hah! A traveling cat on Champion Isle?',
-    'I am COACH TANUKI, keeper of the Table Tennis Scroll.',
-    'Nobody has returned my serve in three hundred years.',
-    'Step through the arena doors beside me... if you dare!'
-  ];
+function champLines(key) {
+  const c = CHAMPS[key];
+  if (key === 'tt') {
+    return game.beaten.has('tt')
+      ? ['You returned my serve... and then some!', 'The Table Tennis Scroll is yours. Wear it with pride.',
+        'Step through the arena doors any time for a rematch!']
+      : ['Hah! A traveling cat on Champion Isle?', 'I am COACH TANUKI, keeper of the Table Tennis Scroll.',
+        'Nobody has returned my serve in three hundred years.', 'Step through the arena doors beside me... if you dare!'];
+  }
+  if (game.beaten.has(key)) return [c.beat, `The ${c.sport} Scroll is yours! Press E for a rematch.`];
+  return [...c.intro, 'Press E to accept the challenge!'];
 }
-const nearNpc = () => Math.hypot(player.x - npc.x, player.z - npc.z) < 1.4;
+function nearestNpc() {
+  let best = null, bd = 1.4;
+  for (const n of npcs) { const d = Math.hypot(player.x - n.x, player.z - n.z); if (d < bd) { bd = d; best = n; } }
+  return best;
+}
 function updateOverworld() {
   let dx = (isDown(...RIGHT) ? 1 : 0) - (isDown(...LEFT) ? 1 : 0);
   let dz = (isDown(...DOWN) ? 1 : 0) - (isDown(...UP) ? 1 : 0);
@@ -702,8 +830,7 @@ function updateOverworld() {
   if (!blocked(player.x + dx * sp, player.z)) player.x += dx * sp;
   if (!blocked(player.x, player.z + dz * sp)) player.z += dz * sp;
   if (player.moving) {
-    const target = Math.atan2(dx, dz);
-    let diff = target - player.angle;
+    let diff = Math.atan2(dx, dz) - player.angle;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     player.angle += diff * 0.25;
     player.anim++;
@@ -711,25 +838,21 @@ function updateOverworld() {
   } else player.anim = 0;
   player.y = lerp(player.y, groundTop(tileAt(player.x, player.z)), 0.3);
 
-  // NPC turns to face the player when close
-  const want = Math.atan2(player.x - npc.x, player.z - npc.z);
-  const cur = tanukiModel.group.rotation.y;
-  const target = nearNpc() ? want : 0;
-  tanukiModel.group.rotation.y = cur + Math.atan2(Math.sin(target - cur), Math.cos(target - cur)) * 0.12;
-
-  if (nearNpc() && hit('KeyE')) {
-    game.talkedToCoach = true;
-    openDialogue('COACH TANUKI', TANUKI_SPRITE, coachLines());
+  const near = nearestNpc();
+  if (near && hit('KeyE')) {
+    const key = near.key, c = CHAMPS[key];
+    game.talked.add(key);
+    openDialogue(c.name, c.portrait, champLines(key), key === 'tt' ? null : () => startSport(key), key === 'tt' ? null : () => {});
     return;
   }
   const c = Math.floor(player.x + COLS / 2), r = Math.floor(player.z + ROWS / 2);
   const onDoor = c === doorTile.c && r === doorTile.r;
   if (onDoor && game.doorArmed) {
     game.doorArmed = false;
-    openDialogue('ARENA SIGN', null, game.beatChampion
+    openDialogue('ARENA SIGN', null, game.beaten.has('tt')
       ? ['TABLE TENNIS ARENA - Rematch the champion?', 'Press E to step onto the court!']
       : ['TABLE TENNIS ARENA', 'First to 3 points wins. Move your paddle with W/S or the Arrow keys.', 'Press E to step onto the court!'],
-      startMatch, true);
+      () => startSport('tt'), () => { player.z = tz(5) + 0.2; player.angle = 0; });
     return;
   }
   if (!onDoor) game.doorArmed = true;
@@ -738,7 +861,13 @@ function updateIslandVisuals() {
   catModel.group.position.set(player.x, player.y, player.z);
   catModel.group.rotation.y = player.angle;
   animateCritter(catModel, player.moving && game.state === STATES.OVERWORLD, player.anim);
-  animateCritter(tanukiModel, false, 0);
+  for (const n of npcs) {
+    const close = Math.hypot(player.x - n.x, player.z - n.z) < 3;
+    const want = close ? Math.atan2(player.x - n.x, player.z - n.z) : 0;
+    const cur = n.model.group.rotation.y;
+    n.model.group.rotation.y = cur + Math.atan2(Math.sin(want - cur), Math.cos(want - cur)) * 0.12;
+    animateCritter(n.model, false, 0);
+  }
   updateSea();
   updatePool(islandParticles);
 }
@@ -754,24 +883,28 @@ function toScreen(x, y, z) {
   return { x: (v.x + 1) / 2 * W, y: (1 - v.y) / 2 * H, front: v.z < 1 };
 }
 function drawOverworldHud() {
-  // floating marker over the champion
-  const s = toScreen(npc.x, 1.75, npc.z);
-  if (s.front) {
-    if (game.state === STATES.OVERWORLD && nearNpc()) {
+  const near = game.state === STATES.OVERWORLD ? nearestNpc() : null;
+  for (const n of npcs) {
+    const s = toScreen(n.x, 1.75, n.z);
+    if (!s.front || s.x < -20 || s.x > W + 20) continue;
+    if (n === near) {
       panel(s.x - 16, s.y - 30, 32, 26, '#ffd84a', '#120e26');
       text('E', s.x, s.y - 11, { size: 14, color: '#ffd84a', align: 'center' });
-    } else if (!game.talkedToCoach) {
-      const b = Math.round(Math.abs(Math.sin(game.tick / 10)) * 6);
-      text('!', s.x, s.y - 4 - b, { size: 26, color: '#ffd84a', align: 'center' });
+    } else if (!game.beaten.has(n.key)) {
+      const b = Math.round(Math.abs(Math.sin(game.tick / 10 + n.x)) * 6);
+      text('!', s.x, s.y - 4 - b, { size: 24, color: game.talked.has(n.key) ? '#f0a020' : '#ffd84a', align: 'center' });
+    } else {
+      px(s.x - 8, s.y - 16, 16, 10, '#f1dcb4'); px(s.x - 10, s.y - 18, 3, 14, '#e0403a'); px(s.x + 7, s.y - 18, 3, 14, '#e0403a');
     }
   }
   panel(8, 8, 176, 34);
   px(20, 18, 18, 14, '#f1dcb4'); px(18, 16, 4, 18, '#e0403a'); px(36, 16, 4, 18, '#e0403a');
-  text(`SCROLLS ${game.scrolls}/8`, 48, 31, { size: 14, color: '#f4ecd8' });
+  text(`SCROLLS ${game.beaten.size}/8`, 48, 31, { size: 14, color: '#f4ecd8' });
   if (game.state === STATES.OVERWORLD) {
-    const goal = game.beatChampion ? 'Scroll earned! Rematch any time.'
-      : game.talkedToCoach ? 'Enter the arena doors to challenge!'
-      : 'Talk to the champion by the arena (E)';
+    const n = game.beaten.size;
+    const goal = n === 8 ? 'CHAMPION OF THE ISLE! All 8 scrolls won'
+      : game.talked.size === 0 ? 'Find the 8 champions around the island (E)'
+      : `Beat every champion: ${8 - n} to go!`;
     ctx.font = 'bold 13px "Courier New", monospace';
     const gw = ctx.measureText(goal).width + 30;
     panel(W - gw - 8, 8, gw, 34, '#3a3370');
@@ -781,44 +914,104 @@ function drawOverworldHud() {
 }
 
 /* =========================================================
-   ARENA SCENE (table tennis + results backdrop)
+   STAGE SCENE (all sports share it; table tennis keeps its own group)
    ========================================================= */
 const arena = new THREE.Scene();
 arena.background = new THREE.Color('#1c1530');
 arena.fog = new THREE.Fog('#1c1530', 16, 34);
-addLights(arena, 0xd8d0ff, 0x2a1f3d, 9);
-const spot = new THREE.PointLight(0xffe6b0, 0.6, 20); spot.position.set(0, 7, 2); arena.add(spot);
+const arenaSun = addLights(arena, 0xd8d0ff, 0x2a1f3d, 14);
+function aimSun(x, y, z) { arenaSun.position.set(x + 7, y + 14, z + 8); arenaSun.target.position.set(x, y, z); }
+function setSky(c, near, far) { arena.background.set(c); arena.fog.color.set(c); arena.fog.near = near; arena.fog.far = far; }
+const ttGroup = new THREE.Group(); arena.add(ttGroup);
+const sg = new THREE.Group(); arena.add(sg);
+const arenaParticles = makeParticlePool(arena, 180);
+function ground(color, w = 80, d = 80, x = 0, z = 0) {
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat(color));
+  g.rotation.x = -Math.PI / 2; g.position.set(x, 0, z); g.receiveShadow = true; sg.add(g);
+  return g;
+}
+function addActors(key) {
+  const cat = makeCat(), champ = makeChampion(CHAMPS[key].pal);
+  sg.add(cat.group, champ.group);
+  game.actors = { cat, champ };
+  return game.actors;
+}
 
-const TY = 0.83;                 // table top height
-const LX = 4.5, LZ = 2.5;        // table half-length / half-width
-const PXL = -4.95, PXR = 4.95;   // paddle x positions
-const PHW = 0.6, BR = 0.1;       // paddle half-width, ball radius
-const WIN_SCORE = 3;
+/* =========================================================
+   SPORT FRAMEWORK
+   ========================================================= */
+let SP = {};
+const SPORTS = {};
+function startSport(key) {
+  game.sport = key;
+  clearPool(arenaParticles);
+  ttGroup.visible = key === 'tt';
+  while (sg.children.length) sg.remove(sg.children[0]);
+  SP = { banner: '', bannerT: 0, bannerColor: '#ffd84a', phase: 'ready', timer: 180, t: 0 };
+  SPORTS[key].start();
+  setState(STATES.MINIGAME);
+}
+function finishSport(won, detail) {
+  const key = game.sport;
+  game.result = { won, key, detail, first: false };
+  if (won) {
+    game.wins++;
+    if (!game.beaten.has(key)) { game.beaten.add(key); game.result.first = true; }
+    SFX.win();
+  } else { game.losses++; SFX.lose(); }
+  hudParticles = [];
+  const a = game.actors;
+  for (const k of ['cat', 'champ']) if (a && a[k]) a[k].baseY = a[k].group.position.y;
+  game.orbit = SPORTS[key].focus();
+  setState(STATES.GAME_OVER);
+}
+function banner(str, t = 60, color = '#ffd84a') { SP.banner = str; SP.bannerT = t; SP.bannerColor = color; }
+function drawBanner(y = H / 2 + 14, size = 44) {
+  if (SP.bannerT > 0 && SP.banner) text(SP.banner, W / 2, y, { size, color: SP.bannerColor, align: 'center', shadow: '#000' });
+}
+function readyTick() {
+  if (SP.timer % 60 === 0 && SP.timer > 0) SFX.count();
+  if (--SP.timer <= 0) { SFX.go(); banner('GO!', 40); return true; }
+  return false;
+}
+function drawReady(tip) {
+  if (SP.phase !== 'ready') return;
+  const n = Math.ceil(SP.timer / 60), s = 60 + (SP.timer % 60) * 0.6;
+  text(String(n), W / 2, H / 2 + s / 3, { size: Math.round(s), color: '#ffd84a', align: 'center', shadow: '#7a2a10' });
+  if (tip) {
+    ctx.font = 'bold 14px "Courier New", monospace';
+    const w = ctx.measureText(tip).width + 30;
+    panel(W / 2 - w / 2, H / 2 + 52, w, 32, '#3a3370');
+    text(tip, W / 2, H / 2 + 73, { size: 14, color: '#f4ecd8', align: 'center' });
+  }
+}
+function hint(str) { text(str, W / 2, H - 12, { size: 12, color: '#f4ecd8', align: 'center' }); }
+function shakeIt(v) { game.shake = Math.max(game.shake, v); }
 
-(function buildArena3D() {
+/* =========================================================
+   SPORT 1: TABLE TENNIS
+   ========================================================= */
+const TY = 0.83, LX = 4.5, LZ = 2.5, PXL = -4.95, PXR = 4.95, PHW = 0.6, BR = 0.1, WIN_SCORE = 3;
+(function buildTT() {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 30), mat('#2a1f3d'));
-  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; arena.add(floor);
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; ttGroup.add(floor);
   const court = new THREE.Mesh(new THREE.PlaneGeometry(16, 9), mat('#3a2a55'));
-  court.rotation.x = -Math.PI / 2; court.position.y = 0.01; court.receiveShadow = true; arena.add(court);
-  // table
-  box(9.3, 0.1, 5.3, '#f4f4f4', 0, TY - 0.06, 0, arena);
-  box(9.0, 0.11, 5.0, '#1f6f8b', 0, TY - 0.05, 0, arena);
-  box(9.0, 0.112, 0.04, '#cfe6ee', 0, TY - 0.05, 0, arena);
-  for (const [lx, lz] of [[-4, -2.2], [4, -2.2], [-4, 2.2], [4, 2.2]]) box(0.12, TY - 0.1, 0.12, '#222', lx, (TY - 0.1) / 2, lz, arena);
-  // net
+  court.rotation.x = -Math.PI / 2; court.position.y = 0.01; court.receiveShadow = true; ttGroup.add(court);
+  box(9.3, 0.1, 5.3, '#f4f4f4', 0, TY - 0.06, 0, ttGroup);
+  box(9.0, 0.11, 5.0, '#1f6f8b', 0, TY - 0.05, 0, ttGroup);
+  box(9.0, 0.112, 0.04, '#cfe6ee', 0, TY - 0.05, 0, ttGroup);
+  for (const [lx, lz] of [[-4, -2.2], [4, -2.2], [-4, 2.2], [4, 2.2]]) box(0.12, TY - 0.1, 0.12, '#222', lx, (TY - 0.1) / 2, lz, ttGroup);
   const netMat = new THREE.MeshLambertMaterial({ color: '#dddddd', transparent: true, opacity: 0.75 });
-  box(0.04, 0.26, 5.6, '#dddddd', 0, TY + 0.13, 0, arena, netMat);
-  box(0.05, 0.03, 5.6, '#ffffff', 0, TY + 0.27, 0, arena);
-  for (const z of [-2.8, 2.8]) box(0.08, 0.34, 0.08, '#333', 0, TY + 0.12, z, arena);
-  // stands with crowd
-  for (let row = 0; row < 3; row++) box(22, 0.5, 1.2, row % 2 ? '#2e2448' : '#352a52', 0, 0.25 + row * 0.5, -6.5 - row * 1.2, arena);
+  box(0.04, 0.26, 5.6, '#dddddd', 0, TY + 0.13, 0, ttGroup, netMat);
+  box(0.05, 0.03, 5.6, '#ffffff', 0, TY + 0.27, 0, ttGroup);
+  for (const z of [-2.8, 2.8]) box(0.08, 0.34, 0.08, '#333', 0, TY + 0.12, z, ttGroup);
+  for (let row = 0; row < 3; row++) box(22, 0.5, 1.2, row % 2 ? '#2e2448' : '#352a52', 0, 0.25 + row * 0.5, -6.5 - row * 1.2, ttGroup);
 })();
 const crowd = [];
 const crowdCols = ['#e0403a', '#30a0f0', '#ffd84a', '#5cdc6a', '#f39ab4', '#f6efe0'];
 for (let row = 0; row < 3; row++) for (let i = 0; i < 24; i++) {
   const x = -10.5 + i * 0.9 + (row % 2) * 0.45, y = 0.5 + row * 0.5, z = -6.5 - row * 1.2;
-  const m = box(0.42, 0.42, 0.42, crowdCols[(i + row * 2) % 6], x, y + 0.21, z, arena);
-  box(0.08, 0.08, 0.02, '#1b1420', -0.25, 0.1, 0.51, m).scale.set(0.2, 0.2, 0.05);
+  const m = box(0.42, 0.42, 0.42, crowdCols[(i + row * 2) % 6], x, y + 0.21, z, ttGroup);
   crowd.push({ m, baseY: y + 0.21, p: rand(0, 6.28) });
 }
 function makePaddle(color) {
@@ -831,27 +1024,20 @@ function makePaddle(color) {
   return { group: g, faceMat };
 }
 const pPaddle = makePaddle('#30a0f0'), aPaddle = makePaddle('#e04848');
-arena.add(pPaddle.group, aPaddle.group);
-const arenaCat = makeCat(), arenaTanuki = makeTanuki();
+ttGroup.add(pPaddle.group, aPaddle.group);
+const arenaCat = makeCat(), arenaTanuki = makeChampion(CHAMPS.tt.pal);
 arenaCat.group.scale.setScalar(1.6); arenaTanuki.group.scale.setScalar(1.6);
 arenaCat.group.rotation.y = Math.PI / 2; arenaTanuki.group.rotation.y = -Math.PI / 2;
-arena.add(arenaCat.group, arenaTanuki.group);
+ttGroup.add(arenaCat.group, arenaTanuki.group);
 const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(BR, 12, 8), new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#555555' }));
-ballMesh.castShadow = true; arena.add(ballMesh);
+ballMesh.castShadow = true; ttGroup.add(ballMesh);
 const ballShadow = new THREE.Mesh(new THREE.CircleGeometry(0.12, 12), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
-ballShadow.rotation.x = -Math.PI / 2; arena.add(ballShadow);
+ballShadow.rotation.x = -Math.PI / 2; ttGroup.add(ballShadow);
 const trail = [];
 for (let i = 0; i < 6; i++) {
   const t = new THREE.Mesh(new THREE.SphereGeometry(BR * 0.8, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd84a', transparent: true, opacity: 0.08 + i * 0.05 }));
-  arena.add(t); trail.push(t);
+  ttGroup.add(t); trail.push(t);
 }
-const arenaParticles = makeParticlePool(arena, 160);
-
-/* =========================================================
-   MINIGAME STATE: TABLE TENNIS
-   (2D court logic on the table's x/z plane; ball height is a
-    cosmetic arc with a real bounce on the far side)
-   ========================================================= */
 const mg = {
   pz: 0, pvz: 0, az: 0, avz: 0,
   ball: { x: 0, z: 0, vx: 0, vz: 0, speed: 0.075, visible: true, fromX: 0, toX: 0, u: 0, h: 0.4 },
@@ -860,28 +1046,16 @@ const mg = {
   banner: '', bannerT: 0, pFlash: 0, aFlash: 0, pHop: 0, aHop: 0
 };
 function centerBall() {
-  const b = mg.ball;
-  Object.assign(b, { x: 0, z: 0, vx: 0, vz: 0, visible: true, fromX: 0, toX: 0, u: 0, h: 0.45 });
+  Object.assign(mg.ball, { x: 0, z: 0, vx: 0, vz: 0, visible: true, fromX: 0, toX: 0, u: 0, h: 0.45 });
   mg.history = [];
 }
-function startMatch() {
-  mg.ps = 0; mg.as = 0; mg.rally = 0;
-  mg.pz = 0; mg.az = 0;
-  mg.serveDir = Math.random() < 0.5 ? -1 : 1;
-  mg.phase = 'countdown'; mg.timer = 180;
-  mg.banner = ''; mg.bannerT = 0;
-  clearPool(arenaParticles);
-  centerBall();
-  setState(STATES.MINIGAME);
-}
-function serve() {
+function ttServe() {
   const b = mg.ball, ang = rand(-0.5, 0.5);
   b.speed = 0.075;
   b.vx = Math.cos(ang) * b.speed * mg.serveDir;
   b.vz = Math.sin(ang) * b.speed;
   b.fromX = 0; b.toX = mg.serveDir > 0 ? PXR : PXL; b.u = 0;
-  mg.rally = 0;
-  mg.aiOffset = rand(-0.2, 0.2);
+  mg.rally = 0; mg.aiOffset = rand(-0.2, 0.2);
   mg.phase = 'play';
 }
 function predictZ() {
@@ -898,27 +1072,22 @@ function paddleHit(dir, pz, pvz) {
   const b = mg.ball;
   const rel = clamp((b.z - pz) / PHW, -1, 1);
   b.speed = Math.min(b.speed + 0.008, 0.2);
-  const ang = rel * 1.0;
-  b.vx = Math.cos(ang) * b.speed * dir;
-  b.vz = Math.sin(ang) * b.speed + pvz * 0.2;
+  b.vx = Math.cos(rel) * b.speed * dir;
+  b.vz = Math.sin(rel) * b.speed + pvz * 0.2;
   b.fromX = b.x; b.toX = dir > 0 ? PXR : PXL; b.u = 0;
   mg.rally++;
-  game.shake = Math.max(game.shake, 0.08);
-  const y = TY + 0.15;
+  shakeIt(0.08);
   if (dir === 1) {
-    burst3D(arenaParticles, b.x, y, b.z, '#30a0f0', 14, 0.09); SFX.hit(); mg.pFlash = 8; mg.pHop = 0.25;
+    burst3D(arenaParticles, b.x, TY + 0.15, b.z, '#30a0f0', 14, 0.09); SFX.hit(); mg.pFlash = 8; mg.pHop = 0.25;
     const missChance = 0.12 + Math.min(mg.rally, 20) * 0.012;
-    mg.aiOffset = Math.random() < missChance
-      ? (Math.random() < 0.5 ? -1 : 1) * (PHW * 1.25 + rand(0, 0.35))
-      : rand(-0.25, 0.25);
+    mg.aiOffset = Math.random() < missChance ? (Math.random() < 0.5 ? -1 : 1) * (PHW * 1.25 + rand(0, 0.35)) : rand(-0.25, 0.25);
   } else {
-    burst3D(arenaParticles, b.x, y, b.z, '#e0403a', 14, 0.09); SFX.hitAI(); mg.aFlash = 8; mg.aHop = 0.25;
+    burst3D(arenaParticles, b.x, TY + 0.15, b.z, '#e0403a', 14, 0.09); SFX.hitAI(); mg.aFlash = 8; mg.aHop = 0.25;
   }
 }
-function pointTo(who) {
+function ttPoint(who) {
   const b = mg.ball;
-  b.visible = false;
-  game.shake = 0.25;
+  b.visible = false; shakeIt(0.25);
   if (who === 'player') {
     mg.ps++; mg.serveDir = 1;
     burst3D(arenaParticles, PXR + 0.6, TY + 0.4, b.z, '#30a0f0', 30, 0.14);
@@ -930,26 +1099,13 @@ function pointTo(who) {
     mg.banner = 'MISS!'; SFX.miss();
   }
   mg.bannerT = 70;
-  if (mg.ps >= WIN_SCORE || mg.as >= WIN_SCORE) {
-    mg.phase = 'end'; mg.timer = 100;
-    mg.banner = mg.ps >= WIN_SCORE ? 'MATCH!' : 'GAME!';
-  } else { mg.phase = 'point'; mg.timer = 75; }
-}
-function finishMatch() {
-  const won = mg.ps >= WIN_SCORE;
-  game.result = { won, ps: mg.ps, as: mg.as, first: false };
-  if (won) {
-    game.wins++;
-    if (!game.beatChampion) { game.beatChampion = true; game.scrolls++; game.result.first = true; }
-    SFX.win();
-  } else { game.losses++; SFX.lose(); }
-  hudParticles = [];
-  setState(STATES.GAME_OVER);
+  if (mg.ps >= WIN_SCORE || mg.as >= WIN_SCORE) { mg.phase = 'end'; mg.timer = 100; mg.banner = mg.ps >= WIN_SCORE ? 'MATCH!' : 'GAME!'; }
+  else { mg.phase = 'point'; mg.timer = 75; }
 }
 function ballHeight(b) {
   const span = b.toX - b.fromX;
   const u = span ? (b.x - b.fromX) / span : 0;
-  if (u >= 1) return 0.15 - (u - 1) * Math.abs(span) * 1.2;   // past the paddle: drops off the table
+  if (u >= 1) return 0.15 - (u - 1) * Math.abs(span) * 1.2;
   if (u < 0.72) { const a = Math.max(0, u) / 0.72; return (1 - a) * 0.15 + 0.6 * 4 * a * (1 - a); }
   const a = (u - 0.72) / 0.28; return a * 0.15 + 0.32 * 4 * a * (1 - a);
 }
@@ -960,140 +1116,906 @@ function stepBall() {
     b.x += b.vx / steps; b.z += b.vz / steps;
     if (b.z - BR < -LZ) { b.z = -LZ + BR; b.vz = Math.abs(b.vz); SFX.wall(); }
     else if (b.z + BR > LZ) { b.z = LZ - BR; b.vz = -Math.abs(b.vz); SFX.wall(); }
-    if (b.vx < 0 && b.x - BR <= PXL + 0.05 && b.x >= PXL - 0.35 && Math.abs(b.z - mg.pz) <= PHW + BR) {
-      b.x = PXL + 0.05 + BR; paddleHit(1, mg.pz, mg.pvz);
-    }
-    if (b.vx > 0 && b.x + BR >= PXR - 0.05 && b.x <= PXR + 0.35 && Math.abs(b.z - mg.az) <= PHW + BR) {
-      b.x = PXR - 0.05 - BR; paddleHit(-1, mg.az, mg.avz);
-    }
-    if (b.x < -6.4) { pointTo('ai'); return; }
-    if (b.x > 6.4) { pointTo('player'); return; }
+    if (b.vx < 0 && b.x - BR <= PXL + 0.05 && b.x >= PXL - 0.35 && Math.abs(b.z - mg.pz) <= PHW + BR) { b.x = PXL + 0.05 + BR; paddleHit(1, mg.pz, mg.pvz); }
+    if (b.vx > 0 && b.x + BR >= PXR - 0.05 && b.x <= PXR + 0.35 && Math.abs(b.z - mg.az) <= PHW + BR) { b.x = PXR - 0.05 - BR; paddleHit(-1, mg.az, mg.avz); }
+    if (b.x < -6.4) { ttPoint('ai'); return; }
+    if (b.x > 6.4) { ttPoint('player'); return; }
   }
   const span = b.toX - b.fromX;
   const u = span ? (b.x - b.fromX) / span : 0;
-  if (b.u < 0.72 && u >= 0.72) {   // ball bounces on the far half of the table
-    burst3D(arenaParticles, b.x, TY + 0.02, b.z, '#ffffff', 5, 0.03);
-    SFX.bounce();
-  }
-  b.u = u;
-  b.h = ballHeight(b);
+  if (b.u < 0.72 && u >= 0.72) { burst3D(arenaParticles, b.x, TY + 0.02, b.z, '#ffffff', 5, 0.03); SFX.bounce(); }
+  b.u = u; b.h = ballHeight(b);
   mg.history.push({ x: b.x, y: TY + BR + b.h, z: b.z });
   if (mg.history.length > 12) mg.history.shift();
 }
-function updateMinigame() {
-  if (hit('Escape')) { returnToIsland(); return; }
-  const pv = (isDown(...DOWN) ? 1 : 0) - (isDown(...UP) ? 1 : 0);
-  mg.pvz = pv * 0.11;
-  mg.pz = clamp(mg.pz + mg.pvz, -LZ - 0.2, LZ + 0.2);
-
-  if (--mg.aiTimer <= 0) {
-    mg.aiTimer = 6;
-    mg.aiTarget = (mg.phase === 'play' && mg.ball.vx > 0) ? predictZ() + mg.aiOffset : 0;
-  }
-  const maxS = clamp(0.066 + 0.005 * (mg.ps - mg.as) + Math.min(mg.rally, 20) * 0.0005, 0.052, 0.095);
-  mg.avz = clamp((mg.aiTarget - mg.az) * 0.18, -maxS, maxS);
-  mg.az = clamp(mg.az + mg.avz, -LZ - 0.2, LZ + 0.2);
-
-  if (mg.phase === 'countdown') {
-    if (mg.timer % 60 === 0 && mg.timer > 0) SFX.count();
-    if (--mg.timer <= 0) { serve(); SFX.go(); mg.banner = 'GO!'; mg.bannerT = 40; }
-  } else if (mg.phase === 'serve') {
-    if (--mg.timer <= 0) { serve(); SFX.go(); }
-  } else if (mg.phase === 'play') {
-    stepBall();
-  } else if (mg.phase === 'point') {
-    if (--mg.timer <= 0) { centerBall(); mg.phase = 'serve'; mg.timer = 45; mg.banner = 'READY...'; mg.bannerT = 45; }
-  } else if (mg.phase === 'end') {
-    if (--mg.timer <= 0) finishMatch();
-  }
-  if (mg.bannerT > 0) mg.bannerT--;
-  mg.pFlash = Math.max(0, mg.pFlash - 1); mg.aFlash = Math.max(0, mg.aFlash - 1);
-  mg.pHop *= 0.85; mg.aHop *= 0.85;
-
-  const t = Math.min(1, game.stateTick / 90);
-  camera.position.set(0, lerp(9, 6.8, t), lerp(11.5, 8.8, t));
-  camera.lookAt(0, 0.6, 0.6);
+SPORTS.tt = {
+  start() {
+    setSky('#1c1530', 16, 34); aimSun(0, 0, 0);
+    Object.assign(mg, { ps: 0, as: 0, rally: 0, pz: 0, az: 0, serveDir: Math.random() < 0.5 ? -1 : 1,
+      phase: 'countdown', timer: 180, banner: '', bannerT: 0 });
+    centerBall();
+    game.actors = { cat: arenaCat, champ: arenaTanuki };
+  },
+  update() {
+    const pv = (isDown(...DOWN) ? 1 : 0) - (isDown(...UP) ? 1 : 0);
+    mg.pvz = pv * 0.11;
+    mg.pz = clamp(mg.pz + mg.pvz, -LZ - 0.2, LZ + 0.2);
+    if (--mg.aiTimer <= 0) { mg.aiTimer = 6; mg.aiTarget = (mg.phase === 'play' && mg.ball.vx > 0) ? predictZ() + mg.aiOffset : 0; }
+    const maxS = clamp(0.066 + 0.005 * (mg.ps - mg.as) + Math.min(mg.rally, 20) * 0.0005, 0.052, 0.095);
+    mg.avz = clamp((mg.aiTarget - mg.az) * 0.18, -maxS, maxS);
+    mg.az = clamp(mg.az + mg.avz, -LZ - 0.2, LZ + 0.2);
+    if (mg.phase === 'countdown') {
+      if (mg.timer % 60 === 0 && mg.timer > 0) SFX.count();
+      if (--mg.timer <= 0) { ttServe(); SFX.go(); mg.banner = 'GO!'; mg.bannerT = 40; }
+    } else if (mg.phase === 'serve') { if (--mg.timer <= 0) { ttServe(); SFX.go(); } }
+    else if (mg.phase === 'play') stepBall();
+    else if (mg.phase === 'point') { if (--mg.timer <= 0) { centerBall(); mg.phase = 'serve'; mg.timer = 45; mg.banner = 'READY...'; mg.bannerT = 45; } }
+    else if (mg.phase === 'end') { if (--mg.timer <= 0) finishSport(mg.ps >= WIN_SCORE, `${mg.ps} - ${mg.as}`); }
+    if (mg.bannerT > 0) mg.bannerT--;
+    mg.pFlash = Math.max(0, mg.pFlash - 1); mg.aFlash = Math.max(0, mg.aFlash - 1);
+    mg.pHop *= 0.85; mg.aHop *= 0.85;
+    const t = Math.min(1, game.stateTick / 90);
+    camera.position.set(0, lerp(9, 6.8, t), lerp(11.5, 8.8, t));
+    camera.lookAt(0, 0.6, 0.6);
+  },
+  visuals() {
+    const b = mg.ball;
+    pPaddle.group.position.set(PXL, TY + 0.32, mg.pz); aPaddle.group.position.set(PXR, TY + 0.32, mg.az);
+    pPaddle.group.rotation.z = -0.15; aPaddle.group.rotation.z = 0.15;
+    pPaddle.faceMat.emissive.set(mg.pFlash > 4 ? '#ffffff' : '#000000');
+    aPaddle.faceMat.emissive.set(mg.aFlash > 4 ? '#ffffff' : '#000000');
+    arenaCat.group.position.set(PXL - 0.9, mg.pHop, mg.pz);
+    arenaTanuki.group.position.set(PXR + 0.9, mg.aHop, mg.az);
+    animateCritter(arenaCat, Math.abs(mg.pvz) > 0.01, game.tick);
+    animateCritter(arenaTanuki, Math.abs(mg.avz) > 0.01, game.tick);
+    ballMesh.visible = b.visible;
+    ballMesh.position.set(b.x, TY + BR + b.h, b.z);
+    ballShadow.visible = Math.abs(b.x) <= LX && b.visible;
+    ballShadow.position.set(b.x, TY + 0.005, b.z);
+    ballShadow.scale.setScalar(1 + b.h * 0.8);
+    trail.forEach((t, i) => {
+      const hpt = mg.history[mg.history.length - 1 - (trail.length - 1 - i) * 2];
+      t.visible = b.visible && mg.phase === 'play' && !!hpt;
+      if (hpt) t.position.set(hpt.x, hpt.y, hpt.z);
+    });
+    ttCrowd();
+  },
+  hud() {
+    panel(290, 4, 220, 50, '#f0a020', '#120e26');
+    text('YOU', 330, 24, { size: 12, color: '#30a0f0', align: 'center' });
+    text('CHAMP', 470, 24, { size: 12, color: '#e04848', align: 'center' });
+    text(`${mg.ps}`, 370, 42, { size: 28, color: '#30a0f0', align: 'center' });
+    text('-', 400, 40, { size: 22, color: '#f4ecd8', align: 'center' });
+    text(`${mg.as}`, 430, 42, { size: 28, color: '#e04848', align: 'center' });
+    for (let i = 0; i < WIN_SCORE; i++) {
+      px(312 + i * 12, 30, 8, 8, i < mg.ps ? '#30a0f0' : '#3a3370');
+      px(452 + i * 12, 30, 8, 8, i < mg.as ? '#e04848' : '#3a3370');
+    }
+    if (mg.rally >= 3 && mg.phase === 'play') text(`RALLY x${mg.rally}`, W / 2, 470, { size: 14, color: '#ffd84a', align: 'center' });
+    text('W/S or ↑/↓ move  ·  ESC: forfeit', W - 12, 472, { size: 11, color: '#c8bfe0', align: 'right', bold: false });
+    if (mg.phase === 'countdown') {
+      const n = Math.ceil(mg.timer / 60), s = 60 + (mg.timer % 60) * 0.6;
+      text(String(n), W / 2, H / 2 + s / 3, { size: Math.round(s), color: '#ffd84a', align: 'center', shadow: '#7a2a10' });
+      text('FIRST TO 3 WINS', W / 2, H / 2 + 70, { size: 16, color: '#f4ecd8', align: 'center' });
+    }
+    if (mg.bannerT > 0 && mg.banner) {
+      const col = mg.banner === 'MISS!' || mg.banner === 'GAME!' ? '#e04848' : '#ffd84a';
+      text(mg.banner, W / 2, H / 2 + 14, { size: 44, color: col, align: 'center', shadow: '#000' });
+    }
+  },
+  focus: () => ({ x: 0, y: 0.8, z: 0, r: 10 })
+};
+function ttCrowd() {
+  const cheer = mg.bannerT > 0 || game.state === STATES.GAME_OVER;
+  for (const c of crowd) c.m.position.y = c.baseY + Math.abs(Math.sin(game.tick / (cheer ? 4 : 18) + c.p)) * (cheer ? 0.3 : 0.06);
 }
-function updateArenaVisuals() {
-  const b = mg.ball;
-  pPaddle.group.position.set(PXL, TY + 0.32, mg.pz);
-  aPaddle.group.position.set(PXR, TY + 0.32, mg.az);
-  pPaddle.group.rotation.z = -0.15; aPaddle.group.rotation.z = 0.15;
-  pPaddle.faceMat.emissive.set(mg.pFlash > 4 ? '#ffffff' : '#000000');
-  aPaddle.faceMat.emissive.set(mg.aFlash > 4 ? '#ffffff' : '#000000');
-  arenaCat.group.position.set(PXL - 0.9, mg.pHop, mg.pz);
-  arenaTanuki.group.position.set(PXR + 0.9, mg.aHop, mg.az);
-  animateCritter(arenaCat, Math.abs(mg.pvz) > 0.01, game.tick);
-  animateCritter(arenaTanuki, Math.abs(mg.avz) > 0.01, game.tick);
 
-  ballMesh.visible = b.visible;
-  ballMesh.position.set(b.x, TY + BR + b.h, b.z);
-  const overTable = Math.abs(b.x) <= LX && b.visible;
-  ballShadow.visible = overTable;
-  ballShadow.position.set(b.x, TY + 0.005, b.z);
-  ballShadow.scale.setScalar(1 + b.h * 0.8);
-  trail.forEach((t, i) => {
-    const hpt = mg.history[mg.history.length - 1 - (trail.length - 1 - i) * 2];
-    t.visible = b.visible && mg.phase === 'play' && !!hpt;
-    if (hpt) t.position.set(hpt.x, hpt.y, hpt.z);
-  });
-  const cheer = mg.bannerT > 0;
-  for (const c of crowd) {
-    c.m.position.y = c.baseY + Math.abs(Math.sin(game.tick / (cheer ? 4 : 18) + c.p)) * (cheer ? 0.3 : 0.06);
-  }
-  updatePool(arenaParticles);
-}
-function drawMinigameHud() {
-  panel(290, 4, 220, 50, '#f0a020', '#120e26');
-  text('YOU', 330, 24, { size: 12, color: '#30a0f0', align: 'center' });
-  text('CHAMP', 470, 24, { size: 12, color: '#e04848', align: 'center' });
-  text(`${mg.ps}`, 370, 42, { size: 28, color: '#30a0f0', align: 'center' });
-  text('-', 400, 40, { size: 22, color: '#f4ecd8', align: 'center' });
-  text(`${mg.as}`, 430, 42, { size: 28, color: '#e04848', align: 'center' });
-  for (let i = 0; i < WIN_SCORE; i++) {
-    px(312 + i * 12, 30, 8, 8, i < mg.ps ? '#30a0f0' : '#3a3370');
-    px(452 + i * 12, 30, 8, 8, i < mg.as ? '#e04848' : '#3a3370');
-  }
-  if (mg.rally >= 3 && mg.phase === 'play') text(`RALLY x${mg.rally}`, W / 2, 470, { size: 14, color: '#ffd84a', align: 'center' });
-  text('W/S or ↑/↓ move  ·  ESC: forfeit', W - 12, 472, { size: 11, color: '#c8bfe0', align: 'right', bold: false });
-  if (mg.phase === 'countdown') {
-    const n = Math.ceil(mg.timer / 60), s = 60 + (mg.timer % 60) * 0.6;
-    text(String(n), W / 2, H / 2 + s / 3, { size: Math.round(s), color: '#ffd84a', align: 'center', shadow: '#7a2a10' });
-    text('FIRST TO 3 WINS', W / 2, H / 2 + 70, { size: 16, color: '#f4ecd8', align: 'center' });
-  }
-  if (mg.bannerT > 0 && mg.banner) {
-    const col = mg.banner === 'MISS!' || mg.banner === 'GAME!' ? '#e04848' : '#ffd84a';
-    text(mg.banner, W / 2, H / 2 + 14, { size: 44, color: col, align: 'center', shadow: '#000' });
-  }
-}
+/* =========================================================
+   SPORT 2: ARCHERY
+   ========================================================= */
+const TGT_Y = 1.7;
+SPORTS.archery = {
+  start() {
+    setSky('#9fd8ff', 22, 50); aimSun(0, 0, 0);
+    ground('#5cae4a');
+    box(0.08, 0.02, 13, '#f4f4e0', -1.8, 0.01, -0.5, sg); box(0.08, 0.02, 13, '#f4f4e0', 1.8, 0.01, -0.5, sg);
+    box(4.4, 0.02, 0.12, '#ffffff', 0, 0.012, 4.9, sg);
+    box(18, 1.6, 0.9, '#2c6b30', 0, 0.8, -8.6, sg);
+    for (const x of [-7, -5.5, 5.5, 7]) voxelTree(x, -7.6, 0, sg);
+    box(0.12, 1.9, 0.12, '#6b4426', -0.7, 0.95, -6.25, sg); box(0.12, 1.9, 0.12, '#6b4426', 0.7, 0.95, -6.25, sg);
+    [[1.2, '#f4f4f4'], [0.96, '#222222'], [0.72, '#30a0f0'], [0.48, '#e0403a'], [0.24, '#ffd84a']].forEach(([r, c], i) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.08, 28), mat(c));
+      m.rotation.x = Math.PI / 2; m.position.set(0, TGT_Y, -6 + i * 0.012); m.castShadow = true; m.receiveShadow = true; sg.add(m);
+    });
+    SP.reticle = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.025, 6, 18), new THREE.MeshBasicMaterial({ color: '#ff2a2a' }));
+    sg.add(SP.reticle);
+    const a = addActors('archery');
+    a.cat.group.position.set(0.25, 0, 5.5); a.cat.group.rotation.y = Math.PI;
+    a.champ.group.position.set(-2.1, 0, 5.5); a.champ.group.rotation.y = Math.PI;
+    box(0.04, 0.95, 0.04, '#6b4426', 0.25, 0.75, 5.0, a.cat.group.parent);
+    Object.assign(SP, { timer: 150, round: 0, rounds: 5, you: [], them: [], drawT: 0, wasDown: false,
+      ax: 0, ay: 0, wind: rand(-1, 1), arrow: null, wait: 0, last: 'them' });
+  },
+  shoot(who, hx, hy) {
+    const g = new THREE.Group();
+    box(0.03, 0.03, 0.75, '#c48a4a', 0, 0, 0, g);
+    box(0.05, 0.05, 0.1, '#555555', 0, 0, 0.4, g);
+    box(0.14, 0.1, 0.14, who === 'you' ? '#30a0f0' : '#e8822e', 0, 0, -0.34, g);
+    sg.add(g);
+    const sx = who === 'you' ? 0.25 : -2.1;
+    SP.arrow = { g, who, hx, hy, u: 0, p0: [sx, 1.35, 4.9], p1: [hx, TGT_Y + hy, -5.92] };
+    SP.phase = 'fly'; SFX.twang();
+  },
+  land() {
+    const A = SP.arrow, d = Math.hypot(A.hx, A.hy);
+    const pts = d < 0.24 ? 10 : d < 0.48 ? 8 : d < 0.72 ? 6 : d < 0.96 ? 4 : d < 1.2 ? 2 : 0;
+    (A.who === 'you' ? SP.you : SP.them).push(pts);
+    burst3D(arenaParticles, A.p1[0], A.p1[1], A.p1[2] + 0.1, pts === 10 ? '#ffd84a' : '#ffffff', pts ? 14 : 6, 0.07);
+    SFX.thud(); if (pts >= 8) SFX.good();
+    shakeIt(pts === 10 ? 0.12 : 0.04);
+    const who = A.who === 'you' ? '' : 'CHAMP: ';
+    banner(pts === 10 ? `${who}BULLSEYE! 10` : pts === 0 ? `${who}MISS!` : `${who}${pts}`, 55, A.who === 'you' ? '#ffd84a' : '#e8822e');
+    SP.last = A.who; SP.phase = 'next'; SP.wait = 60;
+  },
+  update() {
+    SP.t++;
+    camera.position.set(0, 2.3, 8.6); camera.lookAt(0, 1.5, -6);
+    if (SP.bannerT > 0) SP.bannerT--;
+    if (SP.phase === 'ready') { if (readyTick()) SP.phase = 'aim'; return; }
+    if (SP.phase === 'aim') {
+      const down = isDown('Space');
+      if (down) SP.drawT++;
+      const steady = SP.drawT > 0 ? clamp(1 - SP.drawT / 45, 0.2, 1) + Math.max(0, (SP.drawT - 150) / 70) : 1;
+      SP.ax = (Math.sin(SP.t * 0.05) * 0.95 + Math.sin(SP.t * 0.13) * 0.18) * steady;
+      SP.ay = (Math.cos(SP.t * 0.037) * 0.75 + Math.sin(SP.t * 0.11) * 0.14) * steady;
+      if (!down && SP.wasDown) { this.shoot('you', SP.ax + SP.wind * 0.35 + rand(-0.04, 0.04), SP.ay + rand(-0.04, 0.04)); SP.drawT = 0; }
+      SP.wasDown = down;
+    } else if (SP.phase === 'champ') {
+      if (--SP.wait <= 0) {
+        const a = rand(0, 6.283), d = Math.sqrt(-2 * Math.log(1 - Math.random())) * 0.37;
+        this.shoot('them', Math.cos(a) * d, Math.sin(a) * d);
+      }
+    } else if (SP.phase === 'fly') {
+      const A = SP.arrow;
+      A.u = Math.min(1, A.u + 1 / 26);
+      const p = [0, 1, 2].map(i => lerp(A.p0[i], A.p1[i], A.u));
+      p[1] += Math.sin(Math.PI * A.u) * 0.35;
+      A.g.position.set(p[0], p[1], p[2]);
+      A.g.lookAt(A.p1[0], A.p1[1] - (1 - A.u) * 0.3, A.p1[2]);
+      if (A.u >= 1) this.land();
+    } else if (SP.phase === 'next') {
+      if (--SP.wait <= 0) {
+        if (SP.last === 'you') { SP.phase = 'champ'; SP.wait = 50; }
+        else {
+          SP.round++;
+          const sy = SP.you.reduce((a, b) => a + b, 0), st = SP.them.reduce((a, b) => a + b, 0);
+          if (SP.round >= SP.rounds && sy !== st) { SP.phase = 'end'; SP.timer = 70; }
+          else {
+            if (SP.round >= SP.rounds) { SP.rounds++; banner('SUDDEN DEATH!', 70, '#e04848'); }
+            SP.wind = rand(-1, 1); SP.phase = 'aim'; SP.drawT = 0; SP.wasDown = false;
+          }
+        }
+      }
+    } else if (SP.phase === 'end') {
+      if (--SP.timer <= 0) {
+        const sy = SP.you.reduce((a, b) => a + b, 0), st = SP.them.reduce((a, b) => a + b, 0);
+        finishSport(sy > st, `${sy} - ${st}`);
+      }
+    }
+  },
+  visuals() {
+    const a = game.actors;
+    SP.reticle.visible = SP.phase === 'aim';
+    SP.reticle.position.set(SP.ax, TGT_Y + SP.ay, -5.84);
+    const s = 1 + Math.sin(SP.t * 0.3) * 0.1; SP.reticle.scale.set(s, s, s);
+    animateCritter(a.cat, false, 0); animateCritter(a.champ, false, 0);
+    a.cat.body.rotation.x = SP.phase === 'aim' && SP.drawT > 0 ? -0.15 : 0;
+  },
+  hud() {
+    const sy = SP.you.reduce((a, b) => a + b, 0), st = SP.them.reduce((a, b) => a + b, 0);
+    panel(170, 6, 460, 64, '#f0a020', '#120e26');
+    text('YOU', 184, 30, { size: 13, color: '#30a0f0' });
+    text('CHAMP', 184, 56, { size: 13, color: '#e8822e' });
+    for (let i = 0; i < SP.rounds; i++) {
+      const x = 260 + i * 44;
+      text(SP.you[i] !== undefined ? String(SP.you[i]) : '·', x, 30, { size: 14, color: '#f4ecd8', align: 'center' });
+      text(SP.them[i] !== undefined ? String(SP.them[i]) : '·', x, 56, { size: 14, color: '#f4ecd8', align: 'center' });
+    }
+    text(String(sy), 604, 30, { size: 18, color: '#30a0f0', align: 'right' });
+    text(String(st), 604, 56, { size: 18, color: '#e8822e', align: 'right' });
+    // wind
+    panel(8, 80, 124, 54, '#3a3370');
+    text('WIND', 20, 102, { size: 12, color: '#c8bfe0' });
+    const n = Math.max(1, Math.round(Math.abs(SP.wind) * 3));
+    for (let i = 0; i < n; i++) drawArrow(78 + (SP.wind < 0 ? -i : i) * 14, 118, SP.wind < 0 ? 2 : 3, 7, '#9fd8ff');
+    text(`${Math.round(Math.abs(SP.wind) * 12)} mph`, 66, 102, { size: 12, color: '#f4ecd8' });
+    text(`ARROW ${Math.min(SP.round + 1, SP.rounds)}/${SP.rounds}`, W - 16, 100, { size: 13, color: '#ffd84a', align: 'right' });
+    if (SP.phase === 'aim') {
+      const steady = SP.drawT === 0 ? 0 : SP.drawT < 45 ? SP.drawT / 45 : SP.drawT < 150 ? 1 : Math.max(0, 1 - (SP.drawT - 150) / 70);
+      text('STEADY', W / 2 - 110, H - 34, { size: 12, color: '#c8bfe0' });
+      bar(W / 2 - 50, H - 46, 160, 16, steady, SP.drawT > 150 ? '#e04848' : '#5cdc6a');
+      hint('HOLD SPACE to steady your aim · RELEASE to shoot · aim against the wind');
+    } else if (SP.phase === 'champ') hint('KITSUNE KAI takes aim...');
+    drawReady('HOLD SPACE to steady · RELEASE to shoot · mind the wind');
+    drawBanner(H / 2 - 40, 36);
+  },
+  focus: () => ({ x: 0, y: 1, z: 4.5, r: 6 })
+};
+
+/* =========================================================
+   SPORT 3: SKATEBOARD
+   ========================================================= */
+const RAMPS = [12, 26, 40, 54, 68, 82], SK_FIN = 94;
+const TRICKS = [['OLLIE', 'KICKFLIP', 'HEELFLIP'], ['360 FLIP', 'VARIAL', 'POP SHOVE'], ['McTWIST', 'TRE FLIP', '900!']];
+SPORTS.skate = {
+  start() {
+    setSky('#ffb87a', 25, 55); aimSun(0, 0, 0);
+    ground('#4a4a58', 300, 60, 40, 0);
+    box(130, 0.04, 6, '#6a6a78', 45, 0.02, 0, sg).castShadow = false;
+    box(130, 0.3, 2, '#a8a8b4', 45, 0.15, -4, sg);
+    for (let i = 0; i < 32; i++) box(1.4, 0.05, 0.12, '#ffd84a', -8 + i * 4, 0.05, 2.2, sg).castShadow = false;
+    const bcols = ['#e0703a', '#30a0f0', '#c8302a', '#7a4ac8', '#5cae4a', '#f0a020', '#e05a9a'];
+    for (let i = 0; i < 24; i++) {
+      const h = 3 + hash(i, 3) * 6, x = -10 + i * 5.5;
+      const b = box(4.6, h, 3, bcols[i % bcols.length], x, h / 2, -7, sg);
+      b.castShadow = false;
+      for (let wy = 1; wy < h - 0.5; wy += 1.3) for (const wx of [-1.2, 0, 1.2]) box(0.6, 0.6, 0.05, '#ffe7a8', x + wx, wy, -5.48, sg).castShadow = false;
+    }
+    for (const r of RAMPS) {
+      box(2.6, 0.14, 3, '#c8a060', r - 1.25, 0.42, 0, sg).rotation.z = 0.33;
+      box(0.2, 0.85, 3, '#8a6a40', r - 0.05, 0.42, 0, sg);
+      box(1.5, 0.85, 3.1, '#9a7a50', r + 0.8, 0.42, 0, sg).visible = false;
+    }
+    for (const z of [-3, 3]) box(0.25, 4, 0.25, '#ffffff', SK_FIN, 2, z, sg);
+    for (let i = 0; i < 8; i++) box(0.2, 0.7, 0.8, i % 2 ? '#1b1420' : '#ffffff', SK_FIN, 3.7, -2.8 + i * 0.8, sg);
+    const a = addActors('skate');
+    const board = new THREE.Group();
+    box(0.95, 0.06, 0.32, '#30d0f0', 0, 0, 0, board);
+    box(0.9, 0.012, 0.3, '#3a3040', 0, 0.035, 0, board);
+    for (const [bx, bz] of [[-0.32, -0.12], [-0.32, 0.12], [0.32, -0.12], [0.32, 0.12]]) box(0.1, 0.1, 0.08, '#eeeeee', bx, -0.07, bz, board);
+    sg.add(board);
+    a.champ.group.position.set(SK_FIN + 2.5, 0, -1.5); a.champ.group.rotation.y = -Math.PI / 2;
+    Object.assign(SP, { board, x: 0, y: 0, air: false, airT: 0, dur: 80, ramp: 0, seq: [], idx: 0, fail: false,
+      done: false, score: 0, combo: 1, spin: 0, spinType: 0, stumble: 0, timer: 180,
+      champScore: Math.round((2400 + rand(0, 900)) / 50) * 50, trick: '' });
+  },
+  update() {
+    SP.t++;
+    if (SP.bannerT > 0) SP.bannerT--;
+    camera.position.set(SP.x + 1.5, 2.9 + SP.y * 0.3, 7.8); camera.lookAt(SP.x + 3.2, 1.1 + SP.y * 0.4, 0);
+    aimSun(SP.x + 3, 0, 0);
+    if (SP.phase === 'ready') { if (readyTick()) SP.phase = 'ride'; return; }
+    if (SP.phase === 'end') { if (--SP.timer <= 0) finishSport(SP.score > SP.champScore, `${SP.score} vs ${SP.champScore}`); return; }
+    const speed = SP.stumble > 0 ? 0.07 : 0.15;
+    if (SP.stumble > 0) SP.stumble--;
+    SP.x += speed;
+    if (!SP.air && SP.ramp < RAMPS.length && SP.x >= RAMPS[SP.ramp]) {
+      const len = [2, 2, 3, 3, 4, 4][SP.ramp];
+      SP.air = true; SP.airT = 0; SP.idx = 0; SP.fail = false; SP.done = false; SP.spin = 0;
+      SP.seq = Array.from({ length: len }, () => Math.floor(rand(0, 4)));
+      SP.trick = TRICKS[Math.min(2, len - 2)][Math.floor(rand(0, 3))];
+      SP.ramp++; SFX.bounce();
+    }
+    if (SP.air) {
+      SP.airT++;
+      SP.y = Math.sin(Math.PI * SP.airT / SP.dur) * 2.4;
+      const d = pressedDir();
+      if (d >= 0 && !SP.fail && !SP.done) {
+        if (d === SP.seq[SP.idx]) {
+          SP.idx++; SFX.blip(700 + SP.idx * 120);
+          if (SP.idx === SP.seq.length) {
+            SP.done = true;
+            const pts = 100 * SP.seq.length * SP.combo;
+            SP.score += pts; SP.combo++;
+            banner(`${SP.trick} +${pts}`, 60); SFX.good();
+            SP.spinType = SP.seq.length;
+          }
+        } else { SP.fail = true; SFX.miss(); }
+      }
+      if (SP.done) SP.spin = Math.min(1, SP.spin + 0.06);
+      if (SP.airT >= SP.dur) {
+        SP.air = false; SP.y = 0;
+        if (SP.done) { burst3D(arenaParticles, SP.x, 0.1, 0, '#ffd84a', 14, 0.08); SFX.thud(); }
+        else if (SP.fail) { banner('BAIL!', 60, '#e04848'); SP.combo = 1; SP.stumble = 50; shakeIt(0.25); burst3D(arenaParticles, SP.x, 0.2, 0, '#ffffff', 16, 0.1); SFX.thud(); }
+        else { banner('NO TRICK', 50, '#c8bfe0'); SP.combo = 1; SFX.thud(); }
+      }
+    }
+    if (SP.x >= SK_FIN) {
+      SP.phase = 'end'; SP.timer = 80;
+      banner(SP.score > SP.champScore ? 'NEW RECORD!' : 'NOT ENOUGH!', 80, SP.score > SP.champScore ? '#5cdc6a' : '#e04848');
+    }
+  },
+  visuals() {
+    const a = game.actors, x = Math.min(SP.x, SK_FIN + 1.5);
+    const flip = SP.spin * Math.PI * 2;
+    SP.board.position.set(x, SP.y + 0.12, 0);
+    SP.board.rotation.set(SP.spinType >= 2 && SP.spinType < 4 ? flip : 0, SP.spinType >= 3 ? flip : 0, 0);
+    a.cat.group.position.set(x, SP.y + 0.15, 0);
+    a.cat.group.rotation.set(0, Math.PI / 2 + (SP.spinType === 4 ? flip : 0), SP.stumble > 0 ? Math.sin(SP.t * 0.4) * 0.3 : 0);
+    animateCritter(a.cat, false, 0);
+    animateCritter(a.champ, SP.phase === 'end', SP.t);
+    if (!SP.air && SP.phase === 'ride' && SP.t % 6 === 0) burst3D(arenaParticles, x - 0.4, 0.05, 0, '#9a9aa8', 1, 0.02);
+  },
+  hud() {
+    panel(8, 8, 220, 62);
+    text(`SCORE ${SP.score}`, 22, 32, { size: 16, color: '#ffd84a' });
+    text(`COMBO x${SP.combo}`, 22, 56, { size: 14, color: SP.combo > 1 ? '#5cdc6a' : '#c8bfe0' });
+    panel(W - 238, 8, 230, 40, '#e0403a');
+    text(`RIPPLE: ${SP.champScore}`, W - 123, 33, { size: 15, color: '#f4ecd8', align: 'center' });
+    bar(W / 2 - 150, 54, 300, 12, SP.x / SK_FIN, '#30d0f0');
+    if (SP.air && !SP.done) {
+      const n = SP.seq.length, x0 = W / 2 - (n - 1) * 28;
+      SP.seq.forEach((d, i) => keyBox(x0 + i * 56, 120, d, SP.fail ? (i < SP.idx ? 'done' : 'fail') : i < SP.idx ? 'done' : i === SP.idx ? 'now' : 'todo'));
+      if (!SP.fail) text(SP.trick, W / 2, 168, { size: 16, color: '#ffffff', align: 'center' });
+      const left = 1 - SP.airT / SP.dur;
+      bar(W / 2 - 80, 178, 160, 8, left, left > 0.3 ? '#ffd84a' : '#e04848');
+    }
+    hint('Enter the arrow combo in the air before you land · combos multiply your points');
+    drawReady(`Beat Ripple's score of ${SP.champScore} · type the arrows while airborne`);
+    drawBanner(H / 2 - 20, 34);
+  },
+  focus: () => ({ x: Math.min(SP.x, SK_FIN), y: 0.8, z: 0, r: 7 })
+};
+
+/* =========================================================
+   SPORT 4: RUGBY
+   ========================================================= */
+const TRY_Z = -40;
+SPORTS.rugby = {
+  start() {
+    setSky('#9fd8ff', 30, 70); aimSun(0, 0, 0);
+    ground('#3f8f3f', 80, 100, 0, -20);
+    for (let i = 0; i < 12; i++) box(14.2, 0.012, 4, i % 2 ? '#55a544' : '#62b852', 0, 0.006, 2 - i * 4, sg).castShadow = false;
+    box(14.2, 0.014, 4, '#c8302a', 0, 0.008, TRY_Z - 2, sg).castShadow = false;
+    for (const x of [-7.1, 7.1]) box(0.12, 0.02, 48, '#ffffff', x, 0.016, -18, sg).castShadow = false;
+    box(14.3, 0.02, 0.15, '#ffffff', 0, 0.016, TRY_Z, sg).castShadow = false;
+    box(14.3, 0.02, 0.1, '#ffffff', 0, 0.016, -20, sg).castShadow = false;
+    for (const x of [-1.4, 1.4]) { box(0.15, 4.2, 0.15, '#ffffff', x, 2.1, TRY_Z - 0.3, sg); box(0.4, 0.8, 0.4, '#30a0f0', x, 0.4, TRY_Z - 0.3, sg); }
+    box(2.95, 0.12, 0.12, '#ffffff', 0, 1.4, TRY_Z - 0.3, sg);
+    for (const x of [-11, 11]) for (let r = 0; r < 3; r++) box(2.4, 0.6 + r * 0.6, 50, r % 2 ? '#2e2448' : '#352a52', x + Math.sign(x) * r * 2.2, 0.3 + r * 0.3, -18, sg);
+    const a = addActors('rugby');
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), mat('#8a4a24'));
+    ball.scale.set(1, 1, 1.5); ball.position.set(0.3, 0.5, 0.1); ball.castShadow = true; a.cat.body.add(ball);
+    a.champ.group.scale.setScalar(1.3);
+    SP.defs = [{ m: a.champ, boss: true }];
+    for (let i = 0; i < 7; i++) { const m = makeChampion(CHAMPS.rugby.pal); sg.add(m.group); SP.defs.push({ m }); }
+    Object.assign(SP, { play: 1, tries: 0, timer: 150 });
+    this.setup();
+  },
+  setup() {
+    Object.assign(SP, { x: 0, z: 0, dashT: 0, dashCd: 0, dashDir: 1, flop: 0 });
+    const count = 4 + SP.play;
+    SP.defs.forEach((d, i) => {
+      d.active = d.boss || i <= count;
+      d.m.group.visible = d.active;
+      if (d.boss) { d.x = rand(-2, 2); d.z = TRY_Z + 4; d.speed = 0.058 + SP.play * 0.004; }
+      else { d.z = -8 - (i - 1) * (26 / count); d.x = rand(-5, 5); d.speed = 0.034 + SP.play * 0.006 + rand(0, 0.01); }
+      d.face = 0; d.moving = false;
+      d.m.group.rotation.set(0, 0, 0);
+    });
+    game.actors.cat.group.rotation.set(0, Math.PI, 0);
+  },
+  update() {
+    SP.t++;
+    if (SP.bannerT > 0) SP.bannerT--;
+    camera.position.set(SP.x * 0.5, 4.6, SP.z + 7); camera.lookAt(SP.x * 0.4, 0.4, SP.z - 5);
+    aimSun(SP.x, 0, SP.z - 4);
+    if (SP.phase === 'ready') { if (readyTick()) SP.phase = 'run'; return; }
+    if (SP.phase === 'run') {
+      const lat = (isDown(...RIGHT) ? 1 : 0) - (isDown(...LEFT) ? 1 : 0);
+      if (hit('Space') && SP.dashCd <= 0) {
+        SP.dashT = 12; SP.dashCd = 70; SP.dashDir = lat || (SP.x > 0 ? -1 : 1);
+        SFX.move(); burst3D(arenaParticles, SP.x, 0.2, SP.z, '#ffffff', 8, 0.05);
+      }
+      let vx = lat * 0.085;
+      if (SP.dashT > 0) { vx = SP.dashDir * 0.24; SP.dashT--; }
+      SP.dashCd--;
+      const vz = -(isDown(...UP) ? 0.11 : isDown(...DOWN) ? 0.07 : 0.095);
+      SP.x = clamp(SP.x + vx, -6.6, 6.6); SP.z += vz;
+      for (const d of SP.defs) {
+        if (!d.active) continue;
+        d.moving = false;
+        const ahead = SP.z - d.z;   // > 0 while the defender is still in front of you
+        if (ahead > -0.4 && ahead < 10) {
+          const gx = SP.x + vx * 4, gz = SP.z + vz * 4;
+          const ang = Math.atan2(gx - d.x, gz - d.z);
+          d.x += Math.sin(ang) * d.speed; d.z += Math.cos(ang) * d.speed; d.face = ang; d.moving = true;
+        } else if (ahead <= -0.4 && ahead > -6) {   // beaten defenders give a tired chase
+          const ang = Math.atan2(SP.x - d.x, SP.z - d.z);
+          d.x += Math.sin(ang) * d.speed * 0.5; d.z += Math.cos(ang) * d.speed * 0.5; d.face = ang; d.moving = true;
+        }
+        if (Math.hypot(SP.x - d.x, SP.z - d.z) < (d.boss ? 0.7 : 0.55)) {
+          SP.phase = 'over'; SP.timer = 100; SP.flop = 1;
+          banner('TACKLED!', 80, '#e04848'); shakeIt(0.3); SFX.miss();
+          burst3D(arenaParticles, SP.x, 0.3, SP.z, '#d6c49a', 20, 0.1);
+          break;
+        }
+      }
+      if (SP.phase === 'run' && SP.z <= TRY_Z) {
+        SP.tries++; SP.phase = 'over'; SP.timer = 110;
+        banner('TRY!', 90); SFX.score();
+        burst3D(arenaParticles, SP.x, 0.5, SP.z, '#ffd84a', 30, 0.14);
+        burst3D(arenaParticles, SP.x, 0.5, SP.z, '#30a0f0', 20, 0.12);
+      }
+    } else if (SP.phase === 'over') {
+      if (--SP.timer <= 0) {
+        const fails = SP.play - SP.tries;
+        if (SP.tries >= 2 || fails >= 2) { finishSport(SP.tries >= 2, `${SP.tries} tries in ${SP.play} plays`); return; }
+        SP.play++; this.setup(); SP.phase = 'ready'; SP.timer = 120;
+      }
+    }
+  },
+  visuals() {
+    const a = game.actors;
+    a.cat.group.position.set(SP.x, SP.phase === 'over' && SP.flop === 0 ? Math.abs(Math.sin(SP.t * 0.2)) * 0.5 : 0, SP.z);
+    a.cat.group.rotation.z = SP.flop ? Math.PI / 2 : 0;
+    animateCritter(a.cat, SP.phase === 'run', SP.t, 0.5);
+    for (const d of SP.defs) {
+      if (!d.active) continue;
+      d.m.group.position.set(d.x, 0, d.z);
+      d.m.group.rotation.y = d.face;
+      animateCritter(d.m, d.moving, SP.t + d.x * 10, 0.45);
+    }
+  },
+  hud() {
+    panel(8, 8, 200, 62);
+    text(`PLAY ${SP.play}/3`, 22, 32, { size: 16, color: '#ffd84a' });
+    text('TRIES', 22, 56, { size: 13, color: '#c8bfe0' });
+    for (let i = 0; i < 2; i++) px(84 + i * 18, 45, 12, 12, i < SP.tries ? '#5cdc6a' : '#3a3370');
+    const dist = Math.max(0, Math.round(SP.z - TRY_Z));
+    panel(W - 160, 8, 152, 40, '#3a3370');
+    text(`${dist} m to go`, W - 84, 33, { size: 15, color: '#f4ecd8', align: 'center' });
+    text('DASH', W - 150, 72, { size: 12, color: '#c8bfe0' });
+    bar(W - 104, 60, 96, 14, 1 - Math.max(0, SP.dashCd) / 70, SP.dashCd <= 0 ? '#5cdc6a' : '#9a8fb0');
+    hint('A/D dodge · W sprint · SPACE sidestep · score 2 tries to win');
+    drawReady('Reach the try line! A/D to dodge · SPACE to sidestep');
+    drawBanner(H / 2, 48);
+  },
+  focus: () => ({ x: SP.x, y: 0.6, z: SP.z, r: 6 })
+};
+
+/* =========================================================
+   SPORT 5: CLIMBING
+   ========================================================= */
+const CL_TOP = 20, CL_PX = -1.4, CL_CX = 1.4;
+SPORTS.climb = {
+  start() {
+    setSky('#9fd8ff', 25, 60); aimSun(0, 0, 0);
+    ground('#5cae4a');
+    box(9, 24, 0.6, '#8a7a6a', 0, 12, -0.3, sg).castShadow = false;
+    for (let i = 0; i < 60; i++) box(rand(0.6, 1.6), rand(0.4, 1.2), 0.1, i % 2 ? '#7a6a5a' : '#9a8a78', rand(-4, 4), rand(0.5, 23), 0.02, sg).castShadow = false;
+    const hc = ['#e0403a', '#30a0f0', '#ffd84a', '#5cdc6a', '#e05a9a', '#f0a020'];
+    for (let i = 0; i < 140; i++) box(0.2, 0.14, 0.14, hc[i % 6], rand(-4, 4), rand(0.4, 21), 0.08, sg);
+    box(0.06, 24, 0.06, '#ffd84a', 0, 12, 0.05, sg);
+    box(9.4, 0.4, 1.4, '#6d6d78', 0, CL_TOP + 1.3, 0.3, sg);
+    for (const x of [CL_PX, CL_CX]) {
+      box(0.05, 1.2, 0.05, '#3a2a20', x, CL_TOP + 2.1, 0.4, sg);
+      box(0.5, 0.3, 0.03, x < 0 ? '#30a0f0' : '#f0a020', x + 0.27, CL_TOP + 2.5, 0.4, sg);
+    }
+    box(8, 0.3, 2.2, '#30a0f0', 0, 0.15, 1.1, sg);
+    const a = addActors('climb');
+    for (const m of [a.cat, a.champ]) m.group.rotation.set(-Math.PI / 2, Math.PI, 0, 'YXZ');
+    SP.rock = box(0.5, 0.42, 0.5, '#5a5a66', CL_PX, -5, 0.8, sg);
+    Object.assign(SP, { ph: 0, ch: 0, last: null, rockY: null, rockT: 220, champNext: 30, step: 0, cstep: 0, timer: 180 });
+  },
+  update() {
+    SP.t++;
+    if (SP.bannerT > 0) SP.bannerT--;
+    const camY = Math.max(SP.ph, 0);
+    camera.position.set(0, camY + 2.4, 7.6); camera.lookAt(0, camY + 1.5, 0);
+    aimSun(0, camY, 0);
+    if (SP.phase === 'ready') { if (readyTick()) SP.phase = 'climb'; return; }
+    if (SP.phase === 'end') { if (--SP.timer <= 0) finishSport(SP.ph >= CL_TOP, SP.ph >= CL_TOP ? 'You reached the summit first' : `You were ${Math.round(CL_TOP - SP.ph)} m from the top`); return; }
+    const braced = isDown(...DOWN);
+    if (!braced) {
+      const d = hit(...LEFT) ? 'L' : hit(...RIGHT) ? 'R' : null;
+      if (d) {
+        if (d !== SP.last) { SP.ph += 0.38; SP.last = d; SP.step++; SFX.blip(500 + (SP.step % 2) * 120); }
+        else { SP.ph = Math.max(0, SP.ph - 0.5); SP.last = null; banner('SLIP!', 30, '#e04848'); SFX.miss(); shakeIt(0.06); }
+      }
+    }
+    // falling rocks in your lane
+    if (SP.rockY === null) {
+      if (--SP.rockT <= 0) { SP.rockY = SP.ph + 7; banner('ROCK! HOLD S', 50, '#e04848'); SFX.wall(); }
+    } else {
+      SP.rockY -= 0.11;
+      if (SP.rockY <= SP.ph + 1.3) {
+        if (braced) { banner('BRACED!', 40, '#5cdc6a'); SFX.good(); }
+        else { SP.ph = Math.max(0, SP.ph - 2); banner('BONK!', 50, '#e04848'); SFX.thud(); shakeIt(0.25); }
+        burst3D(arenaParticles, CL_PX, SP.rockY, 0.8, '#7d7f8c', 14, 0.09);
+        SP.rockY = null; SP.rockT = Math.floor(rand(150, 260));
+      }
+    }
+    if (--SP.champNext <= 0) {
+      if (Math.random() < 0.06) SP.ch = Math.max(0, SP.ch - 0.5);
+      else { SP.ch += 0.38; SP.cstep++; }
+      SP.champNext = Math.floor(rand(10, 15));
+    }
+    if (SP.ph >= CL_TOP || SP.ch >= CL_TOP) {
+      SP.phase = 'end'; SP.timer = 90;
+      const won = SP.ph >= CL_TOP;
+      banner(won ? 'SUMMIT!' : 'SAGE WINS!', 90, won ? '#ffd84a' : '#e04848');
+      burst3D(arenaParticles, won ? CL_PX : CL_CX, CL_TOP + 1, 0.6, '#ffd84a', 30, 0.12);
+      won ? SFX.score() : SFX.miss();
+    }
+  },
+  visuals() {
+    const a = game.actors;
+    a.cat.group.position.set(CL_PX, Math.min(SP.ph, CL_TOP), 0.05);
+    a.champ.group.position.set(CL_CX, Math.min(SP.ch, CL_TOP), 0.05);
+    const ps = (SP.step % 2) ? 0.6 : -0.6, cs = (SP.cstep % 2) ? 0.6 : -0.6;
+    a.cat.legs[0].rotation.x = ps; a.cat.legs[3].rotation.x = ps; a.cat.legs[1].rotation.x = -ps; a.cat.legs[2].rotation.x = -ps;
+    a.champ.legs[0].rotation.x = cs; a.champ.legs[3].rotation.x = cs; a.champ.legs[1].rotation.x = -cs; a.champ.legs[2].rotation.x = -cs;
+    a.cat.tail.rotation.y = Math.sin(game.tick / 9) * 0.5;
+    SP.rock.visible = SP.rockY !== null;
+    if (SP.rockY !== null) { SP.rock.position.y = SP.rockY + 0.4; SP.rock.rotation.x += 0.1; SP.rock.rotation.z += 0.07; }
+  },
+  hud() {
+    const drawLane = (x, v, col, label) => {
+      text(label, x + 12, 34, { size: 12, color: col, align: 'center' });
+      px(x, 42, 24, 300, '#000'); px(x + 3, 45, 18, 294, '#2a2550');
+      const f = clamp(v / CL_TOP, 0, 1);
+      px(x + 3, 45 + 294 * (1 - f), 18, 294 * f, col);
+    };
+    drawLane(16, SP.ph, '#30a0f0', 'YOU');
+    drawLane(W - 40, SP.ch, '#f0a020', 'SAGE');
+    text(`${Math.round(SP.ph)} / ${CL_TOP} m`, 60, 340, { size: 13, color: '#f4ecd8' });
+    if (SP.rockY !== null && Math.floor(SP.t / 6) % 2) text('!', W / 2 - 60, 120, { size: 40, color: '#e04848', align: 'center' });
+    if (isDown(...DOWN) && SP.phase === 'climb') text('BRACING', W / 2, 90, { size: 16, color: '#5cdc6a', align: 'center' });
+    hint('Alternate A / D (← / →) to climb · same paw twice = slip · HOLD S when a rock falls');
+    drawReady('Alternate A and D to climb · HOLD S to brace for rocks');
+    drawBanner(H / 2 - 30, 40);
+  },
+  focus: () => ({ x: 0, y: Math.min(Math.max(SP.ph, SP.ch), CL_TOP) + 0.5, z: 0.5, r: 6 })
+};
+
+/* =========================================================
+   SPORT 6: SWIMMING
+   ========================================================= */
+const SW_START = -25, SW_END = 25;
+SPORTS.swim = {
+  start() {
+    setSky('#bfe8ff', 25, 60); aimSun(0, 0, 0);
+    ground('#cfdde4', 120, 60);
+    box(56, 1.2, 1.8, '#dfe8ee', 0, -0.6, -3.5, sg); box(56, 1.2, 1.8, '#dfe8ee', 0, -0.6, 3.5, sg);
+    box(3, 1.2, 8.8, '#dfe8ee', -28.5, -0.6, 0, sg); box(3, 1.2, 8.8, '#dfe8ee', 28.5, -0.6, 0, sg);
+    box(54, 0.2, 5.4, '#1f6fb0', 0, -1.3, 0, sg);
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(54, 5.4), new THREE.MeshPhongMaterial({ color: '#2fa0e0', transparent: true, opacity: 0.78, shininess: 90 }));
+    water.rotation.x = -Math.PI / 2; water.position.y = -0.12; sg.add(water);
+    for (let i = 0; i < 54; i++) for (const z of [-2.55, 0, 2.55]) box(0.9, 0.08, 0.08, i % 2 ? '#e0403a' : '#ffffff', -26.5 + i, -0.08, z, sg).castShadow = false;
+    for (const x of [-22, 22]) {
+      for (const z of [-3.5, 3.5]) box(0.08, 2.4, 0.08, '#c8c8d0', x, 1.2, z, sg);
+      for (let i = 0; i < 9; i++) box(0.3, 0.25, 0.04, ['#e0403a', '#ffd84a', '#30a0f0'][i % 3], x, 2.2, -3.2 + i * 0.8, sg);
+    }
+    for (const z of [-1.27, 1.27]) box(0.8, 0.5, 0.9, '#f4f4f4', SW_START - 1.4, 0.15, z, sg);
+    box(0.2, 0.6, 5.4, '#ffd84a', SW_END + 0.4, -0.2, 0, sg);
+    const a = addActors('swim');
+    for (const m of [a.cat, a.champ]) m.group.rotation.y = Math.PI / 2;
+    Object.assign(SP, { x: SW_START, cx: SW_START, v: 0, cv: 0, needle: 0, ndir: 1, oxy: 1, breathT: 0, strokeCd: 0, timer: 180, stroke: 0, cstroke: 0 });
+  },
+  update() {
+    SP.t++;
+    if (SP.bannerT > 0) SP.bannerT--;
+    const fx = clamp(SP.x, SW_START, SW_END);
+    camera.position.set(fx + 1, 3.4, 7.5); camera.lookAt(fx + 3, -0.2, 0);
+    aimSun(fx + 2, 0, 0);
+    SP.needle += 0.034 * SP.ndir;
+    if (SP.needle >= 1) { SP.needle = 1; SP.ndir = -1; } else if (SP.needle <= 0) { SP.needle = 0; SP.ndir = 1; }
+    if (SP.phase === 'ready') { if (readyTick()) SP.phase = 'swim'; return; }
+    if (SP.phase === 'end') { if (--SP.timer <= 0) finishSport(SP.x >= SW_END, SP.x >= SW_END ? 'You touched the wall first' : `You were ${Math.round(SW_END - SP.x)} m behind`); return; }
+    SP.strokeCd--;
+    if (hit('Space') && SP.strokeCd <= 0 && SP.breathT <= 0) {
+      const off = Math.abs(SP.needle - 0.5);
+      if (off < 0.08) { SP.v += 0.05; banner('PERFECT', 25, '#5cdc6a'); SFX.good(); }
+      else if (off < 0.2) { SP.v += 0.025; banner('GOOD', 25, '#ffd84a'); SFX.blip(700); }
+      else { SP.v = Math.max(0, SP.v - 0.01); banner('SPLASH', 25, '#e04848'); SFX.splash(); }
+      SP.strokeCd = 12; SP.stroke++;
+      burst3D(arenaParticles, SP.x + 0.4, 0, 1.27, '#e8f6ff', 8, 0.06);
+    }
+    if (hit(...UP) && SP.breathT <= 0) { SP.oxy = 1; SP.v *= 0.6; SP.breathT = 25; SFX.splash(); }
+    if (SP.breathT > 0) SP.breathT--;
+    SP.oxy = Math.max(0, SP.oxy - 1 / 420);
+    if (SP.oxy <= 0) { SP.v = Math.min(SP.v, 0.03); if (SP.t % 40 === 0) banner('NEED AIR! (W)', 35, '#e04848'); }
+    SP.v = clamp(SP.v * 0.985, 0, 0.15);
+    SP.x += SP.v;
+    SP.cv = lerp(SP.cv, 0.078 + Math.sin(SP.t * 0.05) * 0.012, 0.05);
+    SP.cx += SP.cv;
+    if (SP.t % 22 === 0) { SP.cstroke++; burst3D(arenaParticles, SP.cx + 0.4, 0, -1.27, '#e8f6ff', 5, 0.05); }
+    if (SP.x >= SW_END || SP.cx >= SW_END) {
+      SP.phase = 'end'; SP.timer = 90;
+      const won = SP.x >= SW_END;
+      banner(won ? 'YOU WIN THE RACE!' : 'SHELLY WINS!', 90, won ? '#ffd84a' : '#e04848');
+      won ? SFX.score() : SFX.miss();
+    }
+  },
+  visuals() {
+    const a = game.actors;
+    const bob = Math.sin(SP.t * 0.25) * 0.04;
+    a.cat.group.position.set(Math.min(SP.x, SW_END), -0.38 + bob + (SP.breathT > 0 ? 0.15 : 0), 1.27);
+    a.champ.group.position.set(Math.min(SP.cx, SW_END), -0.38 - bob, -1.27);
+    animateCritter(a.cat, SP.phase !== 'ready', SP.t, 0.2 + SP.v * 3);
+    animateCritter(a.champ, SP.phase !== 'ready', SP.t, 0.45);
+    if (SP.phase !== 'ready' && SP.t % 5 === 0) burst3D(arenaParticles, SP.x - 0.4, -0.05, 1.27, '#ffffff', 1, 0.02);
+  },
+  hud() {
+    const mx = W / 2 - 160, my = H - 70;
+    px(mx, my, 320, 22, '#000');
+    px(mx + 3, my + 3, 314, 16, '#4a1f1f');
+    px(mx + 3 + 314 * 0.3, my + 3, 314 * 0.4, 16, '#8a7a20');
+    px(mx + 3 + 314 * 0.42, my + 3, 314 * 0.16, 16, '#2a8a3a');
+    px(mx + 3 + 314 * SP.needle - 2, my - 4, 5, 30, '#ffffff');
+    text('STROKE', mx - 80, my + 16, { size: 13, color: '#c8bfe0' });
+    panel(8, 8, 220, 62);
+    text('AIR', 22, 32, { size: 13, color: '#c8bfe0' });
+    bar(64, 20, 150, 16, SP.oxy, SP.oxy > 0.3 ? '#9fd8ff' : '#e04848');
+    text(`${Math.max(0, Math.round(SW_END - SP.x))} m to go`, 22, 58, { size: 14, color: '#f4ecd8' });
+    const track = (y, v, col, label) => {
+      text(label, W - 236, y + 11, { size: 11, color: col });
+      bar(W - 186, y, 170, 14, (v - SW_START) / (SW_END - SW_START), col);
+    };
+    panel(W - 248, 8, 240, 62, '#3a3370');
+    track(20, SP.x, '#30a0f0', 'YOU'); track(44, SP.cx, '#5cae4a', 'SHELLY');
+    hint('SPACE when the needle is in the green · W to breathe when air runs low');
+    drawReady('SPACE in the green zone to stroke · W to breathe');
+    drawBanner(H / 2 - 40, 32);
+  },
+  focus: () => ({ x: clamp(SP.x, SW_START, SW_END), y: 0, z: 0, r: 6 })
+};
+
+/* =========================================================
+   SPORT 7: MARATHON (hurdle sprint)
+   ========================================================= */
+const RUN_END = 120;
+SPORTS.run = {
+  start() {
+    setSky('#9fd8ff', 30, 70); aimSun(0, 0, 0);
+    ground('#5cae4a', 300, 60, 60, 0);
+    box(150, 0.06, 3.8, '#b8483a', 60, 0.03, 0, sg).castShadow = false;
+    for (const z of [-1.85, 0, 1.85]) box(150, 0.07, 0.06, '#ffffff', 60, 0.035, z, sg).castShadow = false;
+    for (let i = 0; i <= RUN_END; i += 20) {
+      box(0.06, 1, 0.06, '#ffffff', i, 0.5, -2.4, sg);
+      box(0.8, 0.4, 0.05, '#1b1420', i, 1.1, -2.4, sg);
+    }
+    for (let i = 0; i < 26; i++) voxelTree(-10 + i * 6.5, -6 - hash(i, 1) * 3, 0, sg);
+    box(0.2, 0.05, 3.8, '#ffffff', RUN_END, 0.05, 0, sg);
+    for (const z of [-2.2, 2.2]) box(0.2, 3.2, 0.2, '#ffffff', RUN_END, 1.6, z, sg);
+    box(0.25, 0.6, 4.6, '#e05a9a', RUN_END, 3.2, 0, sg);
+    SP.hurdles = [];
+    for (let h = 12; h < RUN_END - 6; h += rand(9, 14)) {
+      const hd = { x: h, meshes: [], knocked: [false, false] };
+      [0.9, -0.9].forEach((z, li) => {
+        const g = new THREE.Group(); g.position.set(h, 0, z);
+        box(0.06, 0.55, 0.06, '#dddddd', 0, 0.27, -0.6, g); box(0.06, 0.55, 0.06, '#dddddd', 0, 0.27, 0.6, g);
+        box(0.08, 0.14, 1.3, '#ffffff', 0, 0.55, 0, g); box(0.085, 0.05, 1.3, '#1b1420', 0, 0.55, 0, g);
+        sg.add(g); hd.meshes[li] = g;
+      });
+      SP.hurdles.push(hd);
+    }
+    const a = addActors('run');
+    for (const m of [a.cat, a.champ]) m.group.rotation.y = Math.PI / 2;
+    Object.assign(SP, { x: 0, cx: 0, v: 0, cv: 0, sta: 1, exhaust: 0, jumpT: 0, cjumpT: 0, trip: 0, ctrip: 0, timer: 180, cHurdle: 0, pHurdle: 0 });
+  },
+  update() {
+    SP.t++;
+    if (SP.bannerT > 0) SP.bannerT--;
+    const fx = Math.min(SP.x, RUN_END);
+    camera.position.set(fx + 1, 2.7, 7.4); camera.lookAt(fx + 3.5, 0.7, 0);
+    aimSun(fx + 3, 0, 0);
+    if (SP.phase === 'ready') { if (readyTick()) SP.phase = 'race'; return; }
+    if (SP.phase === 'end') { if (--SP.timer <= 0) finishSport(SP.x >= RUN_END, SP.x >= RUN_END ? 'You crossed the line first' : `You were ${Math.round(RUN_END - SP.x)} m behind`); return; }
+    if (hit('Space')) { SP.v += 0.018; SFX.blip(300 + SP.v * 2000); }
+    if (hit(...UP) && SP.jumpT <= 0) { SP.jumpT = 34; SFX.move(); }
+    SP.v = clamp(SP.v * 0.993, 0, 0.22);
+    if (SP.exhaust > 0) { SP.exhaust--; SP.v = Math.min(SP.v, 0.05); }
+    if (SP.v > 0.165) SP.sta -= 0.007; else SP.sta = Math.min(1, SP.sta + 0.0025);
+    if (SP.sta <= 0) { SP.sta = 0.25; SP.exhaust = 100; banner('EXHAUSTED!', 70, '#e04848'); SFX.miss(); }
+    const prev = SP.x;
+    SP.x += SP.trip > 0 ? SP.v * 0.5 : SP.v;
+    if (SP.trip > 0) SP.trip--;
+    if (SP.jumpT > 0) SP.jumpT--;
+    for (const hd of SP.hurdles) {
+      if (prev < hd.x && SP.x >= hd.x) {
+        if (SP.jumpT > 4 && SP.jumpT < 31) { SFX.good(); }
+        else { SP.v *= 0.3; SP.trip = 30; hd.knocked[0] = true; shakeIt(0.2); banner('TRIPPED!', 45, '#e04848'); SFX.thud(); burst3D(arenaParticles, hd.x, 0.4, 0.9, '#ffffff', 10, 0.07); }
+      }
+    }
+    // champion: steady pace, auto-jumps, sometimes clips a hurdle
+    const cprev = SP.cx;
+    SP.cv = lerp(SP.cv, 0.135 + Math.sin(SP.t * 0.02) * 0.008, 0.03);
+    SP.cx += SP.ctrip > 0 ? SP.cv * 0.5 : SP.cv;
+    if (SP.ctrip > 0) SP.ctrip--;
+    if (SP.cjumpT > 0) SP.cjumpT--;
+    for (const hd of SP.hurdles) {
+      if (SP.cjumpT <= 0 && hd.x - SP.cx > 0 && hd.x - SP.cx < SP.cv * 17) SP.cjumpT = 34;
+      if (cprev < hd.x && SP.cx >= hd.x && Math.random() < 0.08) { SP.ctrip = 30; SP.cv *= 0.4; hd.knocked[1] = true; }
+    }
+    if (SP.x >= RUN_END || SP.cx >= RUN_END) {
+      SP.phase = 'end'; SP.timer = 90;
+      const won = SP.x >= RUN_END;
+      banner(won ? 'PHOTO FINISH... YOU!' : 'HARU WINS!', 90, won ? '#ffd84a' : '#e04848');
+      won ? SFX.score() : SFX.miss();
+    }
+  },
+  visuals() {
+    const a = game.actors;
+    const jy = t => t > 0 ? Math.sin(Math.PI * (34 - t) / 34) * 0.8 : 0;
+    a.cat.group.position.set(Math.min(SP.x, RUN_END + 2), jy(SP.jumpT), 0.9);
+    a.champ.group.position.set(Math.min(SP.cx, RUN_END + 2), jy(SP.cjumpT), -0.9);
+    a.cat.group.rotation.z = SP.trip > 0 ? -0.4 : 0;
+    a.champ.group.rotation.z = SP.ctrip > 0 ? -0.4 : 0;
+    animateCritter(a.cat, SP.v > 0.01 && SP.jumpT <= 0, SP.t, 0.2 + SP.v * 3);
+    animateCritter(a.champ, SP.phase !== 'ready' && SP.cjumpT <= 0, SP.t, 0.55);
+    for (const hd of SP.hurdles) hd.meshes.forEach((m, i) => { if (hd.knocked[i]) m.rotation.z = lerp(m.rotation.z, -1.4, 0.2); });
+  },
+  hud() {
+    panel(8, 8, 250, 84);
+    text('PACE', 22, 32, { size: 13, color: '#c8bfe0' });
+    const bx = 80, bw = 164;
+    px(bx, 20, bw, 16, '#000'); px(bx + 2, 22, bw - 4, 12, '#2a2550');
+    px(bx + 2 + (bw - 4) * (0.12 / 0.22), 22, (bw - 4) * (0.045 / 0.22), 12, '#2a6a3a');
+    px(bx + 2 + (bw - 4) * (0.165 / 0.22), 22, (bw - 4) * (0.055 / 0.22), 12, '#6a2a2a');
+    px(bx + 2 + (bw - 4) * (SP.v / 0.22) - 2, 17, 4, 22, '#ffffff');
+    text('STAMINA', 22, 58, { size: 13, color: '#c8bfe0' });
+    bar(110, 46, 134, 16, SP.sta, SP.exhaust > 0 ? '#9a8fb0' : SP.sta > 0.3 ? '#5cdc6a' : '#e04848');
+    text(`${Math.max(0, Math.round(RUN_END - SP.x))} m to go`, 22, 84, { size: 13, color: '#f4ecd8' });
+    panel(W - 248, 8, 240, 62, '#3a3370');
+    text('YOU', W - 236, 31, { size: 11, color: '#30a0f0' }); bar(W - 186, 20, 170, 14, SP.x / RUN_END, '#30a0f0');
+    text('HARU', W - 236, 55, { size: 11, color: '#e05a9a' }); bar(W - 186, 44, 170, 14, SP.cx / RUN_END, '#e05a9a');
+    hint('Tap SPACE to run · stay in the green pace zone · W to jump hurdles');
+    drawReady('Tap SPACE to run · keep pace in the green · W to jump');
+    drawBanner(H / 2 - 40, 34);
+  },
+  focus: () => ({ x: Math.min(SP.x, RUN_END), y: 0.6, z: 0, r: 6 })
+};
+
+/* =========================================================
+   SPORT 8: JUDO
+   ========================================================= */
+SPORTS.judo = {
+  start() {
+    setSky('#2a1f3d', 14, 30); aimSun(0, 0, 0);
+    ground('#7a5a3a', 40, 40);
+    box(7.6, 0.12, 7.6, '#c8302a', 0, 0.06, 0, sg).castShadow = false;
+    box(7, 0.15, 7, '#c8c070', 0, 0.075, 0, sg).castShadow = false;
+    for (let i = -3; i <= 3; i++) box(0.03, 0.152, 7, '#a8a050', i, 0.076, 0, sg).castShadow = false;
+    box(16, 5, 0.3, '#efe6d2', 0, 2.5, -5, sg);
+    for (const x of [-6, -2, 2, 6]) box(0.3, 5, 0.35, '#5a3a22', x, 2.5, -4.95, sg);
+    box(16, 0.3, 0.4, '#5a3a22', 0, 4.9, -4.9, sg);
+    box(2.4, 1.2, 0.05, '#f4f4f4', 0, 3.2, -4.8, sg);
+    pixelDiscBanner();
+    const a = addActors('judo');
+    a.cat.group.rotation.y = Math.PI / 2; a.champ.group.rotation.y = -Math.PI / 2;
+    a.cat.group.scale.setScalar(1.3); a.champ.group.scale.setScalar(1.3);
+    Object.assign(SP, { bal: 0, you: 0, them: 0, timer: 150, atk: -1, atkT: 140, win: 0, throwT: 0, thrower: null });
+    function pixelDiscBanner() {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.04, 20), mat('#e0403a'));
+      m.rotation.x = Math.PI / 2; m.position.set(0, 3.2, -4.76); sg.add(m);
+    }
+  },
+  resetPose() {
+    const a = game.actors;
+    a.cat.group.rotation.set(0, Math.PI / 2, 0); a.champ.group.rotation.set(0, -Math.PI / 2, 0);
+  },
+  update() {
+    SP.t++;
+    if (SP.bannerT > 0) SP.bannerT--;
+    camera.position.set(SP.bal * 0.3, 3.4, 6.4); camera.lookAt(SP.bal * 0.3, 0.9, 0);
+    if (SP.phase === 'ready') { if (readyTick()) { SP.phase = 'fight'; banner('HAJIME!', 50); } return; }
+    if (SP.phase === 'fight') {
+      if (hit('Space')) { SP.bal += 0.05; if (SP.t % 2 === 0) SFX.blip(400); }
+      SP.bal -= 0.0045 + (Math.random() < 0.01 ? 0.05 : 0);
+      if (SP.atk < 0) {
+        if (--SP.atkT <= 0) {
+          SP.atk = Math.floor(rand(0, 4));
+          SP.win = SP.winMax = Math.max(26, 48 - (SP.you + SP.them) * 6);
+          SFX.wall();
+        }
+      } else {
+        const d = pressedDir();
+        if (d === SP.atk) {
+          SP.bal += 0.35; banner('COUNTER!', 40, '#5cdc6a'); SFX.hit(); shakeIt(0.1);
+          burst3D(arenaParticles, SP.bal * 0.5, 1.2, 0, '#ffd84a', 12, 0.08);
+          SP.atk = -1; SP.atkT = Math.floor(rand(130, 210));
+        } else if (d >= 0 || --SP.win <= 0) {
+          SP.bal -= 0.4; banner('GRABBED!', 40, '#e04848'); SFX.hitAI(); shakeIt(0.12);
+          SP.atk = -1; SP.atkT = Math.floor(rand(130, 210));
+        }
+      }
+      if (SP.bal >= 1 || SP.bal <= -1) {
+        SP.thrower = SP.bal >= 1 ? 'you' : 'them';
+        SP.thrower === 'you' ? SP.you++ : SP.them++;
+        SP.phase = 'throw'; SP.throwT = 0; SP.atk = -1;
+        banner('IPPON!', 90, SP.thrower === 'you' ? '#ffd84a' : '#e04848');
+        SFX.thud(); shakeIt(0.35);
+      }
+    } else if (SP.phase === 'throw') {
+      SP.throwT++;
+      if (SP.throwT === 40) { burst3D(arenaParticles, SP.thrower === 'you' ? 1.6 : -1.6, 0.3, 0, '#f4f4f4', 24, 0.12); SFX.thud(); }
+      if (SP.throwT >= 110) {
+        if (SP.you >= 2 || SP.them >= 2) { finishSport(SP.you >= 2, `${SP.you} - ${SP.them} in throws`); return; }
+        SP.bal = 0; this.resetPose(); SP.phase = 'ready'; SP.timer = 90; SP.atkT = Math.floor(rand(110, 180));
+      }
+    }
+    SP.bal = clamp(SP.bal, -1, 1);
+  },
+  visuals() {
+    const a = game.actors, off = SP.bal * 0.6;
+    if (SP.phase === 'throw') {
+      const p = Math.min(1, SP.throwT / 40);
+      const winner = SP.thrower === 'you' ? a.cat : a.champ, loser = SP.thrower === 'you' ? a.champ : a.cat;
+      const dir = SP.thrower === 'you' ? 1 : -1;
+      winner.group.position.set(off - dir * 0.75 + dir * 0.75, 0.15, 0);
+      loser.group.position.set(lerp(off + dir * 0.75, off + dir * 2.0, p), 0.15 + Math.sin(p * Math.PI) * 1.4, 0);
+      loser.group.rotation.z = dir * p * Math.PI;
+    } else {
+      a.cat.group.position.set(off - 0.75, 0.15, 0);
+      a.champ.group.position.set(off + 0.75, 0.15, 0);
+      a.cat.body.rotation.x = 0.15 + Math.max(0, SP.bal) * 0.2;
+      a.champ.body.rotation.x = 0.15 + Math.max(0, -SP.bal) * 0.2;
+    }
+    const struggle = SP.phase === 'fight';
+    animateCritter(a.cat, struggle, SP.t, 0.6);
+    animateCritter(a.champ, struggle, SP.t + 3, 0.6);
+  },
+  hud() {
+    const bx = W / 2 - 200, by = 70;
+    panel(bx - 8, by - 12, 416, 42, '#f0a020');
+    px(bx, by, 400, 18, '#000');
+    px(bx + 2, by + 2, 198, 14, '#4a1f1f'); px(bx + 200, by + 2, 198, 14, '#1f3a4a');
+    px(bx + 200 + SP.bal * 196 - 3, by - 4, 6, 26, '#ffffff');
+    text('KUMA', bx - 16, by + 14, { size: 12, color: '#e04848', align: 'right' });
+    text('YOU', bx + 418, by + 14, { size: 12, color: '#30a0f0' });
+    panel(W / 2 - 90, 6, 180, 42, '#3a3370');
+    text('IPPON', W / 2, 22, { size: 11, color: '#c8bfe0', align: 'center' });
+    for (let i = 0; i < 2; i++) {
+      px(W / 2 - 70 + i * 16, 28, 12, 12, i < SP.you ? '#30a0f0' : '#2a2550');
+      px(W / 2 + 34 + i * 16, 28, 12, 12, i < SP.them ? '#e04848' : '#2a2550');
+    }
+    if (SP.atk >= 0) {
+      keyBox(W / 2, H / 2 - 40, SP.atk, 'now');
+      bar(W / 2 - 40, H / 2 - 8, 80, 8, SP.win / SP.winMax, '#e04848');
+      text('COUNTER!', W / 2, H / 2 - 74, { size: 18, color: '#ffd84a', align: 'center' });
+    }
+    hint('MASH SPACE to push · press the shown ARROW to counter a grab · 2 ippon wins');
+    drawReady('MASH SPACE to push · press the ARROW shown to counter');
+    drawBanner(H / 2 + 60, 44);
+  },
+  focus: () => ({ x: 0, y: 0.8, z: 0, r: 6 })
+};
 
 /* =========================================================
    GAME OVER STATE
    ========================================================= */
 function returnToIsland() {
-  player.x = tx(13); player.z = tz(5) + 0.1; player.angle = 0;
+  const key = game.sport;
+  if (key === 'tt') { player.x = tx(13); player.z = tz(5) + 0.1; }
+  else { const [c, r] = CHAMPS[key].tile; player.x = tx(c); player.z = tz(r) + 1; }
+  player.angle = 0;
   game.doorArmed = false;
   clearPool(islandParticles);
   followCamera(true);
   setState(STATES.OVERWORLD);
 }
 function updateGameOver() {
-  const r = game.result;
+  const r = game.result, o = game.orbit, a = game.actors;
   if (r && r.won && game.stateTick % 8 === 0) {
     const cols = ['#ffd84a', '#30a0f0', '#e0403a', '#5cdc6a', '#f39ab4'];
     hudBurst(rand(40, W - 40), rand(-10, 60), cols[Math.floor(rand(0, cols.length))], 6, 2, 0.08);
   }
-  // orbit the arena while the winner celebrates
-  const a = game.stateTick * 0.006;
-  camera.position.set(Math.sin(a) * 10, 4.5, Math.cos(a) * 10);
-  camera.lookAt(0, 0.8, 0);
-  mg.ball.visible = false;
+  const ang = game.stateTick * 0.006;
+  camera.position.set(o.x + Math.sin(ang) * o.r, o.y + 3.5, o.z + Math.cos(ang) * o.r);
+  camera.lookAt(o.x, o.y, o.z);
+  aimSun(o.x, 0, o.z);
   const jump = Math.abs(Math.sin(game.stateTick / 9)) * 0.5;
-  mg.pHop = r && r.won ? jump : 0;
-  mg.aHop = r && !r.won ? jump : 0;
+  if (a) {
+    if (a.cat.baseY !== undefined) a.cat.group.position.y = a.cat.baseY + (r.won ? jump : 0);
+    if (a.champ.baseY !== undefined) a.champ.group.position.y = a.champ.baseY + (!r.won ? jump : 0);
+  }
+  if (game.sport === 'tt') { mg.ball.visible = false; ballMesh.visible = false; trail.forEach(t => (t.visible = false)); ttCrowd(); }
+  updatePool(arenaParticles);
   if (game.stateTick > 30) {
     if (hit('Space', 'Enter')) { SFX.select(); returnToIsland(); }
-    else if (hit('KeyR')) { SFX.select(); startMatch(); }
+    else if (hit('KeyR')) { SFX.select(); startSport(game.sport); }
   }
 }
 function drawScroll(cx, cy) {
@@ -1104,23 +2026,25 @@ function drawScroll(cx, cy) {
   px(cx - 46, cy + 30, 6, 4, '#ffd84a'); px(cx + 40, cy + 30, 6, 4, '#ffd84a');
 }
 function drawGameOverHud() {
-  const r = game.result || { won: false, ps: 0, as: 0 };
+  const r = game.result, c = CHAMPS[r.key];
   ctx.globalAlpha = 0.6; px(0, 0, W, H, r.won ? '#1a1436' : '#120c18'); ctx.globalAlpha = 1;
   if (r.won) {
     text('VICTORY!', W / 2, 92, { size: 56, color: '#ffd84a', align: 'center', shadow: '#7a2a10' });
-    text(`You beat Coach Tanuki ${r.ps} - ${r.as}`, W / 2, 132, { size: 18, color: '#f4ecd8', align: 'center' });
+    text(`You beat ${c.name}  ·  ${r.detail}`, W / 2, 132, { size: 17, color: '#f4ecd8', align: 'center' });
     drawScroll(W / 2, 224 + Math.round(Math.sin(game.tick / 15) * 4));
     drawSprite(CAT_SPRITE, W / 2 - 160, 196, 5);
-    text(r.first ? 'TABLE TENNIS SCROLL OBTAINED!' : 'CHAMPION DEFEATED AGAIN!', W / 2, 312, { size: 20, color: '#5cdc6a', align: 'center' });
+    drawSprite(c.portrait, W / 2 + 100, 196, 5);
+    text(r.first ? `${c.sport} SCROLL OBTAINED!` : 'CHAMPION DEFEATED AGAIN!', W / 2, 312, { size: 20, color: '#5cdc6a', align: 'center' });
+    if (game.beaten.size === 8) text('ALL 8 SCROLLS! YOU ARE THE CHAMPION OF THE ISLE!', W / 2, 340, { size: 16, color: '#ffd84a', align: 'center' });
   } else {
     text('DEFEAT', W / 2, 92, { size: 56, color: '#e04848', align: 'center', shadow: '#3a0a0a' });
-    text(`Coach Tanuki wins ${r.as} - ${r.ps}`, W / 2, 132, { size: 18, color: '#f4ecd8', align: 'center' });
-    drawSprite(TANUKI_SPRITE, W / 2 - 36, 170 - Math.round(Math.abs(Math.sin(game.tick / 8)) * 6), 6);
-    text('"Ha! Come back when your paws are faster!"', W / 2, 312, { size: 16, color: '#ffd84a', align: 'center' });
+    text(`${c.name} wins  ·  ${r.detail}`, W / 2, 132, { size: 17, color: '#f4ecd8', align: 'center' });
+    drawSprite(c.portrait, W / 2 - 36, 170 - Math.round(Math.abs(Math.sin(game.tick / 8)) * 6), 6);
+    text(`"${c.taunt}"`, W / 2, 312, { size: 15, color: '#ffd84a', align: 'center' });
   }
-  text(`RECORD  W ${game.wins}  -  L ${game.losses}`, W / 2, 352, { size: 14, color: '#c8bfe0', align: 'center' });
+  text(`SCROLLS ${game.beaten.size}/8   ·   RECORD  W ${game.wins} - L ${game.losses}`, W / 2, 368, { size: 14, color: '#c8bfe0', align: 'center' });
   if (Math.floor(game.tick / 30) % 2 === 0) {
-    text('SPACE: Return to Island     R: Rematch', W / 2, 410, { size: 18, color: '#ffffff', align: 'center', shadow: '#e0403a' });
+    text('SPACE: Return to Island     R: Rematch', W / 2, 414, { size: 18, color: '#ffffff', align: 'center', shadow: '#e0403a' });
   }
   drawHudParticles();
 }
@@ -1136,14 +2060,16 @@ function update() {
     case STATES.MENU: updateMenu(); break;
     case STATES.OVERWORLD: updateOverworld(); break;
     case STATES.DIALOGUE: updateDialogue(); break;
-    case STATES.MINIGAME: updateMinigame(); break;
+    case STATES.MINIGAME:
+      if (hit('Escape')) { returnToIsland(); break; }
+      SPORTS[game.sport].update();
+      if (game.state === STATES.MINIGAME) { SPORTS[game.sport].visuals(); updatePool(arenaParticles); }
+      break;
     case STATES.GAME_OVER: updateGameOver(); break;
   }
   if (game.state === STATES.MENU || game.state === STATES.OVERWORLD || game.state === STATES.DIALOGUE) {
     updateIslandVisuals();
     if (game.state !== STATES.MENU) followCamera();
-  } else {
-    updateArenaVisuals();
   }
   game.shake *= 0.85;
   if (game.shake < 0.005) game.shake = 0;
@@ -1155,13 +2081,15 @@ function render() {
     camera.position.y += rand(-game.shake, game.shake);
   }
   renderer.render(inArena ? arena : island, camera);
-
   ctx.clearRect(0, 0, W, H);
   switch (game.state) {
     case STATES.MENU: drawMenuHud(); break;
     case STATES.OVERWORLD:
     case STATES.DIALOGUE: drawOverworldHud(); break;
-    case STATES.MINIGAME: drawMinigameHud(); break;
+    case STATES.MINIGAME:
+      SPORTS[game.sport].hud();
+      if (game.sport !== 'tt') text('ESC: forfeit', W - 12, H - 30, { size: 11, color: '#c8bfe0', align: 'right', bold: false });
+      break;
     case STATES.GAME_OVER: drawGameOverHud(); break;
   }
   if (game.muted) text('MUTED', W - 10, H - 8, { size: 10, color: '#c8bfe0', align: 'right', bold: false });
@@ -1175,7 +2103,6 @@ function frame(now) {
   last = now;
   while (acc >= STEP) {
     update();
-    // snap the follow camera the first time we leave the menu
     if (wasMenu && game.state === STATES.OVERWORLD) { followCamera(true); wasMenu = false; }
     pressed.clear();
     acc -= STEP;
