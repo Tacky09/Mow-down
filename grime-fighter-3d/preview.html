@@ -420,12 +420,12 @@ function periodicNoise(N, cells, octaves) {
 
 /* ---------- wet ground: puddles with planar reflections ---------- */
 const WET = { meshes: [], u: { tReflect: { value: null }, reflMatrix: { value: new THREE.Matrix4() }, tPuddle: { value: null }, wetOn: { value: 1 } } };
-function addWet(mat, strength) {
+function addWet(mat, strength, grain = 0) {
   mat.onBeforeCompile = sh => {
-    Object.assign(sh.uniforms, WET.u, { wetStrength: { value: strength } });
+    Object.assign(sh.uniforms, WET.u, { wetStrength: { value: strength }, wetGrain: { value: grain } });
     sh.vertexShader = 'uniform mat4 reflMatrix;\nvarying vec4 vReflUv;\nvarying vec3 vWPos;\n' + sh.vertexShader.replace('#include <project_vertex>',
       '#include <project_vertex>\n  vec4 wpW = modelMatrix * vec4(transformed, 1.0); vWPos = wpW.xyz; vReflUv = reflMatrix * wpW;');
-    sh.fragmentShader = 'uniform sampler2D tReflect;\nuniform sampler2D tPuddle;\nuniform float wetStrength;\nuniform float wetOn;\nvarying vec4 vReflUv;\nvarying vec3 vWPos;\n' +
+    sh.fragmentShader = 'uniform sampler2D tReflect;\nuniform sampler2D tPuddle;\nuniform float wetStrength;\nuniform float wetGrain;\nuniform float wetOn;\nvarying vec4 vReflUv;\nvarying vec3 vWPos;\n' +
       sh.fragmentShader
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
   float pn = texture2D(tPuddle, vWPos.xz * 0.085).r;
@@ -433,7 +433,10 @@ function addWet(mat, strength) {
   float puddle = smoothstep(0.575, 0.615, pn) * wetStrength;
   float damp = smoothstep(0.5, 0.62, pn) * wetStrength;
   roughnessFactor = mix(roughnessFactor, 0.05, puddle);
-  roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.85, damp);`)
+  roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.85, damp);
+  float grn = texture2D(tPuddle, vWPos.xz * 3.3).r * 0.6 + texture2D(tPuddle, vWPos.xz * 11.0 + 0.37).r * 0.4;   // fine asphalt grit
+  diffuseColor.rgb *= mix(1.0, 0.7 + 0.6 * grn, wetGrain);
+  roughnessFactor = clamp(roughnessFactor + (grn - 0.5) * 0.25 * wetGrain, 0.04, 1.0);`)
         .replace('#include <tonemapping_fragment>', `{
     vec3 Vv = normalize(vViewPosition);
     float ndv = clamp(dot(normalize(normal), Vv), 0.0, 1.0);
@@ -536,7 +539,7 @@ function buildScenery() {
   const hillCols = ['#55703a', '#4b6533', '#5d7841', '#445c2f'];
   for (let i = 0; i < 18; i++) {
     let a = rand(0, Math.PI * 2); const r = rand(95, 190);
-    if (Math.abs(Math.atan2(Math.sin(a - Math.atan2(GZ.z, GZ.x)), Math.cos(a - Math.atan2(GZ.z, GZ.x)))) < 0.4) a += Math.PI * 0.6;
+    if (Math.abs(Math.atan2(Math.sin(a - Math.atan2(GZ.z, GZ.x)), Math.cos(a - Math.atan2(GZ.z, GZ.x)))) < 0.75) a += Math.PI * 0.6;
     const h = mesh(displaceSmooth(new THREE.SphereGeometry(1, 40, 20), 0.06, 2.2, i), new THREE.MeshStandardMaterial({ color: C(hillCols[i % 4]), roughness: 1 }),
       Math.cos(a) * r, -2, Math.sin(a) * r, scene, false);
     h.scale.set(rand(25, 55), rand(8, 18), rand(25, 45));
@@ -544,8 +547,8 @@ function buildScenery() {
   // rocky snow-capped mountains (vertex-coloured: rock fading into snow)
   const rockA = C('#6b6e72'), rockB = C('#868a8e'), snowC = C('#e9eef3'), tmp = new THREE.Color();
   for (let i = 0; i < 16; i++) {
-    const a = rand(-Math.PI * 0.95, -Math.PI * 0.05) + (i % 3 === 0 ? Math.PI : 0), r = rand(250, 360);
-    const hgt = rand(80, 160), rad = hgt * rand(0.6, 0.85);
+    const a = rand(-Math.PI * 0.95, -Math.PI * 0.05) + (i % 3 === 0 ? Math.PI : 0), r = rand(560, 760);
+    const hgt = rand(170, 330), rad = hgt * rand(0.7, 0.95);
     const geo = new THREE.ConeGeometry(rad, hgt, 56, 18), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
     for (let k = 0; k < pos.count; k++) {
       let x = pos.getX(k), y = pos.getY(k), z = pos.getZ(k);
@@ -629,9 +632,9 @@ function washPlane(part, w, d, painter, opts = {}) {
 function buildYard() {
   const ground = makePart('Yard Ground (bonus)', 150); ground.optional = true;
   for (let z = LOT.z0; z < LOT.z1 - 0.01; z += TILE_D) for (let x = LOT.x0; x < LOT.x1 - 0.01; x += TILE_W) {
-    const t = washPlane(ground, TILE_W, TILE_D, yardTilePainter(x, z), { grime: 'ground', oil: Math.random() < 0.6 ? 2 : 0, rough: 0.9, ppm: GROUND_PPM });
+    const t = washPlane(ground, TILE_W, TILE_D, yardTilePainter(x, z), { grime: 'yard', oil: Math.random() < 0.6 ? 2 : 0, rough: 0.9, ppm: GROUND_PPM });
     t.position.set(x + TILE_W / 2, 0.06, z + TILE_D / 2); scene.add(t);
-    addWet(t.material, 0.6); WET.meshes.push(t);
+    addWet(t.material, 0.35, 1); WET.meshes.push(t);
   }
   // red & white curbs around the lot (instanced: there are a lot of them)
   const curbSpots = [];
@@ -899,6 +902,7 @@ const GRIME = {
   mud:    { cake: [46, 32, 20], dust: [128, 104, 74], rust: [118, 62, 26], moss: [70, 78, 36], cover: 0.62, edge: 3.2, film: 0.42, rustAmt: 0.55, mossAmt: 0.25 },
   glass:  { cake: [72, 60, 44], dust: [150, 134, 108], rust: [110, 80, 50], moss: [90, 96, 64], cover: 0.5, edge: 2.6, film: 0.5, rustAmt: 0.1, mossAmt: 0.15 },
   ground: { cake: [38, 33, 27], dust: [92, 84, 70], rust: [88, 62, 38], moss: [66, 70, 44], cover: 0.6, edge: 2.8, film: 0.55, rustAmt: 0.25, mossAmt: 0.12 },
+  yard:   { cake: [30, 27, 23], dust: [86, 80, 70], rust: [74, 58, 40], moss: [58, 64, 40], cover: 0.44, edge: 2.6, film: 0.3, rustAmt: 0.2, mossAmt: 0.1 },
   tire:   { cake: [58, 42, 26], dust: [134, 112, 80], rust: [104, 70, 40], moss: [70, 80, 44], cover: 0.6, edge: 3.0, film: 0.5, rustAmt: 0.15, mossAmt: 0.2 }
 };
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -1012,7 +1016,7 @@ function makeSurface(part, wM, hM, paint, opts = {}) {
     makeGrime(s, opts.grime || 'mud', opts.vertical !== false);
     if (opts.oil) oilStains(s, opts.oil);
     const gk = opts.grime || 'mud';
-    initRough(s, gk === 'glass' ? 0.06 : gk === 'ground' ? 0.8 : gk === 'tire' ? 0.88 : clamp((opts.rough ?? 0.55) * 0.55, 0.12, 1));
+    initRough(s, gk === 'glass' ? 0.06 : gk === 'ground' || gk === 'yard' ? 0.8 : gk === 'tire' ? 0.88 : clamp((opts.rough ?? 0.55) * 0.55, 0.12, 1));
     composite(s, 0, 0, w, h);
     g.putImageData(s.work, 0, 0);
     part.surfaces.push(s); part.init += s.total; part.left += s.total;
@@ -1986,7 +1990,7 @@ void main() {
 }
 const SHOCK = tau => 280 * (1 - Math.exp(-tau / 2.4));
 function updateSmoke(tau, t) {
-  const S = 2.0, sm = CN.sm, L = sm.list;
+  const S = 3.2, sm = CN.sm, L = sm.list;
   const Rf = S * 11 * (1 - Math.exp(-tau * 3.5));
   const k = smooth(0.6, 3.5, tau);
   const Rm = S * (3 + 8 * smooth(0.5, 6, tau) + 2 * smooth(6, 11, tau));
