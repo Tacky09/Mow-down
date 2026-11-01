@@ -431,7 +431,7 @@ html[style*="--g-tint"] .big,html[style*="--g-tint"] .menu h1{color:color-mix(in
   <div class="mpseek"><span id="mpCur">0:00</span><input type="range" id="mpPos" min="0" max="1000" value="0"><span id="mpDur">0:00</span></div>
   <div class="mpctl"><button type="button" id="mpShuf" class="sm" title="Shuffle"></button><button type="button" id="mpPrev" title="Previous"></button><button type="button" id="mpPlay" class="big" title="Play or pause"></button><button type="button" id="mpNext" title="Next"></button><button type="button" id="mpRep" class="sm" title="Repeat"></button></div>
   <div class="mpvol"><span id="mpVlo"></span><input type="range" id="mpVol" min="0" max="100" value="70"><span id="mpVhi"></span></div>
-  <div class="mprow2"><button type="button" id="mpMore" class="pill2">More by this artist</button><a id="mpFull" class="pill2" target="_blank" rel="noopener">Full song</a></div>
+  <div class="mprow2"><button type="button" id="mpMore" class="pill2">More by this artist</button><a id="mpFull" class="pill2" target="_blank" rel="noopener">Full song in Apple Music</a></div>
   <div class="mpfind">
     <span class="mplab">FIND MUSIC</span>
     <div class="mpsearch"><input id="mpQ" placeholder="Song or artist" autocomplete="off" spellcheck="false"><button type="button" id="mpGo" title="Search"></button></div>
@@ -3368,17 +3368,18 @@ function mpSearch(q){ q=(q||$('mpQ').value).trim(); if(!q) return; $('mpQ').valu
   sc.onerror=()=>{ if(!done){ delete window[id]; L.innerHTML='<li class="err">Search couldn\'t connect. On the Claude version of the game outside music is blocked, so play on your website: tacky09.github.io/Mow-down</li>'; } };
   document.head.appendChild(sc); setTimeout(()=>{ if(!done){ window[id]=()=>{}; L.innerHTML='<li class="err">Search timed out. Try again.</li>'; } },10000); }
 function mpRender(){ const L=$('mpList'), F=MP.found||[];
-  L.innerHTML=F.length?F.map((r,k)=>'<li'+(MP.list===F&&MP.i===k?' class="now"':'')+'><img src="'+mpEsc(r.artworkUrl100||r.artworkUrl60)+'" alt="" loading="lazy"><div><b>'+mpEsc(r.trackName)+'</b><small>'+mpEsc(r.artistName)+' · '+mpT((r.trackTimeMillis||0)/1000)+'</small></div><button type="button" data-k="'+k+'">Play</button></li>').join(''):'<li><small>No songs found. Try other words.</small></li>'; }
+  L.innerHTML=F.length?F.map((r,k)=>'<li'+(MP.list===F&&MP.i===k?' class="now"':'')+'><img src="'+mpEsc(r.artworkUrl100||r.artworkUrl60)+'" alt="" loading="lazy"><div><b>'+mpEsc(r.trackName)+'</b><small>'+mpEsc(r.artistName)+' · full song '+mpT((r.trackTimeMillis||0)/1000)+' · plays 0:30</small></div><button type="button" data-k="'+k+'">Play</button></li>').join(''):'<li><small>No songs found. Try other words.</small></li>'; }
 function mpPlay(list,i){ MP.list=list; MP.i=i; const r=list[i]; if(!r) return;
   startAudio(); if(MUS.on){ MUS.on=false; musSave(); } try{ if(SPOT&&SPOT.ctl) SPOT.ctl.pause(); }catch(e){}
   MP.el.src=r.previewUrl; MP.el.volume=(MP.vol/100)*(muted?0:1); MP.el.play().catch(()=>toast('Tap Play again to start the song'));
   $('mpArt').src=(r.artworkUrl100||'').replace('100x100','300x300'); $('mpTitle').textContent=r.trackName; $('mpSub').textContent=r.artistName+' · '+(i+1)+' of '+list.length;
-  $('mpFull').href=r.trackViewUrl||('https://music.apple.com/search?term='+encodeURIComponent(r.trackName+' '+r.artistName)); $('mpDur').textContent=mpT((r.trackTimeMillis||0)/1000);
+  $('mpFull').href=r.trackViewUrl||('https://music.apple.com/search?term='+encodeURIComponent(r.trackName+' '+r.artistName)); $('mpDur').textContent='0:30'; $('mpSub').textContent=r.artistName+' · '+(i+1)+' of '+list.length+' · preview';
   mpRender(); mpIcons(); }
 function mpStep(d){ const n=MP.list.length; if(!n) return; let i=MP.shuf&&n>1?(()=>{ let j; do{ j=(Math.random()*n)|0; }while(j===MP.i); return j; })():MP.i+d;
   if(i>=n){ if(MP.rep===1) i=0; else { MP.el.pause(); mpIcons(); return; } } if(i<0) i=MP.rep===1?n-1:0; mpPlay(MP.list,i); }
 MP.el.addEventListener('ended',()=>{ if(MP.rep===2){ MP.el.currentTime=0; MP.el.play(); } else mpStep(1); });
 MP.el.addEventListener('timeupdate',()=>{ const d=MP.el.duration||30; $('mpCur').textContent=mpT(MP.el.currentTime); if(!MP.drag) $('mpPos').value=Math.round(MP.el.currentTime/d*1000); });
+MP.el.addEventListener('loadedmetadata',()=>{ if(MP.el.duration) $('mpDur').textContent=mpT(MP.el.duration); });
 MP.el.addEventListener('play',mpIcons); MP.el.addEventListener('pause',mpIcons);
 $('mpPos').addEventListener('input',()=>{ MP.drag=true; }); $('mpPos').addEventListener('change',()=>{ MP.drag=false; const d=MP.el.duration||30; MP.el.currentTime=$('mpPos').value/1000*d; });
 $('mpVol').value=MP.vol; $('mpVol').addEventListener('input',()=>{ MP.vol=+$('mpVol').value; MP.el.volume=(MP.vol/100)*(muted?0:1); mpSave(); });
