@@ -2151,6 +2151,7 @@ function wreckItem(it) {
     for (let k = 0; k < 26; k++) { const b = box(rand(0.3, 1.2), rand(0.2, 0.7), rand(0.3, 1.2), k % 3 ? rub : wallM, it.c.x + rand(-0.4, 0.4) * it.size.x, rand(0.1, 0.5), it.c.z + rand(-0.4, 0.4) * it.size.z, WRECK.ruins); b.rotation.set(rand(-0.4, 0.4), rand(0, 6), rand(-0.4, 0.4)); }
     if (WRECK.spots.length < 5) WRECK.spots.push(new THREE.Vector3(it.c.x, 0.5, it.c.z));
     crunch(1);
+    it.state = 2;
   } else if (it.kind === 'tree' || it.kind === 'bush') {
     o.traverse(ch => { if (ch.userData.leaf) { ch.visible = false; const col = ch.material.color; for (let k = 0; k < 3; k++) { _o.position.setFromMatrixPosition(ch.matrixWorld); spawnChunk(_o.position.x, _o.position.y, _o.position.z, rand(0.3, 0.7), col, dir.x * rand(8, 22), rand(2, 9), dir.z * rand(8, 22)); } } });
     it.axis = new THREE.Vector3(dir.z, 0, -dir.x); it.tq = it.kind === 'tree' ? rand(1.35, 1.55) : 0; it.ta = 0;
