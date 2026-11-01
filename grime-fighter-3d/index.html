@@ -119,6 +119,19 @@
   @keyframes lift { to { transform: perspective(400px) rotateX(-115deg); opacity: 0.5; } }
   @keyframes press { to { transform: translateY(12px); box-shadow: 0 2px 0 #6a0000, 0 6px 12px rgba(0,0,0,0.5); background: radial-gradient(circle at 35% 30%, #ffc0c0, #ff3a3a 55%, #b00000); } }
   .launchBox .cd { font-size: 58px; font-weight: 900; color: #fff; min-height: 68px; text-shadow: 0 4px 0 #000; }
+  .nz.locked { opacity: 0.45; }
+  .nz.locked b { background: #555 !important; }
+  #finderHint { position: fixed; right: 18px; bottom: 146px; z-index: 5; pointer-events: none; background: var(--panel); padding: 5px 10px; border-radius: 12px; font-size: 12px; font-weight: 800; }
+  #finderHint kbd, #shopHint kbd { background: #fff; color: var(--ink); border-radius: 5px; padding: 0 6px; font-family: inherit; }
+  #shopHint { position: fixed; top: 58px; right: 16px; z-index: 5; pointer-events: none; background: var(--panel); padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 800; }
+  body.cine #finderHint, body.cine #shopHint { display: none; }
+  .shopGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 6px 0 18px; text-align: left; }
+  .upg { background: #fff; border: 2px solid #cfe0f5; border-radius: 14px; padding: 12px 14px; }
+  .upg h4 { margin: 0 0 2px; font-size: 16px; } .upg p { margin: 0 0 8px; font-size: 12.5px; color: #3d5a80; font-weight: 700; min-height: 32px; }
+  .pips { display: flex; gap: 4px; margin-bottom: 8px; } .pips i { flex: 1; height: 7px; border-radius: 4px; background: #dbe6f3; } .pips i.on { background: var(--orange); }
+  .upg button { width: 100%; border: 0; border-radius: 10px; padding: 8px; font: inherit; font-weight: 900; color: #fff; cursor: pointer; background: linear-gradient(180deg, #4fbf5a, #2f9a3c); box-shadow: 0 3px 0 #1f6e29; }
+  .upg button:disabled { background: #b9c4d0; box-shadow: none; cursor: default; }
+  .wallet { font-size: 20px; font-weight: 900; color: #b07800; margin-bottom: 6px; }
   #vignette { position: fixed; inset: 0; z-index: 4; pointer-events: none;
     background: radial-gradient(ellipse at center, rgba(0,0,0,0) 52%, rgba(10,12,16,0.22) 78%, rgba(6,8,12,0.5) 100%); }
 </style>
@@ -141,7 +154,10 @@
   <div class="nz on" id="nz1"><span class="key">1</span><b style="background:#ff4757"></b><small>0°</small></div>
   <div class="nz" id="nz2"><span class="key">2</span><b style="background:#ffc312"></b><small>15°</small></div>
   <div class="nz" id="nz3"><span class="key">3</span><b style="background:#2ed573"></b><small>40°</small></div>
+  <div class="nz locked" id="nz4"><span class="key">4</span><b style="background:#3fb6ff"></b><small id="nz4t">🔒</small></div>
 </div>
+<div id="finderHint"><kbd>F</kbd> find grime</div>
+<div id="shopHint"><kbd>B</kbd> upgrades</div>
 <div id="vignette"></div>
 <div id="crosshair"></div>
 <div id="toast"></div>
@@ -162,7 +178,9 @@
       <kbd>Mouse</kbd><span>Look around and aim</span>
       <kbd>Hold Left Click</kbd><span>Spray (closer = stronger)</span>
       <kbd>W A S D</kbd><span>Walk around the map (the whole yard is washable!)</span>
-      <kbd>1 · 2 · 3</kbd><span>Nozzle: 0° blaster, 15° all-rounder, 40° wide fan</span>
+      <kbd>1 · 2 · 3 · 4</kbd><span>Nozzle: 0° blaster, 15° all-rounder, 40° fan, surface cleaner (buy it!)</span>
+      <kbd>F</kbd><span>Grime finder: highlights everything still dirty</span>
+      <kbd>B</kbd><span>Upgrade shop: spend your cash on power, reach, boots and gear</span>
       <kbd>Space</kbd><span>Jump (reach the roof!)</span>
       <kbd>Tab</kbd><span>Job list</span>
       <kbd>N</kbd><span>SOAP NUKE: 20-second cutscene, cleans the whole map (unlimited!)</span>
@@ -170,14 +188,22 @@
       <kbd>V</kbd><span>Lens: Cinematic ↔ Bodycam</span>
       <kbd>L</kbd><span>Light: War Thunder → Golden hour → Overcast</span>
     </div>
-    <button class="btn" id="startBtn">START JOB</button>
+    <button class="btn" id="startBtn">START JOB</button><button class="btn alt" id="shopBtn">UPGRADES</button>
+  </div>
+</div>
+<div id="shop" class="screen hidden">
+  <div class="card" style="max-width:860px">
+    <div class="logo" style="font-size:40px">UPGRADE<br>SHOP</div>
+    <div class="wallet" id="wallet">$0.00</div>
+    <div class="shopGrid" id="shopGrid"></div>
+    <button class="btn" id="shopClose">BACK TO WORK</button>
   </div>
 </div>
 <div id="done" class="screen hidden">
   <div class="card">
     <div class="logo" style="font-size:46px">JOB<br>COMPLETE!</div>
     <div class="sub" id="doneText">Sparkling clean.</div>
-    <button class="btn" id="againBtn">NEXT JOB</button><button class="btn alt" id="replayBtn">WASH AGAIN</button>
+    <button class="btn" id="againBtn">NEXT JOB</button><button class="btn alt" id="replayBtn">WASH AGAIN</button><button class="btn alt" id="doneShop">UPGRADES</button>
   </div>
 </div>
 <div id="loading">Getting the yard ready…</div>
@@ -1557,8 +1583,19 @@ const GUNMAT = {};
 const NOZZLES = {
   1: { name: '0° Blaster', radius: 0.055, power: 72, endR: 0.02, color: '#ff4757', pitch: 1900 },
   2: { name: '15° All-rounder', radius: 0.13, power: 34, endR: 0.075, color: '#ffc312', pitch: 1300 },
-  3: { name: '40° Wide Fan', radius: 0.27, power: 15, endR: 0.17, color: '#2ed573', pitch: 850 }
+  3: { name: '40° Wide Fan', radius: 0.27, power: 15, endR: 0.17, color: '#2ed573', pitch: 850 },
+  4: { name: 'Surface Cleaner', radius: 0.55, power: 26, endR: 0.32, color: '#3fb6ff', pitch: 620, floorOnly: true }
 };
+/* ---------- upgrades (saved between visits) ---------- */
+const UPG_DEF = {
+  power:   { name: 'Pump Power', desc: '+30% cleaning power per level', costs: [60, 150, 300, 500] },
+  reach:   { name: 'Long Lance', desc: 'Spray further and stay strong at a distance', costs: [50, 120, 250] },
+  boots:   { name: 'Turbo Boots', desc: 'Walk faster around the big map', costs: [40, 100, 200] },
+  cleaner: { name: 'Surface Cleaner', desc: 'Nozzle 4: a wide scrubber that eats floors and ground fast', costs: [150] }
+};
+const UPG = { power: 0, reach: 0, boots: 0, cleaner: 0 };
+try { Object.assign(UPG, JSON.parse(localStorage.getItem('gf-upg') || '{}')); } catch (e) { /* storage blocked */ }
+function saveWallet() { try { localStorage.setItem('gf-money', money.toFixed(2)); localStorage.setItem('gf-upg', JSON.stringify(UPG)); } catch (e) { /* storage blocked */ } }
 let nozzle = NOZZLES[1];
 const streamMat = new THREE.MeshBasicMaterial({ color: C('#eaf7ff'), transparent: true, opacity: 0.6, depthWrite: false, fog: false });
 const coreMat = new THREE.MeshBasicMaterial({ color: C('#ffffff'), transparent: true, opacity: 0.75, depthWrite: false, fog: false });
@@ -1634,6 +1671,7 @@ function ding() {
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
 let money = 0, spraying = false, aimed = null;
+try { money = parseFloat(localStorage.getItem('gf-money')) || 0; } catch (e) { /* storage blocked */ }
 function scrub(s, u, v, radiusM, power) {
   const cx = u * s.w, cy = (1 - v) * s.h;
   const rx = Math.max(1.5, radiusM * s.ppmX), ry = Math.max(1.5, radiusM * s.ppmY);
@@ -1667,7 +1705,7 @@ function finishPart(p) {
   for (const s of p.surfaces) { s.alpha.fill(0); composite(s, 0, 0, s.w, s.h); s.g.putImageData(s.work, 0, 0); s.tex.needsUpdate = true; }
   p.flash = 1;
   money += p.value;
-  $('moneyText').textContent = '$' + money.toFixed(2);
+  $('moneyText').textContent = '$' + money.toFixed(2); saveWallet();
   toast(`${p.name} cleaned! <em>+$${p.value.toFixed(2)}</em>`);
   ding();
   renderPartList();
@@ -1691,7 +1729,7 @@ function overall(all) {
 const tipWorld = new THREE.Vector3(), aimDir = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 function updateWashing(dt) {
   raycaster.setFromCamera(CENTER, camera);
-  raycaster.far = 14;
+  raycaster.far = 14 + UPG.reach * 5;
   const hits = raycaster.intersectObjects(washMeshes.concat(solids), false).filter(h => isShown(h.object));
   const hit = hits[0];
   focusWanted = hit ? Math.max(0.6, hit.distance) : 30;
@@ -1728,8 +1766,9 @@ function updateWashing(dt) {
       const s = (Array.isArray(hit.object.material) ? hit.object.material[hit.face.materialIndex] : hit.object.material).userData.surface;
       if (s && !s.skip && hit.uv) {
         const dist = hit.distance;
-        const strength = clamp(1.5 - dist / 5, 0.3, 1.25);
-        const spread = nozzle === NOZZLES[1] ? 1 : clamp(0.55 + dist * 0.14, 0.6, 1.6);
+        const strength = clamp(1.5 - dist / (5 + UPG.reach * 2.5), 0.3, 1.25) * (1 + UPG.power * 0.3);
+        if (nozzle.floorOnly && (dist > 3.5 || hit.face.normal.clone().transformDirection(hit.object.matrixWorld).y < 0.6)) return;
+        const spread = nozzle === NOZZLES[1] || nozzle.floorOnly ? 1 : clamp(0.55 + dist * 0.14, 0.6, 1.6);
         scrub(s, hit.uv.x, hit.uv.y, nozzle.radius * spread, nozzle.power * strength * dt * 60);
       }
     }
@@ -1742,10 +1781,11 @@ function updateWashing(dt) {
 const keys = {};
 let locked = false, started = false, yaw = 0.36, pitch = -0.12, velY = 0, onGround = true, bob = 0;
 function selectNozzle(n) {
+  if (n === 4 && !UPG.cleaner) { toast('Buy the <em>Surface Cleaner</em> in the upgrade shop (B)'); return; }
   nozzle = NOZZLES[n];
   stream.geometry = streamGeos[n];
   nozzleTip.material.color.copy(C(nozzle.color));
-  for (const k of [1, 2, 3]) $('nz' + k).classList.toggle('on', k === n);
+  for (const k of [1, 2, 3, 4]) $('nz' + k).classList.toggle('on', k === n);
   if (sprayFilter) sprayFilter.frequency.setTargetAtTime(nozzle.pitch, actx.currentTime, 0.05);
 }
 addEventListener('keydown', e => {
@@ -1759,6 +1799,9 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit1') selectNozzle(1);
   if (e.code === 'Digit2') selectNozzle(2);
   if (e.code === 'Digit3') selectNozzle(3);
+  if (e.code === 'Digit4') selectNozzle(4);
+  if (e.code === 'KeyF') findGrime();
+  if (e.code === 'KeyB' && !nuke) { document.exitPointerLock(); openShop(); }
   if (e.code === 'Space' && onGround) { velY = 5.2; onGround = false; }
   if (e.code === 'KeyN' && !nuke) startNuke();
 });
@@ -1772,7 +1815,7 @@ addEventListener('mousemove', e => {
 });
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === renderer.domElement;
-  if (!locked) { spraying = false; for (const k in keys) keys[k] = false; if (started && !nuke && !jobComplete()) showStart(true); }
+  if (!locked) { spraying = false; for (const k in keys) keys[k] = false; if (started && !nuke && !jobComplete() && $('shop').classList.contains('hidden')) showStart(true); }
 });
 function showStart(paused) {
   $('start').classList.remove('hidden');
@@ -1803,7 +1846,7 @@ function updatePlayer(dt) {
   const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   let mx = -Math.sin(yaw) * f + Math.cos(yaw) * s, mz = -Math.cos(yaw) * f - Math.sin(yaw) * s;
   const l = Math.hypot(mx, mz);
-  const speed = 4.4;
+  const speed = 4.4 + UPG.boots * 1.1;
   if (l > 0) {
     mx = mx / l * speed * dt; mz = mz / l * speed * dt;
     if (!blockedAt(camera.position.x + mx, camera.position.z)) camera.position.x += mx;
@@ -2335,7 +2378,7 @@ function payOut() {
   let pay = 0;
   for (const p of parts) if (!p.done) { p.done = true; p.left = 0; pay += p.value; p.flash = 1; }
   money += pay;
-  $('moneyText').textContent = '$' + money.toFixed(2);
+  $('moneyText').textContent = '$' + money.toFixed(2); saveWallet();
   if (nuke) nuke.paid = true;
 }
 function endNuke() {
@@ -2756,6 +2799,11 @@ function animate() {
     p.flash = Math.max(0, p.flash - dt * 1.6);
     for (const m of p.mats) m.emissiveIntensity = p.flash * 0.6;
   }
+  if (finderT > 0) {   // grime finder: dirty items pulse orange
+    finderT -= dt;
+    const k = finderT > 0 ? 0.28 + 0.22 * Math.sin(idleT * 9) : 0;
+    for (const p of parts) if (!p.done && !p.huge) for (const m of p.mats) { m.emissive.copy(finderT > 0 ? FIND_C : WHITE_C); m.emissiveIntensity = Math.max(k * (finderT > 0 ? 1 : 0), (p.flash || 0) * 0.6); }
+  }
   // gun sway + recoil
   const kick = spraying ? (Math.random() - 0.5) * 0.006 : 0;
   gun.position.set(GUN_POS.x + Math.cos(bob * 0.5) * 0.008 + kick, GUN_POS.y + Math.abs(Math.sin(bob * 0.5)) * 0.01 + kick, GUN_POS.z + (spraying ? 0.012 : 0));
@@ -2773,6 +2821,43 @@ function animate() {
   focusCur += (focusWanted - focusCur) * Math.min(1, dt * 5);
   renderFrame(true);
 }
+/* ---------- grime finder + upgrade shop ---------- */
+let finderT = 0;
+const FIND_C = new THREE.Color(1.0, 0.45, 0.05), WHITE_C = new THREE.Color(1, 1, 1);
+function findGrime() {
+  for (const p of parts) if (p.init > 3e8) p.huge = true;   // don't paint the whole yard orange
+  const left = parts.filter(p => !p.done);
+  finderT = 2.6;
+  const req = parts.filter(p => !p.done && !p.optional).length;
+  toast(req ? `<em>${req}</em> job item${req > 1 ? 's' : ''} still dirty (glowing orange)` : left.length ? 'Job done! Only bonus items left' : 'Everything is spotless!');
+}
+function renderShop() {
+  $('wallet').textContent = 'Wallet: $' + money.toFixed(2);
+  $('shopGrid').innerHTML = Object.entries(UPG_DEF).map(([k, d]) => {
+    const lv = UPG[k], max = d.costs.length, cost = d.costs[lv];
+    const pips = d.costs.map((_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
+    const btn = lv >= max ? '<button disabled>MAXED</button>' : `<button data-k="${k}" ${money < cost ? 'disabled' : ''}>BUY $${cost}</button>`;
+    return `<div class="upg"><h4>${d.name}</h4><p>${d.desc}</p><div class="pips">${pips}</div>${btn}</div>`;
+  }).join('');
+  $('shopGrid').querySelectorAll('button[data-k]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.k, cost = UPG_DEF[k].costs[UPG[k]];
+    if (money < cost) return;
+    money -= cost; UPG[k]++; saveWallet();
+    $('moneyText').textContent = '$' + money.toFixed(2);
+    applyUpgrades(); ding(); renderShop();
+  }));
+}
+function applyUpgrades() {
+  $('nz4').classList.toggle('locked', !UPG.cleaner);
+  $('nz4t').textContent = UPG.cleaner ? 'Floor' : '🔒';
+}
+function openShop() { $('start').classList.add('hidden'); $('done').classList.add('hidden'); $('shop').classList.remove('hidden'); renderShop(); }
+$('shopBtn').addEventListener('click', e => { e.stopPropagation(); openShop(); });
+$('doneShop').addEventListener('click', e => { e.stopPropagation(); openShop(); });
+$('shopClose').addEventListener('click', e => {
+  e.stopPropagation(); $('shop').classList.add('hidden');
+  if (jobComplete()) $('done').classList.remove('hidden'); else showStart(started);
+});
 function jobDone() {
   document.exitPointerLock();
   DONE_JOBS.add(LEVEL.id);
@@ -2805,6 +2890,7 @@ setTimeout(() => {
   buildEnv();
   setLens(BODY, false);
   renderPartList();
+  $('moneyText').textContent = '$' + money.toFixed(2); applyUpgrades();
   onResize();
   $('loading').classList.add('hidden');
   showStart(false);
