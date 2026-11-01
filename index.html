@@ -432,14 +432,14 @@ html[style*="--g-tint"] .big,html[style*="--g-tint"] .menu h1{color:color-mix(in
   <div class="mpseek"><span id="mpCur">0:00</span><input type="range" id="mpPos" min="0" max="1000" value="0"><span id="mpDur">0:00</span></div>
   <div class="mpctl"><button type="button" id="mpShuf" class="sm" title="Shuffle"></button><button type="button" id="mpPrev" title="Previous"></button><button type="button" id="mpPlay" class="big" title="Play or pause"></button><button type="button" id="mpNext" title="Next"></button><button type="button" id="mpRep" class="sm" title="Repeat"></button></div>
   <div class="mpvol"><span id="mpVlo"></span><input type="range" id="mpVol" min="0" max="100" value="70"><span id="mpVhi"></span></div>
-  <div class="mprow2"><button type="button" id="mpMore" class="pill2">More by this artist</button><button type="button" id="mpDz" class="pill2 hot">Play full song (Deezer)</button></div>
-  <div class="mprow2"><a id="mpYt" class="pill2" target="_blank" rel="noopener">YouTube</a><a id="mpSp" class="pill2" target="_blank" rel="noopener">Spotify</a><a id="mpFull" class="pill2" target="_blank" rel="noopener">Apple Music</a></div>
+  <div class="mprow2"><button type="button" id="mpMore" class="pill2">More by this artist</button><button type="button" id="mpDz" class="pill2 hot">Full songs: on</button></div>
+  <div class="mprow2"><a id="mpYt" class="pill2" target="_blank" rel="noopener">YouTube</a><a id="mpSp" class="pill2" target="_blank" rel="noopener">Spotify</a></div>
   <div id="mpDzBox" hidden><iframe id="mpDzFrame" title="Deezer player" allow="encrypted-media; clipboard-write; autoplay" height="150"></iframe><p class="mpnote">Full songs play here when you are signed in to Deezer (a free account works) in this browser. Otherwise Deezer plays a 30-second clip. <a href="https://www.deezer.com/login" target="_blank" rel="noopener">Sign in to Deezer</a></p></div>
   <div class="mpfind">
     <span class="mplab">FIND MUSIC</span>
     <div class="mpsearch"><input id="mpQ" placeholder="Song or artist" autocomplete="off" spellcheck="false"><button type="button" id="mpGo" title="Search"></button></div>
     <label class="mpclean"><input type="checkbox" id="mpClean"> Clean songs only</label>
-    <p class="mpnote">Search a song and tap Play. You hear a 30-second preview here, and the volume bar controls it. Tap Play full song (Deezer) to hear the whole thing here.</p>
+    <p class="mpnote">Search a song and tap Play. You hear a 30-second preview here, and the volume bar controls it. With Full songs on, Play opens the whole song in the Deezer player right here (sign in to Deezer once for full songs). Turn it off for quick 30-second previews.</p>
     <ul id="mpList"></ul>
   </div>
 </div>
@@ -3372,12 +3372,13 @@ function mpSearch(q){ q=(q||$('mpQ').value).trim(); if(!q) return; $('mpQ').valu
   document.head.appendChild(sc); setTimeout(()=>{ if(!done){ window[id]=()=>{}; L.innerHTML='<li class="err">Search timed out. Try again.</li>'; } },10000); }
 function mpRender(){ const L=$('mpList'), F=MP.found||[];
   L.innerHTML=F.length?F.map((r,k)=>'<li'+(MP.list===F&&MP.i===k?' class="now"':'')+'><img src="'+mpEsc(r.artworkUrl100||r.artworkUrl60)+'" alt="" loading="lazy"><div><b>'+mpEsc(r.trackName)+'</b><small>'+mpEsc(r.artistName)+' · full song '+mpT((r.trackTimeMillis||0)/1000)+' · plays 0:30</small></div><button type="button" data-k="'+k+'">Play</button></li>').join(''):'<li><small>No songs found. Try other words.</small></li>'; }
+MP.full=true; try{ const v=localStorage.getItem('mowMPfull'); if(v) MP.full=v==='1'; }catch(e){}
 function mpPlay(list,i){ MP.list=list; MP.i=i; const r=list[i]; if(!r) return;
   startAudio(); if(MUS.on){ MUS.on=false; musSave(); } try{ if(SPOT&&SPOT.ctl) SPOT.ctl.pause(); }catch(e){}
-  MP.el.src=r.previewUrl; MP.el.volume=(MP.vol/100)*(muted?0:1); MP.el.play().catch(()=>toast('Tap Play again to start the song'));
+  MP.el.src=r.previewUrl; MP.el.volume=(MP.vol/100)*(muted?0:1); if(!MP.full) MP.el.play().catch(()=>toast('Tap Play again to start the song'));
   $('mpArt').src=(r.artworkUrl100||'').replace('100x100','300x300'); $('mpTitle').textContent=r.trackName; $('mpSub').textContent=r.artistName+' · '+(i+1)+' of '+list.length;
   const qq=encodeURIComponent(r.trackName+' '+r.artistName); $('mpYt').href='https://www.youtube.com/results?search_query='+qq; $('mpSp').href='https://open.spotify.com/search/'+qq; $('mpDzBox').hidden=true; $('mpDzFrame').src='about:blank';
-  $('mpFull').href=r.trackViewUrl||('https://music.apple.com/search?term='+encodeURIComponent(r.trackName+' '+r.artistName)); $('mpDur').textContent='0:30'; $('mpSub').textContent=r.artistName+' · '+(i+1)+' of '+list.length+' · preview';
+  if(MP.full){ MP.el.pause(); setTimeout(()=>mpDeezer(r),0); } $('mpDur').textContent='0:30'; $('mpSub').textContent=r.artistName+' · '+(i+1)+' of '+list.length+' · preview';
   mpRender(); mpIcons(); }
 function mpStep(d){ const n=MP.list.length; if(!n) return; let i=MP.shuf&&n>1?(()=>{ let j; do{ j=(Math.random()*n)|0; }while(j===MP.i); return j; })():MP.i+d;
   if(i>=n){ if(MP.rep===1) i=0; else { MP.el.pause(); mpIcons(); return; } } if(i<0) i=MP.rep===1?n-1:0; mpPlay(MP.list,i); }
@@ -3391,11 +3392,13 @@ $('mpClean').checked=MP.clean; $('mpClean').addEventListener('change',()=>{ MP.c
 $('mpPlay').onclick=()=>{ if(!MP.list.length){ $('mpQ').focus(); return; } if(MP.el.paused) MP.el.play().catch(()=>{}); else MP.el.pause(); };
 $('mpPrev').onclick=()=>{ if(MP.el.currentTime>3){ MP.el.currentTime=0; return; } mpStep(-1); }; $('mpNext').onclick=()=>mpStep(1);
 $('mpShuf').onclick=()=>{ MP.shuf=!MP.shuf; mpIcons(); }; $('mpRep').onclick=()=>{ MP.rep=(MP.rep+1)%3; mpIcons(); toast(['Repeat off','Repeat all','Repeat this song'][MP.rep]); };
-$('mpDz').onclick=()=>{ const r=MP.list[MP.i]; if(!r){ toast('Pick a song first'); return; } const id='mpDzCb'+(++MP.seq), sc=document.createElement('script'); let done=false;
-  window[id]=d=>{ done=true; delete window[id]; sc.remove(); const t=(d&&d.data||[])[0]; if(!t){ toast('Deezer could not find that song'); return; }
+$('mpDz').onclick=()=>{ MP.full=!MP.full; try{localStorage.setItem('mowMPfull',MP.full?'1':'0');}catch(e){} $('mpDz').textContent='Full songs: '+(MP.full?'on':'off'); const r=MP.list[MP.i]; if(r) mpPlay(MP.list,MP.i); };
+function mpDeezer(r){ const id='mpDzCb'+(++MP.seq), sc=document.createElement('script'); let done=false;
+  window[id]=d=>{ done=true; delete window[id]; sc.remove(); const t=(d&&d.data||[])[0]; if(!t){ toast('Deezer could not find that song, playing the preview'); MP.el.play().catch(()=>{}); return; }
     MP.el.pause(); $('mpDzFrame').src='https://widget.deezer.com/widget/dark/track/'+t.id+'?autoplay=true'; $('mpDzBox').hidden=false; toast('Playing on Deezer. Press play in the Deezer box if it does not start'); };
   sc.src='https://api.deezer.com/search?q='+encodeURIComponent(r.trackName.replace(/\s*[\(\[]feat[^\)\]]*[\)\]]/i,'')+' '+r.artistName)+'&output=jsonp&callback='+id;
-  sc.onerror=()=>{ if(!done){ delete window[id]; toast('Deezer could not connect'); } }; document.head.appendChild(sc); };
+  sc.onerror=()=>{ if(!done){ delete window[id]; toast('Deezer could not connect, playing the preview'); MP.el.play().catch(()=>{}); } }; document.head.appendChild(sc); }
+setTimeout(()=>{ $('mpDz').textContent='Full songs: '+(MP.full?'on':'off'); },0);
 $('mpMore').onclick=()=>{ const r=MP.list[MP.i]; if(r) mpSearch(r.artistName); };
 $('mpGo').onclick=()=>mpSearch(); $('mpQ').addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') mpSearch(); });
 $('mpList').addEventListener('click',e=>{ const b=e.target.closest('button[data-k]'); if(b) mpPlay(MP.found,+b.dataset.k); });
