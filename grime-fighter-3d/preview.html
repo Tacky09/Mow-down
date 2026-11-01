@@ -545,10 +545,10 @@ function buildScenery() {
     h.scale.set(rand(25, 55), rand(8, 18), rand(25, 45));
   }
   // rocky snow-capped mountains (vertex-coloured: rock fading into snow)
-  const rockA = C('#6b6e72'), rockB = C('#868a8e'), snowC = C('#e9eef3'), tmp = new THREE.Color();
+  const rockA = C('#56634a'), rockB = C('#7a7d6c'), snowC = C('#e9eef3'), tmp = new THREE.Color();
   for (let i = 0; i < 16; i++) {
-    const a = rand(-Math.PI * 0.95, -Math.PI * 0.05) + (i % 3 === 0 ? Math.PI : 0), r = rand(560, 760);
-    const hgt = rand(170, 330), rad = hgt * rand(0.7, 0.95);
+    const a = rand(-Math.PI * 0.95, -Math.PI * 0.05) + (i % 3 === 0 ? Math.PI : 0), r = rand(760, 880);
+    const hgt = rand(110, 210), rad = hgt * rand(0.9, 1.2);
     const geo = new THREE.ConeGeometry(rad, hgt, 56, 18), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
     for (let k = 0; k < pos.count; k++) {
       let x = pos.getX(k), y = pos.getY(k), z = pos.getZ(k);
@@ -558,7 +558,7 @@ function buildScenery() {
       x *= sc; z *= sc; y += (n - 0.5) * hgt * 0.1 * (1 - fy);
       pos.setXYZ(k, x, y, z);
       tmp.copy(rockA).lerp(rockB, clamp(n * 1.4 - 0.2, 0, 1));
-      tmp.lerp(snowC, smooth(0.5, 0.76, fy + (n - 0.5) * 0.16));
+      tmp.lerp(snowC, smooth(0.66, 0.88, fy + (n - 0.5) * 0.16) * 0.85);
       col[k * 3] = tmp.r; col[k * 3 + 1] = tmp.g; col[k * 3 + 2] = tmp.b;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -1936,7 +1936,7 @@ function buildCine() {
   }
   ag.putImageData(aimg, 0, 0);
   const atlas = new THREE.CanvasTexture(acv);
-  const SMN = 900, baseG = new THREE.PlaneGeometry(1, 1), sg = new THREE.InstancedBufferGeometry();
+  const SMN = 1000, baseG = new THREE.PlaneGeometry(1, 1), sg = new THREE.InstancedBufferGeometry();
   sg.index = baseG.index; sg.setAttribute('position', baseG.attributes.position); sg.setAttribute('uv', baseG.attributes.uv);
   const iPos = new THREE.InstancedBufferAttribute(new Float32Array(SMN * 3), 3), iA = new THREE.InstancedBufferAttribute(new Float32Array(SMN * 4), 4), iB = new THREE.InstancedBufferAttribute(new Float32Array(SMN * 4), 4);
   [iPos, iA, iB].forEach(a => a.setUsage(THREE.DynamicDrawUsage));
@@ -1983,14 +1983,14 @@ void main() {
   const add = (role, n, f) => { for (let i = 0; i < n; i++) L.push(Object.assign({ role, seed: Math.random(), s: rand(0.75, 1.3), v: (Math.random() * 4) | 0, rot: rand(0, 6.28), rs: rand(-0.12, 0.12) }, f(i))); };
   add(0, 330, () => { const u = rand(-0.25, 1), a = rand(0, 6.28), q = Math.sqrt(1 - u * u); return { th: rand(0, 6.28), ph: rand(0, 6.28), rr: Math.sqrt(Math.random()), dx: Math.cos(a) * q, dy: u, dz: Math.sin(a) * q }; });   // fireball -> cap
   add(1, 140, () => ({ f: Math.pow(Math.random(), 0.8), th: rand(0, 6.28), rr: Math.sqrt(Math.random()) }));                    // stem
-  add(2, 170, () => ({ th: rand(0, 6.28), rr: rand(0.55, 1), h: Math.random() }));                                              // base surge dust
+  add(2, 240, () => ({ th: rand(0, 6.28), rr: rand(0.45, 1), h: Math.random() }));                                              // base surge dust
   add(3, 150, () => ({ th: yardAng + rand(-0.55, 0.55), rr: rand(0.93, 1.03), h: Math.random() }));                             // blast front sweeping the yard
   add(4, 110, () => ({ th: rand(0, 6.28), el: rand(0.08, 1.45) }));                                                              // condensation (Wilson) cloud
   CN.sm.n = L.length; sg.instanceCount = L.length;
 }
 const SHOCK = tau => 280 * (1 - Math.exp(-tau / 2.4));
 function updateSmoke(tau, t) {
-  const S = 3.2, sm = CN.sm, L = sm.list;
+  const S = 4.0, sm = CN.sm, L = sm.list;
   const Rf = S * 11 * (1 - Math.exp(-tau * 3.5));
   const k = smooth(0.6, 3.5, tau);
   const Rm = S * (3 + 8 * smooth(0.5, 6, tau) + 2 * smooth(6, 11, tau));
@@ -2021,7 +2021,7 @@ function updateSmoke(tau, t) {
     } else if (p.role === 2) {
       const rd = 0.42 * R * p.rr;
       x = Math.cos(p.th) * rd; z = Math.sin(p.th) * rd; y = 1 + p.h * (3 + S * 5 * smooth(0, 5, tau));
-      size = (3 + S * 4 * smooth(0, 6, tau)) * p.s; alpha = 0.75 * smooth(0.15, 0.8, tau);
+      size = (4 + S * 5 * smooth(0, 6, tau)) * p.s; alpha = 0.8 * smooth(0.15, 0.8, tau);
       cr = 0.5; cg = 0.44; cb = 0.36;
     } else if (p.role === 3) {
       const rd = R * p.rr;
