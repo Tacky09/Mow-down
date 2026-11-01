@@ -707,7 +707,7 @@ function buildContainers() {
   const part = makePart('Shipping Containers (bonus)', 45); part.optional = true;
   const O = { ppm: 48, metal: 0.35, rough: 0.6, skip: [3] };
   [['#9b3b2a', 'WASHCO', 36, 1.36, -32], ['#2e5d8a', 'GRIMEX', 36, 1.36, -28.7], ['#3f6b3a', 'SUDSLINE', 36, 3.98, -32]].forEach(([c, l, x, y, z]) => {
-    const m = washBox(part, 6.06, 2.6, 2.44, containerPainter(c, l), O); m.position.set(x, y, z); scene.add(m);
+    const m = washBox(part, 6.06, 2.6, 2.44, containerPainter(c, l), O); m.name = 'Container'; m.position.set(x, y, z); scene.add(m);
   });
   addCollider(32.8, 39.2, -33.4, -27.3);
 }
@@ -734,7 +734,7 @@ function trackPainter(i, g, w, h) {
 }
 function buildTank(x, z, ry) {
   const part = makePart('Museum Tank (bonus)', 60); part.optional = true;
-  const G = new THREE.Group(); G.position.set(x, 0, z); G.rotation.y = ry; scene.add(G);
+  const G = new THREE.Group(); G.name = 'Tank'; G.position.set(x, 0, z); G.rotation.y = ry; scene.add(G);
   const O = { ppm: 70, metal: 0.25, rough: 0.7, skip: [3] };
   put(washBox(part, 5.6, 1.05, 2.6, tankPainter(false), O), -0.2, 1.17, 0, G);                 // hull
   put(washBox(part, 1.5, 0.12, 2.6, tankPainter(false), O), 3.05, 1.15, 0, G, 0, 0, -0.62);    // sloped front plate
@@ -775,12 +775,13 @@ function tree(x, z, s, kind) {
     const br = mesh(new THREE.CylinderGeometry(0.04, 0.08, 1.1, 8), bark, bx, by, bz, g); br.rotation.z = rz; br.rotation.x = bz;
   });
   [[0, 3.3, 0, 1.55], [0.9, 2.95, 0.3, 1.15], [-0.85, 3.0, -0.3, 1.2], [0.1, 4.15, 0.1, 1.1], [0.3, 3.6, -0.85, 1.0], [-0.3, 3.5, 0.85, 0.95]].forEach(([a, b, c, r], i) =>
-    mesh(blobGeo(r, x * 3.1 + z * 1.7 + i * 11), std(pal[i % 3], 0.88), a, b, c, g));
+    mesh(blobGeo(r, x * 3.1 + z * 1.7 + i * 11), std(pal[i % 3], 0.88), a, b, c, g).userData.leaf = true);
+  g.userData.tree = true;
   colliders.push({ circle: true, x, z, r: 0.5 * s });
 }
 function bush(x, z) {
-  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
-  for (let i = 0; i < 3; i++) mesh(blobGeo(rand(0.5, 0.75), x * 5 + i * 7), std(i % 2 ? '#41602a' : '#4e6d33', 0.9), rand(-0.5, 0.5), 0.42, rand(-0.3, 0.3), g);
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g); g.userData.bush = true;
+  for (let i = 0; i < 3; i++) mesh(blobGeo(rand(0.5, 0.75), x * 5 + i * 7), std(i % 2 ? '#41602a' : '#4e6d33', 0.9), rand(-0.5, 0.5), 0.42, rand(-0.3, 0.3), g).userData.leaf = true;
 }
 function buildShop() {
   const g = new THREE.Group(); g.position.set(-18, 0, -6); g.rotation.y = Math.PI / 2; scene.add(g);
@@ -1186,7 +1187,7 @@ function bayPainter(i, g, w, h) {
 }
 
 function buildVan() {
-  const van = new THREE.Group(); van.position.set(0, 0, -2); scene.add(van);
+  const van = new THREE.Group(); van.position.set(0, 0, -2); van.userData.job = true; scene.add(van);
   // parking bay floor
   const bay = makePart('Parking Bay', 30);
   const floor = washBox(bay, 7, 0.04, 9.4, bayPainter, { skip: [0, 1, 3, 4, 5], grime: 'ground', oil: 5, rough: 0.9 });
@@ -1247,7 +1248,7 @@ function makeJobFloor(group, w, d, painter, z = 0) {
   f.position.set(0, 0.08, z); f.castShadow = false; group.add(f);
   return f;
 }
-const jobGroup = () => { const g = new THREE.Group(); g.position.set(0, 0, -2); scene.add(g); return g; };
+const jobGroup = () => { const g = new THREE.Group(); g.position.set(0, 0, -2); g.userData.job = true; scene.add(g); return g; };
 const put = (m, x, y, z, parent, rx = 0, ry = 0, rz = 0) => { m.position.set(x, y, z); m.rotation.set(rx, ry, rz); parent.add(m); return m; };
 
 /* ---------- PLAYGROUND ---------- */
@@ -1691,7 +1692,7 @@ const tipWorld = new THREE.Vector3(), aimDir = new THREE.Vector3(), UP = new THR
 function updateWashing(dt) {
   raycaster.setFromCamera(CENTER, camera);
   raycaster.far = 14;
-  const hits = raycaster.intersectObjects(washMeshes.concat(solids), false);
+  const hits = raycaster.intersectObjects(washMeshes.concat(solids), false).filter(h => isShown(h.object));
   const hit = hits[0];
   focusWanted = hit ? Math.max(0.6, hit.distance) : 30;
   aimed = null;
@@ -1791,6 +1792,7 @@ $('replayBtn').addEventListener('click', () => location.reload());
 function blockedAt(x, z) {
   const r = 0.4;
   if (x < LOT.x0 + 0.8 || x > LOT.x1 - 0.8 || z > LOT.z1 - 0.6 || z < LOT.z0 + 0.6) return true;
+  if (WRECK.wrecked) return false;   // the walls are rubble now
   for (const c of colliders) {
     if (c.circle) { if (Math.hypot(x - c.x, z - c.z) < c.r + r) return true; }
     else if (x > c.x0 - r && x < c.x1 + r && z > c.z0 - r && z < c.z1 + r) return true;
@@ -1936,7 +1938,7 @@ function buildCine() {
   }
   ag.putImageData(aimg, 0, 0);
   const atlas = new THREE.CanvasTexture(acv);
-  const SMN = 1000, baseG = new THREE.PlaneGeometry(1, 1), sg = new THREE.InstancedBufferGeometry();
+  const SMN = 1200, baseG = new THREE.PlaneGeometry(1, 1), sg = new THREE.InstancedBufferGeometry();
   sg.index = baseG.index; sg.setAttribute('position', baseG.attributes.position); sg.setAttribute('uv', baseG.attributes.uv);
   const iPos = new THREE.InstancedBufferAttribute(new Float32Array(SMN * 3), 3), iA = new THREE.InstancedBufferAttribute(new Float32Array(SMN * 4), 4), iB = new THREE.InstancedBufferAttribute(new Float32Array(SMN * 4), 4);
   [iPos, iA, iB].forEach(a => a.setUsage(THREE.DynamicDrawUsage));
@@ -1977,7 +1979,7 @@ void main() {
   #include <tonemapping_fragment>
   #include <encodings_fragment>
 }` });
-  CN.smoke = new THREE.Mesh(sg, smat); CN.smoke.frustumCulled = false; CN.smoke.renderOrder = 3; cineRoot.add(CN.smoke);
+  CN.smoke = new THREE.Mesh(sg, smat); CN.smoke.frustumCulled = false; CN.smoke.renderOrder = 3; CN.smoke.visible = false; scene.add(CN.smoke);
   CN.sm = { iPos, iA, iB, u: su, n: SMN, list: [], order: new Int32Array(SMN), depth: new Float32Array(SMN), pos: new Float32Array(SMN * 3), a: new Float32Array(SMN * 4), b: new Float32Array(SMN * 4) };
   const L = CN.sm.list, yardAng = Math.atan2(-GZ.z, -GZ.x);
   const add = (role, n, f) => { for (let i = 0; i < n; i++) L.push(Object.assign({ role, seed: Math.random(), s: rand(0.75, 1.3), v: (Math.random() * 4) | 0, rot: rand(0, 6.28), rs: rand(-0.12, 0.12) }, f(i))); };
@@ -1985,11 +1987,12 @@ void main() {
   add(1, 140, () => ({ f: Math.pow(Math.random(), 0.8), th: rand(0, 6.28), rr: Math.sqrt(Math.random()) }));                    // stem
   add(2, 240, () => ({ th: rand(0, 6.28), rr: rand(0.45, 1), h: Math.random() }));                                              // base surge dust
   add(3, 150, () => ({ th: yardAng + rand(-0.55, 0.55), rr: rand(0.93, 1.03), h: Math.random() }));                             // blast front sweeping the yard
-  add(4, 110, () => ({ th: rand(0, 6.28), el: rand(0.08, 1.45) }));                                                              // condensation (Wilson) cloud
+  add(4, 110, () => ({ th: rand(0, 6.28), el: rand(0.08, 1.45) }));
+  add(5, 150, () => ({ h: Math.random(), sp: rand(0.5, 1.2), ox: rand(-1, 1), oz: rand(-1, 1) }));                             // smoke columns from the ruins                                                              // condensation (Wilson) cloud
   CN.sm.n = L.length; sg.instanceCount = L.length;
 }
 const SHOCK = tau => 280 * (1 - Math.exp(-tau / 2.4));
-function updateSmoke(tau, t) {
+function updateSmoke(tau, t, fade = 1) {
   const S = 4.0, sm = CN.sm, L = sm.list;
   const Rf = S * 11 * (1 - Math.exp(-tau * 3.5));
   const k = smooth(0.6, 3.5, tau);
@@ -2028,6 +2031,15 @@ function updateSmoke(tau, t) {
       x = Math.cos(p.th) * rd; z = Math.sin(p.th) * rd; y = 0.6 + p.h * (2 + 5 * (1 - smooth(0, 6, tau)));
       size = 5 + 4 * p.s; alpha = 0.17 * smooth(0.5, 1.5, tau) * (1 - smooth(4.6, 6.5, tau));
       cr = 0.84; cg = 0.85; cb = 0.86;
+    } else if (p.role === 5) {
+      const spots = WRECK.spots;
+      if (spots.length) {
+        const sp = spots[i % spots.length], H = 26, yy = (tau * 2.2 * p.sp + p.h * H) % H, f = yy / H;
+        x = sp.x - GZ.x + p.ox * (1.5 + f * 4) + f * 7; y = yy + 0.4; z = sp.z - GZ.z + p.oz * (1.5 + f * 4) + f * 3;
+        size = 1.6 + f * 7 * p.s; alpha = 0.6 * smooth(0, 0.06, f) * (1 - f) * smooth(1.5, 3.5, tau) * (1 - smooth(150, 200, tau));
+        heat = f < 0.14 ? 0.82 - f * 3 : 0;
+        const g = 0.16 + f * 0.16; cr = g; cg = g * 0.97; cb = g * 0.95;
+      }
     } else {
       const rw = S * (6 + 24 * smooth(0.15, 2, tau)), ce = Math.cos(p.el);
       x = rw * ce * Math.cos(p.th); y = S * 6 + rw * Math.sin(p.el); z = rw * ce * Math.sin(p.th);
@@ -2036,6 +2048,7 @@ function updateSmoke(tau, t) {
     }
     x += GZ.x; z += GZ.z;
     sm.pos[i * 3] = x; sm.pos[i * 3 + 1] = y; sm.pos[i * 3 + 2] = z;
+    if (p.role !== 5) alpha *= fade;
     sm.a[i * 4] = size; sm.a[i * 4 + 1] = alpha; sm.a[i * 4 + 2] = heat; sm.a[i * 4 + 3] = p.rot + tau * p.rs;
     sm.b[i * 4] = cr; sm.b[i * 4 + 1] = cg; sm.b[i * 4 + 2] = cb; sm.b[i * 4 + 3] = p.v;
     sm.depth[i] = (x - cam.x) * fw.x + (y - cam.y) * fw.y + (z - cam.z) * fw.z;
@@ -2053,6 +2066,161 @@ function updateSmoke(tau, t) {
   sm.u.fogColor.value.copy(scene.fog.color); sm.u.fogDensity.value = scene.fog.density;
   sm.u.sunCol.value.copy(sun.color).multiplyScalar(sun.intensity * 0.42);
   sm.u.ambCol.value.setRGB(...(LIGHT === 'war' ? [0.5, 0.58, 0.72] : LIGHT === 'golden' ? [0.42, 0.36, 0.34] : [0.58, 0.6, 0.63]));
+}
+
+/* ---------- MAP DESTRUCTION: the blast wave wrecks everything it passes ---------- */
+const WRECK = { items: [], built: false, wrecked: false, ruins: new THREE.Group(), chunks: null, cd: [], next: 0, crater: null, spots: [], post: null, crunchT: 0 };
+scene.add(WRECK.ruins);
+const GREY_C = new THREE.Color(0.5, 0.5, 0.5), CHUNK_MAX = 1000, _q = new THREE.Quaternion(), _ax = new THREE.Vector3(), _bb = new THREE.Box3(), _c3 = new THREE.Vector3(), _s3 = new THREE.Vector3();
+function isShown(o) { for (; o; o = o.parent) if (!o.visible) return false; return true; }
+function mainColor(obj) {
+  const cols = [];
+  obj.traverse(m => { if (m.isMesh) for (const mt of (Array.isArray(m.material) ? m.material : [m.material])) if (mt && mt.color && !mt.map && !mt.transparent) cols.push(mt.color); });
+  return cols.length ? cols[Math.floor(cols.length / 3)].clone() : C('#c9c4bc');
+}
+function initWreck() {
+  WRECK.built = true;
+  const cm = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.88 }), CHUNK_MAX);
+  cm.castShadow = cm.receiveShadow = true; cm.frustumCulled = false;
+  for (let i = 0; i < CHUNK_MAX; i++) { _o.position.set(0, -50, 0); _o.scale.setScalar(0.001); _o.updateMatrix(); cm.setMatrixAt(i, _o.matrix); cm.setColorAt(i, GREY_C); WRECK.cd.push({ on: false }); }
+  scene.add(cm); WRECK.chunks = cm;
+  // scorched crater at ground zero
+  const scorch = canvasTex(512, 512, (g, w) => {
+    const c = w / 2, gr = g.createRadialGradient(c, c, 0, c, c, c);
+    gr.addColorStop(0, 'rgba(22,18,15,1)'); gr.addColorStop(0.35, 'rgba(40,30,22,0.95)'); gr.addColorStop(0.7, 'rgba(70,55,40,0.6)'); gr.addColorStop(1, 'rgba(70,55,40,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, w);
+    g.strokeStyle = 'rgba(20,16,12,0.45)';
+    for (let k = 0; k < 160; k++) { const a = rand(0, 6.28), r0 = rand(0.15, 0.4) * c, r1 = rand(0.6, 1) * c; g.lineWidth = rand(1, 4); g.beginPath(); g.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0); g.lineTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1); g.stroke(); }
+  });
+  const cr = new THREE.Group(); cr.position.set(GZ.x, 0, GZ.z); cr.visible = false; scene.add(cr);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(95, 64), new THREE.MeshStandardMaterial({ map: scorch, transparent: true, roughness: 1, depthWrite: false }));
+  disc.rotation.x = -Math.PI / 2; disc.position.y = 0.08; disc.receiveShadow = true; cr.add(disc);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(26, 5, 10, 64), new THREE.MeshStandardMaterial({ color: C('#4a3b2e'), roughness: 1, flatShading: true }));
+  rim.rotation.x = Math.PI / 2; rim.scale.set(1, 1, 0.28); rim.position.y = 0.2; cr.add(rim);
+  const pit = new THREE.Mesh(new THREE.CircleGeometry(23, 48), new THREE.MeshStandardMaterial({ color: C('#1c1714'), roughness: 1 }));
+  pit.rotation.x = -Math.PI / 2; pit.position.y = 0.12; cr.add(pit);
+  WRECK.crater = cr;
+  // everything breakable near the yard
+  const skip = new Set([sky, cineRoot, stream, core, splash, WRECK.ruins, cm, CN.smoke, cr]);
+  const add = (obj, kind, grp) => {
+    _bb.setFromObject(obj); _bb.getCenter(_c3); _bb.getSize(_s3);
+    if (!isFinite(_c3.x) || _s3.y < 0.3) return;
+    WRECK.items.push({ obj, kind, grp, parent: obj.parent, pos: obj.position.clone(), quat: obj.quaternion.clone(), scale: obj.scale.clone(), vis: obj.visible,
+      c: _c3.clone(), size: _s3.clone(), d: Math.hypot(_c3.x - GZ.x, _c3.z - GZ.z), state: 0 });
+  };
+  for (const obj of [...scene.children]) {
+    if (skip.has(obj) || obj.isLight || obj.isInstancedMesh || obj.isPoints || !(obj.isMesh || obj.isGroup) || WET.meshes.includes(obj)) continue;
+    _bb.setFromObject(obj); _bb.getCenter(_c3); _bb.getSize(_s3);
+    if (!isFinite(_c3.x) || Math.hypot(_c3.x, _c3.z) > 80 || Math.max(_s3.x, _s3.z) > 60) continue;
+    if (obj.userData.job) { const id = Math.random(); for (const ch of [...obj.children]) add(ch, 'fling', id); continue; }
+    add(obj, obj.userData.tree ? 'tree' : obj.userData.bush ? 'bush' : (_s3.x * _s3.z > 40 && _s3.y > 2.5) ? 'shatter' : 'fling');
+  }
+}
+function spawnChunk(x, y, z, s, col, vx, vy, vz) {
+  const i = WRECK.next; WRECK.next = (WRECK.next + 1) % CHUNK_MAX;
+  const k = WRECK.cd[i];
+  Object.assign(k, { on: true, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(vx, vy, vz), q: new THREE.Quaternion().setFromEuler(new THREE.Euler(rand(0, 6), rand(0, 6), rand(0, 6))),
+    w: new THREE.Vector3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).normalize(), ws: rand(3, 10), s: new THREE.Vector3(s * rand(0.6, 1.4), s * rand(0.4, 1.0), s * rand(0.6, 1.4)) });
+  WRECK.chunks.setColorAt(i, col.clone().multiplyScalar(rand(0.7, 1.1)));
+  WRECK.chunks.instanceColor.needsUpdate = true;
+}
+function crunch(k) { if (WRECK.crunchT > 0) return; WRECK.crunchT = 0.12; noise(0, 0.9, 0.12 + 0.25 * k, 1400, 120); tone(rand(55, 80), 0, 0.5, 'sine', 0.12 * k, 30); }
+function wreckItem(it) {
+  it.state = 1;
+  const o = it.obj, dir = _ax.set(it.c.x - GZ.x, 0, it.c.z - GZ.z).normalize().clone();
+  const m = Math.max(it.size.x, it.size.y, it.size.z);
+  if (it.kind === 'shatter') {
+    o.visible = false;
+    const col = mainColor(o), n = clamp(Math.round(it.size.x * it.size.y * it.size.z / 5), 40, 110);
+    for (let k = 0; k < n; k++) {
+      const s = rand(0.3, 1.3), sp = rand(6, 26);
+      spawnChunk(it.c.x + rand(-0.5, 0.5) * it.size.x, rand(0.3, it.size.y), it.c.z + rand(-0.5, 0.5) * it.size.z, s, k % 5 ? col : C('#6f6a63'),
+        dir.x * sp + rand(-4, 4), rand(2, 13), dir.z * sp + rand(-4, 4));
+    }
+    // broken wall stubs, a charred slab and a rubble heap stay behind
+    const wallM = std('#' + col.clone().convertLinearToSRGB().multiplyScalar(0.8).getHexString(), 0.9), char = std('#2e2a27', 1), rub = std('#77716a', 1);
+    const x0 = it.c.x - it.size.x / 2, x1 = it.c.x + it.size.x / 2, z0 = it.c.z - it.size.z / 2, z1 = it.c.z + it.size.z / 2;
+    box(it.size.x, 0.14, it.size.z, char, it.c.x, 0.13, it.c.z, WRECK.ruins).castShadow = false;
+    for (const [ax, a0, a1, fixed] of [['x', x0, x1, z0], ['x', x0, x1, z1], ['z', z0, z1, x0], ['z', z0, z1, x1]]) {
+      for (let a = a0; a < a1 - 0.5;) {
+        const len = Math.min(a1 - a, rand(1.5, 4)), h = Math.random() < 0.3 ? 0 : rand(0.3, Math.max(0.5, it.size.y * 0.4));
+        if (h > 0) box(ax === 'x' ? len : 0.35, h, ax === 'x' ? 0.35 : len, wallM, ax === 'x' ? a + len / 2 : fixed, h / 2, ax === 'x' ? fixed : a + len / 2, WRECK.ruins);
+        a += len + rand(0, 1.2);
+      }
+    }
+    for (let k = 0; k < 26; k++) { const b = box(rand(0.3, 1.2), rand(0.2, 0.7), rand(0.3, 1.2), k % 3 ? rub : wallM, it.c.x + rand(-0.4, 0.4) * it.size.x, rand(0.1, 0.5), it.c.z + rand(-0.4, 0.4) * it.size.z, WRECK.ruins); b.rotation.set(rand(-0.4, 0.4), rand(0, 6), rand(-0.4, 0.4)); }
+    if (WRECK.spots.length < 5) WRECK.spots.push(new THREE.Vector3(it.c.x, 0.5, it.c.z));
+    crunch(1);
+    it.state = 2;
+  } else if (it.kind === 'tree' || it.kind === 'bush') {
+    o.traverse(ch => { if (ch.userData.leaf) { ch.visible = false; const col = ch.material.color; for (let k = 0; k < 3; k++) { _o.position.setFromMatrixPosition(ch.matrixWorld); spawnChunk(_o.position.x, _o.position.y, _o.position.z, rand(0.3, 0.7), col, dir.x * rand(8, 22), rand(2, 9), dir.z * rand(8, 22)); } } });
+    it.axis = new THREE.Vector3(dir.z, 0, -dir.x); it.tq = it.kind === 'tree' ? rand(1.35, 1.55) : 0; it.ta = 0;
+    if (it.kind === 'bush') o.scale.y *= 0.3;
+  } else {
+    if (o.parent !== scene) scene.attach(o);
+    const heavy = /Tank|Container/.test(o.name || '') ? 0.6 : 1;
+    const sp = clamp(60 / (m + 2), 5, 26) * rand(0.7, 1.2) * heavy;
+    it.v = new THREE.Vector3(dir.x * sp + rand(-2, 2), rand(3, 9) * Math.min(1, sp / 15) + 2, dir.z * sp + rand(-2, 2));
+    it.w = new THREE.Vector3(rand(-1, 1), rand(-0.3, 0.3), rand(-1, 1)).normalize(); it.ws = rand(1.5, 5) * Math.min(1.4, sp / 12);
+    it.rest = Math.max(0.15, Math.min(it.size.x, it.size.y, it.size.z) / 2); it.dy = it.c.y - o.position.y;
+    if (m > 2) crunch(0.5);
+  }
+}
+function stepWreck(dt) {
+  WRECK.crunchT -= dt;
+  for (const it of WRECK.items) {
+    if (it.state !== 1) continue;
+    const o = it.obj;
+    if (it.kind === 'tree' || it.kind === 'bush') {
+      if (it.ta < it.tq) { const da = Math.min(it.tq - it.ta, dt * (1 + it.ta * 5)); it.ta += da; o.quaternion.premultiply(_q.setFromAxisAngle(it.axis, da)); } else it.state = 2;
+      continue;
+    }
+    it.v.y -= 18 * dt;
+    o.position.addScaledVector(it.v, dt);
+    o.quaternion.premultiply(_q.setFromAxisAngle(it.w, it.ws * dt));
+    const cy = o.position.y + it.dy;
+    if (cy < it.rest) {
+      o.position.y += it.rest - cy;
+      if (it.v.y < 0) it.v.y = -it.v.y * 0.25;
+      it.v.x *= 0.55; it.v.z *= 0.55; it.ws *= 0.55;
+      if (Math.hypot(it.v.x, it.v.z) < 0.6 && Math.abs(it.v.y) < 1.2) it.state = 2;
+    }
+  }
+  let moved = false;
+  for (let i = 0; i < CHUNK_MAX; i++) {
+    const k = WRECK.cd[i];
+    if (!k.on) continue;
+    moved = true;
+    k.v.y -= 18 * dt; k.p.addScaledVector(k.v, dt); k.q.premultiply(_q.setFromAxisAngle(k.w, k.ws * dt));
+    const r = k.s.y * 0.5 + 0.06;
+    if (k.p.y < r) { k.p.y = r; if (k.v.y < 0) k.v.y = -k.v.y * 0.25; k.v.x *= 0.5; k.v.z *= 0.5; k.ws *= 0.5; if (Math.hypot(k.v.x, k.v.z) < 0.4 && Math.abs(k.v.y) < 1) k.on = false; }
+    _o.position.copy(k.p); _o.quaternion.copy(k.q); _o.scale.copy(k.s); _o.updateMatrix(); WRECK.chunks.setMatrixAt(i, _o.matrix);
+  }
+  if (moved) WRECK.chunks.instanceMatrix.needsUpdate = true;
+}
+function triggerWreck(R) {
+  if (!WRECK.built) return;
+  if (!WRECK.wrecked) { WRECK.wrecked = true; WRECK.crater.visible = true; }
+  let n = 0;
+  for (const it of WRECK.items) if (it.state === 0 && it.d < R && n++ < 12) wreckItem(it);
+}
+function finishWreck() {
+  if (!WRECK.built) return;
+  triggerWreck(1e9); for (const it of WRECK.items) if (it.state === 0) wreckItem(it);
+  for (let k = 0; k < 360; k++) stepWreck(1 / 30);
+}
+function rebuildMap() {
+  for (const it of WRECK.items) {
+    const o = it.obj;
+    if (o.parent !== it.parent) it.parent.add(o);
+    o.position.copy(it.pos); o.quaternion.copy(it.quat); o.scale.copy(it.scale); o.visible = it.vis;
+    o.traverse(ch => { if (ch.userData.leaf) ch.visible = true; });
+    it.state = 0;
+  }
+  while (WRECK.ruins.children.length) { const c = WRECK.ruins.children.pop(); c.geometry.dispose(); }
+  for (let i = 0; i < CHUNK_MAX; i++) { WRECK.cd[i].on = false; _o.position.set(0, -50, 0); _o.scale.setScalar(0.001); _o.rotation.set(0, 0, 0); _o.updateMatrix(); WRECK.chunks.setMatrixAt(i, _o.matrix); }
+  WRECK.chunks.instanceMatrix.needsUpdate = true;
+  WRECK.crater.visible = false; WRECK.spots = []; WRECK.wrecked = false; WRECK.post = null;
 }
 
 /* ---------- cutscene sound ---------- */
@@ -2146,6 +2314,8 @@ function startNuke() {
   nuke = { t: 0, saved: { pos: camera.position.clone(), yaw, pitch }, fired: new Set(), nodes: [], surfaces: [], rr: 0,
     cleanStarted: false, cleaned: false, paid: false, payout };
   for (const p of CN.puffs) { p.life = 0; p.sp.visible = false; }
+  if (!WRECK.built) initWreck(); else if (WRECK.wrecked) rebuildMap();
+  WRECK.post = null;
   cineRoot.visible = true;
   CN.smoke.visible = false;
   document.body.classList.add('cine');
@@ -2172,6 +2342,9 @@ function endNuke() {
   if (!nuke.cleaned) cleanAllNow();
   if (!nuke.paid) payOut();
   for (const n of nuke.nodes) { try { n.stop(); } catch (e) { /* already stopped */ } }
+  finishWreck();
+  WRECK.post = { tau: Math.max(nuke.t - T_IMP, 9) };
+  CN.smoke.visible = true;
   const sv = nuke.saved;
   nuke = null;
   cineRoot.visible = false;
@@ -2252,6 +2425,8 @@ function updateNuke(dt) {
     }
     n.queue = list.sort((a, b) => a.d - b.d); n.qi = 0;
   }
+  if (blast) triggerWreck(R);
+  stepWreck(dt);
   if (n.cleanStarted && !n.cleaned) {
     if (t >= 14.5) cleanAllNow();
     else for (let k = 0; k < 6 && n.qi < n.queue.length && n.queue[n.qi].d < R + 3; k++) cleanSurface(n.queue[n.qi++].s);
@@ -2555,6 +2730,12 @@ function animate() {
     focusCur += (focusWanted - focusCur) * Math.min(1, dt * 4);
     renderFrame(false);
     return;
+  }
+  stepWreck(dt);
+  if (WRECK.post) {   // the cloud drifts and fades; the ruins keep smouldering
+    WRECK.post.tau += dt;
+    updateSmoke(WRECK.post.tau, 0, 1 - smooth(25, 90, WRECK.post.tau));
+    if (WRECK.post.tau > 200) { WRECK.post = null; CN.smoke.visible = false; }
   }
   if (locked) updatePlayer(dt);
   if (locked && BODY) {   // handheld bodycam sway
