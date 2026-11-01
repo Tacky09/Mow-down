@@ -3394,7 +3394,7 @@ $('mpShuf').onclick=()=>{ MP.shuf=!MP.shuf; mpIcons(); }; $('mpRep').onclick=()=
 $('mpDz').onclick=()=>{ const r=MP.list[MP.i]; if(!r){ toast('Pick a song first'); return; } const id='mpDzCb'+(++MP.seq), sc=document.createElement('script'); let done=false;
   window[id]=d=>{ done=true; delete window[id]; sc.remove(); const t=(d&&d.data||[])[0]; if(!t){ toast('Deezer could not find that song'); return; }
     MP.el.pause(); $('mpDzFrame').src='https://widget.deezer.com/widget/dark/track/'+t.id+'?autoplay=true'; $('mpDzBox').hidden=false; toast('Playing on Deezer. Press play in the Deezer box if it does not start'); };
-  sc.src='https://api.deezer.com/search?q='+encodeURIComponent('artist:"'+r.artistName+'" track:"'+r.trackName.replace(/\s*\(feat[^)]*\)/i,'')+'"')+'&output=jsonp&callback='+id;
+  sc.src='https://api.deezer.com/search?q='+encodeURIComponent(r.trackName.replace(/\s*[\(\[]feat[^\)\]]*[\)\]]/i,'')+' '+r.artistName)+'&output=jsonp&callback='+id;
   sc.onerror=()=>{ if(!done){ delete window[id]; toast('Deezer could not connect'); } }; document.head.appendChild(sc); };
 $('mpMore').onclick=()=>{ const r=MP.list[MP.i]; if(r) mpSearch(r.artistName); };
 $('mpGo').onclick=()=>mpSearch(); $('mpQ').addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') mpSearch(); });
