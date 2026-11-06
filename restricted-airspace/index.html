@@ -89,6 +89,17 @@
   #warnTxt { position: absolute; top: 34%; left: 50%; transform: translateX(-50%); font-weight: 700; font-size: 40px; color: var(--bad); text-shadow: 0 2px 3px #000; }
   #camName { position: absolute; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); font: 600 12px var(--mono); padding: 5px 9px; background: var(--panel); color: var(--dim); }
 
+  /* cutscene */
+  #cut { position: fixed; inset: 0; z-index: 15; pointer-events: none; }
+  #cut .lb { position: absolute; left: 0; right: 0; height: 11vh; background: #000; }
+  #cut .lb.t { top: 0; } #cut .lb.b { bottom: 0; }
+  #cutCap { position: absolute; left: 50%; bottom: 13vh; transform: translateX(-50%); width: min(780px, 92vw); text-align: center; font-size: 28px; line-height: 1.18; font-weight: 500; }
+  #cutCap span { padding: 2px 8px; background: rgba(0,0,0,.76); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  #cutCap small { display: block; font: 600 12px var(--mono); letter-spacing: 1px; color: var(--lcd); margin-bottom: 4px; text-shadow: 0 1px 2px #000; }
+  #cutBlack { position: absolute; inset: 0; background: #000; opacity: 0; display: grid; place-items: center; font: italic 700 clamp(54px, 11vw, 120px)/1 var(--disp); color: var(--bad); text-transform: uppercase; }
+  #cutRed { position: absolute; inset: 0; background: #c81f12; opacity: 0; }
+  #cutSkip { position: absolute; right: max(14px, env(safe-area-inset-right)); top: calc(11vh + 10px); padding: 5px 12px; font: 600 13px var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; pointer-events: auto; z-index: 2; }
+
   /* touch */
   #touch { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
   #stick, #thr { position: absolute; pointer-events: auto; touch-action: none; background: rgba(13,22,29,.35); border: 1px solid var(--line); }
@@ -156,6 +167,8 @@
     <p class="credit">Inspired by a Civil Air Patrol training video of a real practice intercept in Houston. Callsigns and dialogue here are game versions.</p>
   </div>
 </div>
+
+<div id="cut" hidden><div id="cutRed"></div><div class="lb t"></div><div class="lb b"></div><div id="cutCap"></div><div id="cutBlack"><span id="cutTitle"></span></div><button id="cutSkip">Skip</button></div>
 
 <div class="modal" id="mFree" hidden><div class="sheet"><h2>Free flight</h2><p>No objectives and no one chasing you. Pick an aircraft.</p>
   <div class="row"><button class="btn" id="fCessna">Cessna 182</button><button class="btn" id="fHawk">Black Hawk</button></div>
@@ -489,8 +502,9 @@ function buildCessna() {
   const body = new THREE.Mesh(loft([[-4.0, .05, .05, .32], [-3.9, .36, .34, .32], [-3.3, .54, .52, .34], [-2.3, .58, .66, .42], [-1.2, .6, .78, .5], [.2, .58, .74, .52], [1.4, .42, .5, .56], [3.0, .2, .28, .68], [4.5, .06, .12, .84]]), w); body.castShadow = true; g.add(body);
   const cab = new THREE.Mesh(loft([[-2.3, .5, .05, 1.0], [-1.8, .57, .25, .98], [-.5, .595, .3, .96], [.5, .55, .24, .96], [1, .4, .05, .96]]), glass); g.add(cab);
   bx(g, blue, 1.24, .1, 6.2, 0, .35, 1.2, .07); bx(g, blue, 1.1, .05, 2.2, 0, .2, -2.6);
-  bx(g, w, 11, .13, 1.55, 0, 1.3, -.45); bx(g, blue, .5, .135, 1.56, 5.0, 1.3, -.45); bx(g, blue, .5, .135, 1.56, -5.0, 1.3, -.45);
-  cyl(g, w, [.56, .1, -.5], [2.9, 1.25, -.5], .05); cyl(g, w, [-.56, .1, -.5], [-2.9, 1.25, -.5], .05);
+  bx(g, w, 5.5, .13, 1.55, -2.75, 1.3, -.45); bx(g, blue, .5, .135, 1.56, -5.0, 1.3, -.45);
+  const rw = new THREE.Group(); g.add(rw); bx(rw, w, 5.5, .13, 1.55, 2.75, 1.3, -.45); bx(rw, blue, .5, .135, 1.56, 5.0, 1.3, -.45); g.userData.rw = rw;
+  cyl(rw, w, [.56, .1, -.5], [2.9, 1.25, -.5], .05); cyl(g, w, [-.56, .1, -.5], [-2.9, 1.25, -.5], .05);
   bx(g, w, 3.5, .08, .95, 0, .78, 4.2); bx(g, w, .08, 1.5, 1.05, 0, 1.5, 4.25, -.35); bx(g, blue, .09, .3, 1.05, 0, 1.85, 4.4, -.35);
   cyl(g, dark, [.6, 0, -.25], [1.25, -.75, -.25], .05); cyl(g, dark, [-.6, 0, -.25], [-1.25, -.75, -.25], .05); cyl(g, dark, [0, 0, -3.2], [0, -.75, -3.2], .05);
   const wh = new THREE.CylinderGeometry(.24, .24, .14, 12); wh.rotateZ(Math.PI / 2);
@@ -516,6 +530,7 @@ function buildHawk() {
   const disc = new THREE.Mesh(new THREE.CircleGeometry(8.1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x10151a, transparent: true, opacity: .2, side: THREE.DoubleSide, depthWrite: false })); disc.position.set(0, 2.64, -1.2); g.add(disc);
   const tail = new THREE.Group(); tail.position.set(-.26, 3.1, 8.6); g.add(tail);
   for (let i = 0; i < 4; i++) { const m = bx(tail, rot, .03, 1.65, .2, 0, 0, 0); m.rotation.x = i * .785; }
+  const gunM = std(0x0c0e10, .5, .4); cyl(g, gunM, [1.15, .55, -2.2], [2.75, .42, -2.45], .05); bx(g, gunM, .35, .22, .22, 1.15, .55, -2.2);
   const stro = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff3a30, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); stro.position.set(0, 3.5, 8.7); stro.scale.setScalar(4); g.add(stro);
   let t = 0; g.userData.spin = dt => { rotor.rotation.y += dt * 19; tail.rotation.x += dt * 44; t += dt; stro.material.opacity = (t % 1.1) < .1 ? 1 : .05; };
   g.userData.gear = 1.9; return g;
@@ -586,7 +601,7 @@ const ABORT = Symbol('abort');
 let waits = [];
 const until = (fn, t) => new Promise((res, rej) => waits.push({ fn, t, res, rej }));
 const wait = t => until(() => false, t);
-function tickWaits(dt) { const cur = waits; waits = []; for (const w of cur) { if (w.fn()) { w.res(true); continue; } if (w.t !== undefined) { w.t -= dt; if (w.t <= 0) { w.res(false); continue; } } waits.push(w); } }
+function tickWaits(dt) { const cur = waits, tk = G.token; waits = []; for (const w of cur) { if (tk !== G.token) return; if (w.fn()) { w.res(true); continue; } if (w.t !== undefined) { w.t -= dt; if (w.t <= 0) { w.res(false); continue; } } waits.push(w); } }
 function abortScripts() { const c = waits; waits = []; c.forEach(w => w.rej(ABORT)); G.token++; if (askRes) { const r = askRes; askRes = null; r(-2); } }
 
 let capT = 0;
@@ -614,7 +629,7 @@ function pickAsk(i) { if (askRes) { const r = askRes; askRes = null; r(i); } }
 function strike(msg) {
   G.strikes++; G.showStrikes = true; sfx.bad(); fireFlares(N.pos.clone().add(V3(0, -2, 0)), tmp.set(0, 0, -1).applyQuaternion(N.q).clone());
   updateStrikes(); caption('HAWK', msg);
-  if (G.strikes >= 3) { fail('Fighters scrambled', 'Three warnings ignored. F-16s forced you down at Ellington and the FAA pulled your certificate. In a real intercept, comply first and ask questions on the ground.'); }
+  if (G.strikes >= 3) shootDown();
 }
 function updateStrikes() { const e = $('strikes'); e.hidden = !G.showStrikes; e.textContent = 'WARNINGS ' + G.strikes + '/3'; }
 function fail(title, text) { if (G.state !== 'fly') return; G.state = 'over'; abortScripts(); sfx.silence(); showEnd(false, title, text, 0, []); }
@@ -636,8 +651,7 @@ const answer = (i, good) => { if (i === good) { G.stats.right++; sfx.ok(); retur
 async function interceptScript() {
   $('radio').classList.remove('need'); tfrWall.visible = true; G.stats.intercepted = true;
   caption('SYS', 'Flight restriction! You flew into the stadium TFR.', 3.5); obj('Hold your course. Something is coming up on your left.', true);
-  const b = hdgOf(P.q); tmp.set(0, 0, 900).applyAxisAngle(V3(0, 1, 0), -b * DEG + .5);
-  placeNpc(P.pos.x + tmp.x, P.pos.y + 60, P.pos.z + tmp.z, b, 85); N.mode = 'wing';
+  hawkOnYou();
   await until(() => N.pos.distanceTo(P.pos) < 180, 22);
   await say('KID', 'Is that... a helicopter? It is really close to us.');
   obj('Tune Guard: press T for 121.5', true); $('radio').classList.add('need'); G.needTune = true;
@@ -659,8 +673,9 @@ async function interceptScript() {
   if (a === 0) await say('YOU', 'Negative. I was not aware of the TFR. May I continue to my destination?');
   const hd = Math.round(bearing(STADIUM, P.pos) / 10) * 10, word = compass(hd);
   await say('HAWK', `Turn to heading ${pad3(hd)} and continue ${word}bound. We will follow you and escort you out. Stand by.`);
-  obj(`Fly heading ${pad3(hd)} out of the restriction`, true); const dNow = dist2(P.pos, STADIUM), exR = Math.max(TFR_R + 600, dNow + 1800);
+  obj(`Fly heading ${pad3(hd)} to the ring or be shot down`, true); const dNow = dist2(P.pos, STADIUM), exR = Math.max(TFR_R + 600, dNow + 1800);
   G.target = { x: STADIUM.x + (P.pos.x - STADIUM.x) / dNow * exR, z: STADIUM.z + (P.pos.z - STADIUM.z) / dNow * exR, label: 'EXIT' };
+  ringMesh.position.set(G.target.x, P.pos.y, G.target.z); ringMesh.visible = true;
   let off = 0, warned = false; const tEsc = G.t;
   await until(() => {
     const err = Math.abs(angDiff(hdgOf(P.q), bearing(P.pos, G.target))); off = err > 35 ? off + G.dt : Math.max(0, off - G.dt);
@@ -668,12 +683,13 @@ async function interceptScript() {
     if (off > 12 && !warned && G.state === 'fly') { warned = true; off = 0; strike('Comply with instructions. Turn to the heading I gave you.'); setTimeout(() => { warned = false; }, 9000); }
     return dist2(P.pos, STADIUM) > exR - 150;
   });
-  G.stats.escort = G.t - tEsc;
+  G.stats.escort = G.t - tEsc; ringMesh.visible = false;
   G.target = null;
   await say('HAWK', 'Cessna 778 Charlie Papa, you are clear of the restriction. Call Flight Service when you land and check your NOTAMs next time.');
   await say('YOU', 'Roger that. Thank you very much. Have a good day.');
   tfrWall.visible = false; N.mode = 'away';
 }
+function hawkOnYou() { if (N.on) { N.mode = 'wing'; return; } const b = hdgOf(P.q); tmp.set(0, 0, 900).applyAxisAngle(V3(0, 1, 0), -b * DEG + .5); placeNpc(P.pos.x + tmp.x, P.pos.y + 60, P.pos.z + tmp.z, b, 85); N.mode = 'wing'; }
 function strikeOnce(m) { if (G.t - (G.lastSO || -99) > 12) { G.lastSO = G.t; strike(m); } }
 async function landScript() {
   G.target = { x: AIRPORT.x, z: AIRPORT.z, label: 'HOOKS', air: true }; obj('Return to Hooks Memorial and land');
@@ -689,11 +705,25 @@ const MISSIONS = [
       caption('SYS', 'Hooks Memorial, 7:30 in the morning. Hold Shift for full power, then press S at 60 knots.', 6);
       await until(() => P.thr > .5); await until(() => P.speed > 30); obj('Rotate: press S to lift off');
       await until(() => !P.ground && P.pos.y > 110); await say('COP', 'Cousin Dale wants pictures. Start with the big interchange.');
+      const RING_STRAY = 30, RING_FUSE = 25;
       const pts = [{ x: -1700, z: -4400, alt: 440, label: 'INTERCHANGE', name: 'the 45 and 610 interchange' }, { x: 300, z: -2300, alt: 520, label: 'DOWNTOWN', name: 'the downtown towers' }, { x: 1300, z: 2100, alt: 460, label: 'MED CENTER', name: 'the Medical Center' }];
       for (const p of pts) {
         obj('Fly through the ring over ' + p.name); G.target = p; ringMesh.position.set(p.x, p.alt, p.z); ringMesh.visible = true;
         let inside = 0, hit = false;
-        await until(() => { if (inTFR(P.pos)) inside += G.dt; hit = dist2(P.pos, p) < 210 && Math.abs(P.pos.y - p.alt) < 190; return hit || inside > (p === pts[2] ? 25 : 0); });
+        let best = 1e9, stray = 0, fuse = RING_FUSE, stage = 0;
+        await until(() => {
+          if (inTFR(P.pos)) inside += G.dt; hit = dist2(P.pos, p) < 210 && Math.abs(P.pos.y - p.alt) < 190; if (hit) return true;
+          const d = dist2(P.pos, p), toward = Math.abs(angDiff(bearing(P.pos, p), hdgOf(P.q))) < 50;
+          if (d < best - 1) { best = d; stray = Math.max(0, stray - G.dt); } else stray += G.dt;
+          if (stage === 0 && stray > RING_STRAY) { stage = 1; hawkOnYou(); caption('HAWK', 'Cessna 778 Charlie Papa, you left your route. Fly to the ring now or you will be shot down.'); obj('Fly to the ring now or be shot down', true); }
+          if (stage > 0) {
+            if (!toward) fuse -= G.dt; barSet(fuse / RING_FUSE);
+            if (stage === 1 && fuse < 10) { stage = 2; sfx.bad(); fireFlares(N.pos.clone(), V3(0, 0, -1).applyQuaternion(N.q)); caption('HAWK', 'Warning shots. This is your last warning. Turn to the ring.'); }
+            if (fuse <= 0) { shootDown(); return false; }
+          }
+          return !!inside && inside > (p === pts[2] ? 25 : 0);
+        });
+        barSet(null); if (stage > 0) { N.mode = 'away'; caption('HAWK', 'Good. Stay on your route.', 3); }
         if (!hit) break;
         G.stats.photos++; flash(); sfx.shutter(); caption('COP', G.stats.photos < 3 ? 'Got it. Great shot! Next one.' : 'Perfect. Hey, is that the stadium down there? Look at all those cars.', 3);
       }
@@ -770,7 +800,7 @@ const FREE = { id: null, title: 'Free flight', sky: 'morning', win: '', async ru
 function resetRun(m) {
   abortScripts(); [$('cap'), $('ask')].forEach(e => e.hidden = true); barSet(null);
   Object.assign(G, { state: 'fly', mission: m, t: 0, strikes: 0, showStrikes: false, target: null, watch: null, com: 118.4, stby: 121.5, needTune: false, cam: P.kind === 'hawk' ? 0 : 0, flareShot: false, stats: { right: 0, wrong: 0, touch: 0 }, rocks: 0, lastSO: -99 });
-  ringMesh.visible = false; tfrWall.visible = false; flares.forEach(f => { f.life = 0; f.s.visible = false; });
+  clearCutFx(); ringMesh.visible = false; tfrWall.visible = false; flares.forEach(f => { f.life = 0; f.s.visible = false; });
   setPlayer(m === FREE ? P.kind : m.kind); setSky(m.sky); updateStrikes(); updateRadio();
   obj(''); input.tThr = null; $('thr').firstChild.style.height = '0';
   camInit = true; $('radio').classList.remove('need'); $('hud').hidden = false; $('menu').hidden = true; ['mEnd', 'mPause', 'mFree', 'mHow', 'mSet'].forEach(i => $(i).hidden = true);
@@ -778,7 +808,7 @@ function resetRun(m) {
   m.run().catch(e => { if (e !== ABORT) console.error(e); });
 }
 function toMenu() {
-  abortScripts(); G.state = 'menu'; G.watch = null; sfx.silence(); if (synth) try { synth.cancel(); } catch (e) { /* optional */ }
+  abortScripts(); clearCutFx(); G.state = 'menu'; G.watch = null; sfx.silence(); if (synth) try { synth.cancel(); } catch (e) { /* optional */ }
   ['hud', 'touch', 'mEnd', 'mPause'].forEach(i => $(i).hidden = true); $('menu').hidden = false; setPlayer('cessna'); setSky('morning');
   placeAir(-200, 1200, 640, 80, 62); placeNpc(0, 0, 0, 0, 62); renderMenu();
 }
@@ -998,8 +1028,104 @@ function drawMarker() {
   el.hidden = false; el.style.left = x + 'px'; el.style.top = y + 'px'; el.lastChild.textContent = t.label + ' ' + (d * .00054).toFixed(1) + ' nm';
 }
 
+/* ---------- shoot-down cutscene (45 s) ---------- */
+const CUT_LEN = 45, IMPACT = 39.5, WING_OFF = 21, parts = [], tracers = [];
+let cut = null, boomLight, scorch, debris;
+function buildCutFx() {
+  for (let i = 0; i < 170; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), transparent: true, depthWrite: false })); s.visible = false; scene.add(s); parts.push({ s, v: V3(), life: 0, max: 1, r0: 1, r1: 2, fire: false }); }
+  const tm = new THREE.MeshBasicMaterial({ color: 0xffb060, fog: false }); for (let i = 0; i < 40; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.35, .35, 13), tm); m.visible = false; scene.add(m); tracers.push({ m, v: V3(), life: 0 }); }
+  boomLight = new THREE.PointLight(0xff8a3c, 0, 900, 2); scene.add(boomLight);
+  const c = makeCanvas(256), g = c.getContext('2d'), r = g.createRadialGradient(128, 128, 20, 128, 128, 128); r.addColorStop(0, 'rgba(10,8,6,.95)'); r.addColorStop(.6, 'rgba(20,16,12,.7)'); r.addColorStop(1, 'rgba(20,16,12,0)'); g.fillStyle = r; g.fillRect(0, 0, 256, 256);
+  scorch = new THREE.Mesh(new THREE.PlaneGeometry(130, 130).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); scorch.visible = false; scene.add(scorch);
+}
+function emit(pos, fire, spread, size, life, up = 0) {
+  const p = parts.find(q => q.life <= 0); if (!p) return; p.life = p.max = life * rnd(.75, 1.25); p.fire = fire; p.r0 = size * .5; p.r1 = size * (fire ? 1.4 : 2.6);
+  p.s.position.copy(pos); p.v.set(rnd(-spread, spread), rnd(-spread, spread) * .6 + up, rnd(-spread, spread)); p.s.visible = true;
+  p.s.material.blending = fire ? THREE.AdditiveBlending : THREE.NormalBlending; p.s.material.color.setHex(fire ? 0xff9a3c : 0x24211f);
+}
+function tickParts(dt) { for (const p of parts) if (p.life > 0) { p.life -= dt; if (p.life <= 0) { p.s.visible = false; continue; } const u = 1 - p.life / p.max; p.s.position.addScaledVector(p.v, dt); p.v.multiplyScalar(1 - .5 * dt); if (!p.fire) p.v.y += 2 * dt; p.s.scale.setScalar(lerp(p.r0, p.r1, u)); p.s.material.opacity = (p.fire ? 1 - u : Math.min(1, u * 6) * (1 - u)) * .9; if (p.fire && u > .45) p.s.material.color.setHex(0xc23a12); } }
+function boom(pos, n, size) { for (let i = 0; i < n; i++) { emit(pos, true, size * 1.6, size, rnd(.7, 1.5)); if (i % 2) emit(pos, false, size, size * 1.3, rnd(2.5, 5), 3); } }
+function clearCutFx() { parts.forEach(p => { p.life = 0; p.s.visible = false; }); tracers.forEach(t => { t.life = 0; t.m.visible = false; }); if (scorch) scorch.visible = false; if (boomLight) boomLight.intensity = 0; if (debris) { scene.remove(debris); debris = null; } if (cessna) cessna.userData.rw.visible = true; $('cut').hidden = true; cut = null; }
+function planCut() {
+  const n = Math.ceil(CUT_LEN / .05) + 1, a = new Float32Array(n * 4); let x = P.pos.x, z = P.pos.z, h = hdgOf(P.q), y = Math.max(P.pos.y, 540); const y0 = y; let yA = y;
+  for (let i = 0; i < n; i++) { const t = i * .05; let sp = 62;
+    if (t < WING_OFF) { y = y0 - Math.max(0, t - 16) * 4; yA = y; h += Math.sin(t * .5) * .03; }
+    else { const u = clamp((t - WING_OFF) / (IMPACT - WING_OFF), 0, 1); sp = lerp(56, 36, u); h += (14 + 34 * u) * .05; y = Math.max(2, lerp(yA, 2, Math.pow(u, 1.7))); }
+    if (t < IMPACT) { x += Math.sin(h * DEG) * sp * .05; z -= Math.cos(h * DEG) * sp * .05; }
+    a.set([x, y, z, h], i * 4); }
+  return a;
+}
+function shootDown() {
+  if (G.state !== 'fly' || P.kind !== 'cessna') return;
+  G.state = 'cut'; abortScripts(); G.watch = null; G.target = null; barSet(null); ringMesh.visible = false; tfrWall.visible = false; if (synth) try { synth.cancel(); } catch (e) { /* optional */ }
+  ['hud', 'touch'].forEach(i => $(i).hidden = true); $('marker').hidden = true; ['ask', 'cap'].forEach(i => $(i).hidden = true); $('cut').hidden = false; $('cutBlack').style.opacity = 0; $('cutRed').style.opacity = 0; $('cutTitle').textContent = 'Shot down'; $('cutCap').innerHTML = '';
+  cut = { t: 0, path: planCut(), lines: CUT_LINES.slice(), hit: false, wing: false, imp: false, fired: 0, nextGun: 0, wingDbg: null, lastBeep: 0 };
+  N.on = true; N.mode = 'off'; N.mesh.visible = true; const e = cut.path; cut.end = V3(e[Math.round(IMPACT / .05) * 4], 0, e[Math.round(IMPACT / .05) * 4 + 2]);
+  N.pos.copy(cutAt(0).p).add(V3(-90, 8, 0)); P.fv = 0;
+}
+const cutV = { p: V3(), h: 0 };
+function cutAt(t) { const a = cut.path, f = clamp(t, 0, CUT_LEN - .05) / .05, i = Math.floor(f), u = f - i, k = i * 4; cutV.p.set(lerp(a[k], a[k + 4], u), lerp(a[k + 1], a[k + 5], u), lerp(a[k + 2], a[k + 6], u)); cutV.h = lerp(a[k + 3], a[k + 7], u); return cutV; }
+const CUT_LINES = [[.6, 'HAWK', 'Cessna 778 Charlie Papa, this is your final warning. You did not comply.'], [4.6, 'YOU', 'Wait, stand by, stand by!'], [7, 'HAWK', 'Engaging.'], [11.2, 'COP', 'We are hit! We are hit!'], [16.2, 'YOU', 'Mayday, mayday, mayday. Engine fire. Cessna 778 Charlie Papa.'], [21.6, 'COP', 'The wing! The wing is gone!'], [27, 'YOU', 'Mayday. Going down over Houston.'], [34, 'HAWK', 'Target is going down. Marking the position.']];
+function camAt(pos, target, fov) { camera.up.set(0, 1, 0); camera.position.copy(pos); camera.lookAt(target); camera.fov = fov; camera.updateProjectionMatrix(); skyMesh.position.copy(camera.position); }
+function tickCut(dt) {
+  const c = cut; if (!c) return; const t0 = c.t, t = c.t = t0 + dt; if (t >= CUT_LEN) return endCut();
+  const a = cutAt(t), pp = a.p.clone(), h = a.h;
+  // plane attitude
+  const roll = t < 16 ? Math.sin(t * 1.4) * 2 : t < WING_OFF ? (t - 16) * -3 : -15 + (t - WING_OFF) * (38 + (t - WING_OFF) * 6), pitch = t < WING_OFF ? 1 : lerp(1, -42, clamp((t - WING_OFF) / 9, 0, 1));
+  if (t < IMPACT) { P.pos.copy(pp); P.q.copy(qFromHdg(h, pitch, roll)); P.mesh.position.copy(pp); P.mesh.quaternion.copy(P.q); P.mesh.userData.spin(dt * (t < 16 ? 1 : t < 21 ? .5 : .08)); }
+  fwd.set(0, 0, -1).applyQuaternion(P.q);
+  // helicopter
+  const r = h * DEG, sn = Math.sin(r), cs = Math.cos(r), L = t < 8 ? 90 : lerp(90, 62, clamp((t - 8) / 3, 0, 1)), B = t < 8 ? 0 : lerp(0, -38, clamp((t - 8) / 3, 0, 1));
+  const want = t < WING_OFF ? V3(pp.x - cs * L - sn * B, pp.y + 10, pp.z - sn * L + cs * B) : t < IMPACT ? V3(pp.x - cs * 150 - sn * 110, pp.y + 90, pp.z - sn * 150 + cs * 110) : V3(c.end.x + 60, 130, c.end.z + 90);
+  N.pos.x = damp(N.pos.x, want.x, t < IMPACT ? 2.5 : .5, dt); N.pos.y = damp(N.pos.y, want.y, t < IMPACT ? 2.5 : .5, dt); N.pos.z = damp(N.pos.z, want.z, t < IMPACT ? 2.5 : .5, dt);
+  N.q.copy(qFromHdg(t < IMPACT ? h : bearing(N.pos, c.end), -6, 0)); N.mesh.position.copy(N.pos); N.mesh.quaternion.copy(N.q); N.mesh.userData.spin(dt);
+  // gun
+  if (t > 7.6 && t < 16.6 && t >= c.nextGun && (t % 1.5) < 1) {
+    c.nextGun = t + .07; const tr = tracers.find(q => q.life <= 0);
+    if (tr) { const gun = tmp.set(2.75, .42, -2.45).applyQuaternion(N.q).add(N.pos).clone(), miss = t < 11 ? 16 : 3, aim = pp.clone().addScaledVector(fwd, 42 * .25).add(V3(rnd(-miss, miss), rnd(-miss, miss) * .6, rnd(-miss, miss))), d = gun.distanceTo(aim), dir = aim.sub(gun).normalize(); tr.life = d / 420 + .35; tr.v.copy(dir).multiplyScalar(420); tr.m.position.copy(gun); tr.m.quaternion.setFromUnitVectors(V3(0, 0, 1), dir); tr.m.visible = true; if (Math.random() < .7) emit(gun, true, 3, 1.6, .08); sfx.burst(.05, 1500, .22); if (t > 11 && Math.random() < .5) emit(tmp2.copy(pp).add(V3(rnd(-3, 3), rnd(0, 1.5), rnd(-3, 3))), true, 7, 1.5, .28); }
+  }
+  for (const q of tracers) if (q.life > 0) { q.life -= dt; q.m.position.addScaledVector(q.v, dt); if (q.life <= 0) q.m.visible = false; }
+  // events
+  if (!c.hit && t >= 11) { c.hit = true; G.shake = 1.2; sfx.pop(); boom(pp, 6, 5); }
+  const nose = tmp2.set(0, .4, -3.2).applyQuaternion(P.q).add(pp).clone();
+  if (t > 11 && t < IMPACT) { if (frame % 2 === 0) emit(nose, false, 2, t < 16 ? 4 : 8, t < 16 ? 2.2 : 3.6); if (t > 14.5) emit(nose, true, 1.5, 4.5, .4); }
+  if (!c.wing && t >= WING_OFF) {
+    c.wing = true; const rw = cessna.userData.rw; const at = V3(3, 1.3, -.45).applyQuaternion(P.q).add(pp); boom(at, 22, 8); sfx.crash(); G.shake = 1.6; rw.visible = false;
+    debris = rw.clone(); debris.visible = true; debris.position.copy(pp); debris.quaternion.copy(P.q); scene.add(debris); c.dv = fwd.clone().multiplyScalar(36).add(V3(cs * 16, 8, sn * 16));
+  }
+  if (debris) { c.dv.y -= 7 * dt; debris.position.addScaledVector(c.dv, dt); debris.rotateX(dt * 2.4); debris.rotateZ(dt * 3.1); if (debris.position.y < 2) debris.visible = false; if (t < 28 && frame % 3 === 0) emit(tmp2.set(3, 1.3, -.4).applyQuaternion(debris.quaternion).add(debris.position), false, 1, 4, 1.6); }
+  if (t > WING_OFF && t < IMPACT) { emit(tmp2.set(.8, 1.2, -.45).applyQuaternion(P.q).add(pp), true, 1.5, 3.2, .35); }
+  if (!c.imp && t >= IMPACT) { c.imp = true; P.mesh.visible = false; boom(c.end.clone().setY(8), 70, 26); boom(c.end.clone().setY(40), 30, 18); sfx.crash(); sfx.pop(); G.shake = 3.2; scorch.position.set(c.end.x, 2, c.end.z); scorch.visible = true; boomLight.position.set(c.end.x, 50, c.end.z); boomLight.intensity = 6; $('cutRed').style.opacity = .55; }
+  if (c.imp) { boomLight.intensity = damp(boomLight.intensity, .8, 1.2, dt); $('cutRed').style.opacity = Math.max(0, parseFloat($('cutRed').style.opacity) - dt * .8); const fp = tmp2.copy(c.end).add(V3(rnd(-18, 18), 6, rnd(-18, 18))).clone(); emit(fp, true, 7, 26, 1.1, 12); if (frame % 2 === 0) emit(fp, false, 7, 42, 7, 16); }
+  G.shake = Math.max(0, G.shake - dt * 1.3);
+  // captions + voices
+  while (c.lines.length && c.lines[0][0] <= t) { const l = c.lines.shift(), e = $('cutCap'); e.innerHTML = (LBL[l[1]] ? '<small>' + LBL[l[1]] + '</small>' : '') + '<span></span>'; e.lastChild.textContent = l[2]; c.capT = t + Math.max(3, l[2].split(' ').length * .42); sfx.squelch(); speak(l[1], l[2]); }
+  if (c.capT && t > c.capT) { $('cutCap').innerHTML = ''; c.capT = 0; }
+  // sound
+  sfx.engine(t < 16 ? .8 : t < WING_OFF ? .4 : 0, t < WING_OFF, t < IMPACT ? .8 : .45, t < IMPACT ? clamp(t / 30, .3, 1) : 0, false);
+  sfx.stall(t > 16 && t < IMPACT && (t % .8) < .45);
+  if (t > 25 && t < IMPACT && t - c.lastBeep > lerp(1.1, .4, (t - 25) / 15)) { c.lastBeep = t; sfx.beep(62, .35, .4); }
+  // shots
+  const lookP = pp.clone(), rv = V3(cs, 0, sn), fv = V3(sn, 0, -cs);
+  if (t < 7.5) { tmp.set(1.6, 1.25, -1.1).applyQuaternion(N.q).add(N.pos); camAt(tmp, lookP, 26); }
+  else if (t < 11) { tmp.copy(N.pos).addScaledVector(fv, 22).addScaledVector(rv, -20).add(V3(0, 2, 0)); camAt(tmp, N.pos.clone().addScaledVector(rv, 8), 62); }
+  else if (t < 16) { const k = G.cam; G.cam = 2; camInit = true; updateCamera(0); G.cam = k; }
+  else if (t < 20.2) { tmp.copy(pp).addScaledVector(fv, -19).addScaledVector(rv, 6).add(V3(0, 4, 0)); camAt(tmp, lookP.clone().addScaledVector(fv, 2), 58); }
+  else if (t < 25) { if (!c.s5) c.s5 = pp.clone().addScaledVector(fv, 170).addScaledVector(rv, 75).add(V3(0, 12, 0)); camAt(c.s5, lookP, lerp(30, 42, (t - 20.2) / 4.8)); }
+  else if (t < 33) { const an = (t - 25) * .4; tmp.copy(pp).add(V3(Math.cos(an) * 26, 11 + (t - 25) * 1.2, Math.sin(an) * 26)); camAt(tmp, lookP, 54); }
+  else if (t < IMPACT + .8) { if (!c.s7) c.s7 = c.end.clone().add(V3(-410, 7, 310)); camAt(c.s7, t < IMPACT ? lookP : c.end.clone().setY(30), lerp(34, 46, clamp((t - 33) / 6, 0, 1))); }
+  else if (t < 43) { tmp.copy(c.end).add(V3(-210 + (t - 40) * 14, 26 + (t - 40) * 6, 170)); camAt(tmp, c.end.clone().setY(62), 52); }
+  else { tmp.copy(N.pos).add(V3(-34, 15, 44)); camAt(tmp, c.end.clone().setY(6), 54); }
+  if (G.shake > 0) { camera.rotateZ((Math.random() - .5) * .05 * G.shake); camera.rotateX((Math.random() - .5) * .025 * G.shake); }
+  $('cutBlack').style.opacity = t > 43.4 ? clamp((t - 43.4) / 1.1, 0, 1) : 0;
+}
+function endCut() {
+  if (!cut) return; const pho = G.stats.photos; clearCutFx(); P.mesh.visible = true; G.state = 'over'; G.cam = 0; sfx.silence(); if (synth) try { synth.cancel(); } catch (e) { /* optional */ }
+  showEnd(false, 'Shot down', 'The Black Hawk warned you and you ignored it. Fly to the ring when you are told.', 0, pho !== undefined ? [['Photos taken', pho + '/3'], ['Warnings ignored', G.strikes || 'Ring']] : []);
+}
+
 /* ---------- main loop ---------- */
-let last = 0, frame = 0, mapTick = 0;
+let last = 0, frame = 0, mapTick = 0, cutLast = 0;
 function resize() {
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q().px)); renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
 }
@@ -1034,7 +1160,8 @@ function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000 || .016); last = now; frame++;
   if (G.state === 'loading') return;
   if (G.state === 'fly') { step(dt); }
-  if (G.state === 'menu') menuCamera(dt); else if (G.state === 'over' || G.state === 'fly' || G.state === 'pause') updateCamera(dt);
+  if (G.state === 'cut') { tickCut(Math.min(.25, (now - cutLast) / 1000 || .016)); tickParts(dt); } cutLast = now;
+  if (G.state === 'menu') menuCamera(dt); else if (G.state === 'cut') { /* tickCut owns the camera */ } else if (G.state === 'over' || G.state === 'fly' || G.state === 'pause') updateCamera(dt);
   tickFlares(G.state === 'pause' ? 0 : dt); skyU.t.value += dt;
   ringMesh.rotation.y = Math.atan2(camera.position.x - ringMesh.position.x, camera.position.z - ringMesh.position.z);
   if (camera.position.y < 2500) traffic(G.state === 'pause' ? 0 : dt * 6);
@@ -1047,7 +1174,8 @@ function loop(now) {
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window && innerWidth < 1100;
 if (isTouch) document.body.classList.add('touch');
 addEventListener('keydown', e => {
-  if (e.code === 'Tab') return; if (G.state === 'fly' || G.state === 'pause') e.preventDefault();
+  if (e.code === 'Tab') return; if (G.state === 'fly' || G.state === 'pause' || G.state === 'cut') e.preventDefault();
+  if (G.state === 'cut') { if (e.code === 'Escape' && cut) endCut(); return; }
   if (e.repeat) return; keys[e.code] = true; sfx.up();
   if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
   if (G.state !== 'fly') return;
@@ -1069,7 +1197,7 @@ function togglePause() { if (G.state === 'fly') { G.state = 'pause'; $('mPause')
   th.addEventListener('pointermove', e => { if (e.pointerId === tid) tv(e); });
   th.addEventListener('pointerup', () => { tid = null; });
 })();
-$('tRadio').onclick = swapRadio; $('tCam').onclick = nextCam; $('tFlare').onclick = shootFlare; $('tPause').onclick = togglePause;
+$('cutSkip').onclick = endCut; $('tRadio').onclick = swapRadio; $('tCam').onclick = nextCam; $('tFlare').onclick = shootFlare; $('tPause').onclick = togglePause;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { b.closest('.modal').hidden = true; });
 $('bFree').onclick = () => $('mFree').hidden = false; $('bHow').onclick = () => $('mHow').hidden = false;
 $('bSet').onclick = $('pSet').onclick = () => { $('sQ').value = S.q; $('sVol').value = S.vol; $('sVoice').checked = S.voice; $('sAssist').checked = S.assist; $('sInv').checked = S.inv; $('sSens').value = S.sens; $('mSet').hidden = false; };
@@ -1090,13 +1218,13 @@ function boot() {
   if (!window.THREE) { $('loadTxt').textContent = 'Could not load the 3D engine. Check your connection and reload.'; return; }
   try {
     resize(); drawMapBase();
-    buildGround(); buildRoads(); buildCity(); buildClouds(); buildMarkers(); buildFlares();
+    buildGround(); buildRoads(); buildCity(); buildClouds(); buildMarkers(); buildFlares(); buildCutFx();
     cessna = buildCessna(); hawk = buildHawk(); scene.add(cessna, hawk); hawk.visible = false;
     applyQuality(); setSky('morning'); toMenu();
     $('load').hidden = true; G.state = 'menu'; requestAnimationFrame(loop);
   } catch (e) { console.error(e); $('loadTxt').textContent = 'Your device could not start the game: ' + e.message; }
 }
-window.RA = { G, P, N, MISSIONS, resetRun, input, keys, pickAsk, step };
+window.RA = { G, P, N, MISSIONS, resetRun, input, keys, pickAsk, step, shootDown, tickCut, tickParts, cutT: () => cut && cut.t };
 setTimeout(boot, 30);
 </script>
 </body>
