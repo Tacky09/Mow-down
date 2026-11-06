@@ -153,7 +153,7 @@
 <div id="touch" hidden>
   <div id="stick"><div id="nub"></div></div>
   <div id="thr"><i></i></div>
-  <div id="tbtns"><button id="tRadio">RADIO</button><button id="tCam">CAM</button><button id="tFlare">FLARE</button><button id="tMach">MACH 5</button><button id="tPause">MENU</button></div>
+  <div id="tbtns"><button id="tRadio">RADIO</button><button id="tCam">CAM</button><button id="tFlare">FLARE</button><button id="tMach">MACH 10</button><button id="tFast">FASTER</button><button id="tPause">MENU</button></div>
 </div>
 
 <div id="menu" hidden>
@@ -183,7 +183,8 @@
     <span><kbd>A</kbd> <kbd>D</kbd></span><span>Bank left / right</span>
     <span><kbd>Q</kbd> <kbd>E</kbd></span><span>Rudder / yaw</span>
     <span><kbd>Shift</kbd> <kbd>Space</kbd></span><span>Throttle up / down (helicopter: climb / descend). On the runway, Space brakes.</span>
-    <span><kbd>B</kbd></span><span>Mach 5 on / off (Cessna, in the air)</span>
+    <span><kbd>B</kbd></span><span>Mach 10 on / off (Cessna, in the air)</span>
+    <span><kbd>G</kbd></span><span>Tap for a speed burst: each tap adds Mach 1</span>
     <span><kbd>T</kbd></span><span>Swap radio to the standby frequency</span>
     <span><kbd>F</kbd></span><span>Fire flares (Black Hawk)</span>
     <span><kbd>V</kbd></span><span>Change camera, including the wing camera from the video</span>
@@ -831,7 +832,8 @@ function flash() { const f = $('flash'); f.style.transition = 'none'; f.style.op
 function updateRadio() { $('freq').textContent = G.com.toFixed(2); $('stby').textContent = 'STBY ' + G.stby.toFixed(2) + (isTouch ? '' : ' · T swap'); }
 function swapRadio() { if (G.state !== 'fly') return; [G.com, G.stby] = [G.stby, G.com]; sfx.beep(1000, .05, .06); updateRadio(); }
 function shootFlare() { if (G.state !== 'fly' || P.kind !== 'hawk' || !G.flareReady) return; G.flareReady = false; setTimeout(() => G.flareReady = true, 1500); G.flareShot = true; setTimeout(() => G.flareShot = false, 1800); G.stats.flares++; fireFlares(P.pos.clone().add(V3(0, -1, 0)), tmp.set(0, 0, -1).applyQuaternion(P.q).clone()); }
-const MACH1 = 343, MACH5 = 1715;
+const MACH1 = 343, MACHTOP = 3430;
+function faster() { if (G.state !== 'fly' || P.kind !== 'cessna' || P.ground) return; P.boost = true; P.thr = 1; const a = P.speed; P.speed = Math.min(MACHTOP, P.speed + 340); if (a < MACH1 && P.speed >= MACH1) { sfx.crash(); caption('SYS', 'Sonic boom!', 2); } G.shake = Math.max(G.shake, .7); sfx.burst(.25, 400, .5); boom(P.pos.clone(), 3, 8); }
 function toggleMach() { if (G.state !== 'fly' || P.kind !== 'cessna' || P.ground) return; P.boost = !P.boost; sfx.beep(P.boost ? 1200 : 500, .12, .1); if (P.boost) P.thr = 1; }
 const CAMS = ['Chase', 'Cockpit', 'Wing cam', 'Flyby'];
 function nextCam() { G.cam = (G.cam + 1) % 4; camInit = true; }
@@ -861,7 +863,7 @@ function flyPlane(dt) {
   // speed: thrust, drag, slope
   if (P.ground) P.boost = false;
   const thrust = 6.6 * P.thr; let a = thrust - .00125 * P.speed * P.speed - fwd.y * 6.2;
-  if (P.boost) a = (MACH5 - P.speed) * .42; else if (P.speed > 90) a = -Math.max(140, P.speed * .5);
+  if (P.boost) a = (MACHTOP - P.speed) * .42; else if (P.speed > 90) a = -Math.max(140, P.speed * .5);
   const was = P.speed;
   if (P.ground) a -= (keys.Space || keys.KeyC ? 7 : .5) * (P.speed > .2 ? 1 : 0);
   P.speed = Math.max(0, P.speed + a * dt);
@@ -966,7 +968,7 @@ function updateCamera(dt) {
   if (G.shake > 0) { G.shake = Math.max(0, G.shake - dt * 2); camera.rotation.z += (Math.random() - .5) * .04 * G.shake; }
   if (P.speed > 100) camera.fov = Math.min(105, camera.fov + (P.speed - 100) / 42);
   camera.updateProjectionMatrix(); skyMesh.position.copy(camera.position);
-  const me = $('mach'), mn = P.speed / MACH1; me.hidden = P.kind !== 'cessna'; me.classList.toggle('on', mn >= 1); me.textContent = mn >= 1 ? 'MACH ' + mn.toFixed(1) : (isTouch ? 'MACH 5 OFF' : 'B · Mach 5');
+  const me = $('mach'), mn = P.speed / MACH1; me.hidden = P.kind !== 'cessna'; me.classList.toggle('on', mn >= 1); me.textContent = mn >= 1 ? 'MACH ' + mn.toFixed(1) : (isTouch ? 'MACH 10 OFF' : 'B · Mach 10   G · Faster');
   $('camName').textContent = CAMS[m] + (isTouch ? '' : ' · V');
 }
 function menuCamera(dt) {
@@ -1193,7 +1195,7 @@ addEventListener('keydown', e => {
   if (e.repeat) return; keys[e.code] = true; sfx.up();
   if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
   if (G.state !== 'fly') return;
-  if (e.code === 'KeyB') toggleMach(); if (e.code === 'KeyV') nextCam(); if (e.code === 'KeyT') swapRadio(); if (e.code === 'KeyF') shootFlare();
+  if (e.code === 'KeyB') toggleMach(); if (e.code === 'KeyG') faster(); if (e.code === 'KeyV') nextCam(); if (e.code === 'KeyT') swapRadio(); if (e.code === 'KeyF') shootFlare();
   if (askRes && /^Digit[1-3]$/.test(e.code)) pickAsk(+e.code[5] - 1);
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1211,7 +1213,7 @@ function togglePause() { if (G.state === 'fly') { G.state = 'pause'; $('mPause')
   th.addEventListener('pointermove', e => { if (e.pointerId === tid) tv(e); });
   th.addEventListener('pointerup', () => { tid = null; });
 })();
-$('cutSkip').onclick = endCut; $('tRadio').onclick = swapRadio; $('tCam').onclick = nextCam; $('tMach').onclick = toggleMach; $('tFlare').onclick = shootFlare; $('tPause').onclick = togglePause;
+$('cutSkip').onclick = endCut; $('tRadio').onclick = swapRadio; $('tCam').onclick = nextCam; $('tMach').onclick = toggleMach; $('tFast').onclick = faster; $('tFlare').onclick = shootFlare; $('tPause').onclick = togglePause;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { b.closest('.modal').hidden = true; });
 $('bFree').onclick = () => $('mFree').hidden = false; $('bHow').onclick = () => $('mHow').hidden = false;
 $('bSet').onclick = $('pSet').onclick = () => { $('sQ').value = S.q; $('sVol').value = S.vol; $('sVoice').checked = S.voice; $('sAssist').checked = S.assist; $('sInv').checked = S.inv; $('sSens').value = S.sens; $('mSet').hidden = false; };
