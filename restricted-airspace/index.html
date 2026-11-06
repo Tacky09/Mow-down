@@ -639,7 +639,13 @@ function strike(msg) {
 function updateStrikes() { const e = $('strikes'); e.hidden = !G.showStrikes; e.textContent = 'WARNINGS ' + G.strikes + '/3'; }
 function fail(title, text) { if (G.state !== 'fly') return; G.state = 'over'; abortScripts(); sfx.silence(); showEnd(false, title, text, 0, []); }
 function finish(n, text, rows) { if (G.state !== 'fly') return; const m = G.mission; G.state = 'over'; abortScripts(); sfx.silence(); sfx.ok(); if (m.id && n > (stars[m.id] || 0)) { stars[m.id] = n; store.set('stars', stars); } showEnd(true, m.win, text, n, rows); }
-function crash(why) { if (G.state !== 'fly') return; sfx.crash(); G.shake = 2; fail('Crash', why); }
+function crash(why) {
+  if (G.state !== 'fly') return; fwd.set(0, 0, -1).applyQuaternion(P.q); const dir = P.v.clone().normalize(), spd = Math.max(P.speed, 40);
+  impactFx(P.pos, dir, Math.min(spd, 200)); P.mesh.visible = false; if (N.on && N.mode === 'off') N.on = false;
+  const back = V3(dir.x, 0, dir.z); if (back.lengthSq() < .01) back.set(0, 0, 1); back.normalize();
+  crashView = { pos: P.pos.clone().addScaledVector(back, -170).add(V3(55, 34, 40)), at: P.pos.clone().setY(30) }; if (crashView.pos.y < 6) crashView.pos.y = 6;
+  sfx.crash(); G.shake = 1.4; G.crashDelay = 3800; fail('Crash', why);
+}
 
 /* ---------- spawning ---------- */
 function setPlayer(kind) {
@@ -822,7 +828,7 @@ function showEnd(win, title, text, n, rows) {
   $('eS').innerHTML = win ? '★'.repeat(n) + '<s>' + '★'.repeat(3 - n) + '</s>' : ''; $('eS').hidden = !win;
   $('eL').innerHTML = ''; rows.forEach(r => { const tr = $('eL').insertRow(); tr.insertCell().textContent = r[0]; tr.insertCell().textContent = r[1]; });
   const ix = MISSIONS.indexOf(G.mission); $('eNext').hidden = !(win && ix >= 0 && ix < MISSIONS.length - 1);
-  setTimeout(() => { if (G.state === 'over') { $('mEnd').hidden = false; $('touch').hidden = true; } }, win ? 500 : 1100);
+  setTimeout(() => { if (G.state === 'over') { $('mEnd').hidden = false; $('touch').hidden = true; } }, win ? 500 : (G.crashDelay || 1100)); G.crashDelay = 0;
 }
 function renderMenu() {
   ['a', 'b'].forEach(r => { const box = $(r === 'a' ? 'listA' : 'listB'); box.innerHTML = '';
@@ -1053,19 +1059,38 @@ function buildCutFx() {
   const c = makeCanvas(256), g = c.getContext('2d'), r = g.createRadialGradient(128, 128, 20, 128, 128, 128); r.addColorStop(0, 'rgba(10,8,6,.95)'); r.addColorStop(.6, 'rgba(20,16,12,.7)'); r.addColorStop(1, 'rgba(20,16,12,0)'); g.fillStyle = r; g.fillRect(0, 0, 256, 256);
   scorch = new THREE.Mesh(new THREE.PlaneGeometry(130, 130).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); scorch.visible = false; scene.add(scorch);
 }
-function emit(pos, fire, spread, size, life, up = 0) {
+function emit(pos, fire, spread, size, life, up = 0, col = 0x171514) {
   const p = parts.find(q => q.life <= 0); if (!p) return; p.life = p.max = life * rnd(.75, 1.25); p.fire = fire; p.r0 = size * .5; p.r1 = size * (fire ? 1.4 : 2.6);
   p.s.position.copy(pos); p.v.set(rnd(-spread, spread), rnd(-spread, spread) * .6 + up, rnd(-spread, spread)); p.s.visible = true;
-  p.s.material.blending = fire ? THREE.AdditiveBlending : THREE.NormalBlending; p.s.material.color.setHex(fire ? 0xff9a3c : 0x24211f);
+  p.s.material.blending = fire ? THREE.AdditiveBlending : THREE.NormalBlending; p.s.material.color.setHex(fire ? 0xff9a3c : col);
 }
-function tickParts(dt) { for (const p of parts) if (p.life > 0) { p.life -= dt; if (p.life <= 0) { p.s.visible = false; continue; } const u = 1 - p.life / p.max; p.s.position.addScaledVector(p.v, dt); p.v.multiplyScalar(1 - .5 * dt); if (!p.fire) p.v.y += 2 * dt; p.s.scale.setScalar(lerp(p.r0, p.r1, u)); p.s.material.opacity = (p.fire ? 1 - u : Math.min(1, u * 6) * (1 - u)) * .9; if (p.fire && u > .45) p.s.material.color.setHex(0xc23a12); } }
+function tickParts(dt) { for (const p of parts) if (p.life > 0) { p.life -= dt; if (p.life <= 0) { p.s.visible = false; continue; } const u = 1 - p.life / p.max; p.s.position.addScaledVector(p.v, dt); p.v.multiplyScalar(1 - .5 * dt); if (!p.fire) { p.v.y += 2 * dt; p.v.x += 2.2 * dt; p.v.z += .9 * dt; } p.s.scale.setScalar(lerp(p.r0, p.r1, u)); p.s.material.opacity = (p.fire ? 1 - u : Math.min(1, u * 6) * (1 - u)) * .9; if (p.fire && u > .45) p.s.material.color.setHex(0xc23a12); } tickWreck(dt); }
+/* realistic ground impact: brief fire, dirt thrown up, wreckage scattered, oily smoke drifting downwind */
+const scraps = []; let wreck = null;
+function buildScraps() { const g = new THREE.BoxGeometry(1, 1, 1), mats = [std(0xe6e6e2, .5), std(0x1f4f93, .5), std(0x2a2c2e, .8), std(0x8d9196, .4, .5)]; for (let i = 0; i < 110; i++) { const m = new THREE.Mesh(g, mats[i % 4]); m.visible = false; scene.add(m); scraps.push({ m, v: V3(), spin: V3() }); } }
+function impactFx(pos, dir, spd) {
+  const at = pos.clone(); at.y = Math.max(at.y, 3); const k = clamp(spd / 80, .6, 1.6), hd = V3(dir.x, 0, dir.z); if (hd.lengthSq() > 1e-4) hd.normalize();
+  for (let i = 0; i < 26; i++) emit(at.clone().addScaledVector(hd, rnd(0, 25)), true, 20 * k, 20, rnd(.35, .9), 10);          // short flash, not a movie fireball
+  for (let i = 0; i < 60; i++) { const a = rnd(6.283), sp = rnd(30, 95) * k, pr = parts.find(q => q.life <= 0); if (!pr) break; emit(at, false, 1, 24, rnd(2.5, 5), 0, 0x7d674c); pr.v.set(Math.cos(a) * sp * .45 + hd.x * sp * .6, rnd(35, 120) * k, Math.sin(a) * sp * .45 + hd.z * sp * .6); }  // dirt thrown up
+  for (let i = 0; i < 26; i++) { const a = i / 26 * 6.283, pr = parts.find(q => q.life <= 0); if (!pr) break; emit(at.clone().setY(3), false, 1, 30, rnd(3, 5.5), 0, 0x9c8a70); pr.v.set(Math.cos(a) * 58, 2, Math.sin(a) * 58); }  // dust ring
+  scraps.forEach((d, i) => { const big = i < 12, sc = big ? rnd(1.2, 3.2) : rnd(.2, .9), a = rnd(6.283), sp = rnd(10, 75) * k; d.m.visible = true; d.m.position.copy(at); d.m.scale.set(sc * rnd(.6, 2.2), sc * rnd(.08, .4), sc * rnd(.5, 1.4)); d.v.copy(hd).multiplyScalar(spd * rnd(.1, .55)).add(V3(Math.cos(a) * sp, rnd(10, 75) * k, Math.sin(a) * sp)); d.spin.set(rnd(-9, 9), rnd(-9, 9), rnd(-9, 9)); });
+  scorch.position.set(at.x, 2, at.z).addScaledVector(hd, 22); scorch.rotation.y = Math.atan2(hd.x, hd.z); scorch.scale.set(.9, 1, 1.9); scorch.visible = true; boomLight.position.copy(at).setY(30); boomLight.intensity = 3;
+  wreck = { at: at.clone().setY(4), fires: [], t: 0 };
+}
+function tickWreck(dt) {
+  for (const d of scraps) if (d.m.visible && d.spin.lengthSq() > 0) { d.v.y -= 9.8 * dt; d.v.multiplyScalar(1 - .22 * dt); d.m.position.addScaledVector(d.v, dt); d.m.rotation.x += d.spin.x * dt; d.m.rotation.y += d.spin.y * dt; d.m.rotation.z += d.spin.z * dt; if (d.m.position.y < 2.2) { d.m.position.y = 2.2; if (d.v.y < -14) { d.v.y *= -.28; d.v.x *= .55; d.v.z *= .55; } else { d.spin.set(0, 0, 0); d.m.rotation.x = 0; d.m.rotation.z = 0; if (wreck && wreck.fires.length < 7 && Math.random() < .35) wreck.fires.push(d.m.position.clone()); } } }
+  if (!wreck || dt <= 0) return; wreck.t += dt; wreck.n = (wreck.n || 0) + 1; boomLight.intensity = damp(boomLight.intensity, wreck.t < 6 ? .35 : .15, 3, dt);
+  if (wreck.n % 2 === 0) { emit(tmp2.copy(wreck.at).add(V3(rnd(-12, 12), 0, rnd(-12, 12))), false, 4, 34, 11, 13); emit(tmp2, true, 3, 13, .55, 7); }
+  if (wreck.fires.length && wreck.n % 3 === 0) { const f = wreck.fires[Math.floor(rnd(wreck.fires.length))]; emit(f, true, 1, 6, .45, 4); emit(f, false, 1.5, 11, 5, 7); }
+}
 function boom(pos, n, size) { for (let i = 0; i < n; i++) { emit(pos, true, size * 1.6, size, rnd(.7, 1.5)); if (i % 2) emit(pos, false, size, size * 1.3, rnd(2.5, 5), 3); } }
-function clearCutFx() { parts.forEach(p => { p.life = 0; p.s.visible = false; }); tracers.forEach(t => { t.life = 0; t.m.visible = false; }); if (scorch) scorch.visible = false; if (boomLight) boomLight.intensity = 0; if (debris) { scene.remove(debris); debris = null; } if (cessna) cessna.userData.rw.visible = true; $('cut').hidden = true; cut = null; }
+let crashView = null;
+function clearCutFx() { parts.forEach(p => { p.life = 0; p.s.visible = false; }); tracers.forEach(t => { t.life = 0; t.m.visible = false; }); if (scorch) scorch.visible = false; if (boomLight) boomLight.intensity = 0; scraps.forEach(d => { d.m.visible = false; d.spin.set(0, 0, 0); }); wreck = null; crashView = null; if (debris) { scene.remove(debris); debris = null; } if (cessna) cessna.userData.rw.visible = true; $('cut').hidden = true; cut = null; }
 function planCut() {
   const n = Math.ceil(CUT_LEN / .05) + 1, a = new Float32Array(n * 4); let x = P.pos.x, z = P.pos.z, h = hdgOf(P.q), y = Math.max(P.pos.y, 540); const y0 = y; let yA = y;
   for (let i = 0; i < n; i++) { const t = i * .05; let sp = 62;
     if (t < WING_OFF) { y = y0 - Math.max(0, t - 16) * 4; yA = y; h += Math.sin(t * .5) * .03; }
-    else { const u = clamp((t - WING_OFF) / (IMPACT - WING_OFF), 0, 1); sp = lerp(56, 36, u); h += (14 + 34 * u) * .05; y = Math.max(2, lerp(yA, 2, Math.pow(u, 1.7))); }
+    else { const u = clamp((t - WING_OFF) / (IMPACT - WING_OFF), 0, 1); sp = lerp(56, 118, u * u); h += (14 + 22 * u) * .05; y = Math.max(2, lerp(yA, 2, Math.pow(u, 2.5))); }
     if (t < IMPACT) { x += Math.sin(h * DEG) * sp * .05; z -= Math.cos(h * DEG) * sp * .05; }
     a.set([x, y, z, h], i * 4); }
   return a;
@@ -1086,7 +1111,7 @@ function tickCut(dt) {
   const c = cut; if (!c) return; const t0 = c.t, t = c.t = t0 + dt; if (t >= CUT_LEN) return endCut();
   const a = cutAt(t), pp = a.p.clone(), h = a.h;
   // plane attitude
-  const roll = t < 16 ? Math.sin(t * 1.4) * 2 : t < WING_OFF ? (t - 16) * -3 : -15 + (t - WING_OFF) * (38 + (t - WING_OFF) * 6), pitch = t < WING_OFF ? 1 : lerp(1, -42, clamp((t - WING_OFF) / 9, 0, 1));
+  const roll = t < 16 ? Math.sin(t * 1.4) * 2 : t < WING_OFF ? (t - 16) * -3 : -15 + (t - WING_OFF) * (38 + (t - WING_OFF) * 6), pitch = t < WING_OFF ? 1 : lerp(1, -72, clamp((t - WING_OFF) / 15, 0, 1));
   if (t < IMPACT) { P.pos.copy(pp); P.q.copy(qFromHdg(h, pitch, roll)); P.mesh.position.copy(pp); P.mesh.quaternion.copy(P.q); P.mesh.userData.spin(dt * (t < 16 ? 1 : t < 21 ? .5 : .08)); }
   fwd.set(0, 0, -1).applyQuaternion(P.q);
   // helicopter
@@ -1103,15 +1128,15 @@ function tickCut(dt) {
   // events
   if (!c.hit && t >= 11) { c.hit = true; G.shake = 1.2; sfx.pop(); boom(pp, 6, 5); }
   const nose = tmp2.set(0, .4, -3.2).applyQuaternion(P.q).add(pp).clone();
-  if (t > 11 && t < IMPACT) { if (frame % 2 === 0) emit(nose, false, 2, t < 16 ? 4 : 8, t < 16 ? 2.2 : 3.6); if (t > 14.5) emit(nose, true, 1.5, 4.5, .4); }
+  if (t > 11 && t < IMPACT) { c.n = (c.n || 0) + 1; if (c.n % 2 === 0) emit(nose, false, 2, t < 16 ? 4 : 8, t < 16 ? 2.2 : 3.6); if (t > 14.5) emit(nose, true, 1.5, 4.5, .4); }
   if (!c.wing && t >= WING_OFF) {
     c.wing = true; const rw = cessna.userData.rw; const at = V3(3, 1.3, -.45).applyQuaternion(P.q).add(pp); boom(at, 22, 8); sfx.crash(); G.shake = 1.6; rw.visible = false;
     debris = rw.clone(); debris.visible = true; debris.position.copy(pp); debris.quaternion.copy(P.q); scene.add(debris); c.dv = fwd.clone().multiplyScalar(36).add(V3(cs * 16, 8, sn * 16));
   }
   if (debris) { c.dv.y -= 7 * dt; debris.position.addScaledVector(c.dv, dt); debris.rotateX(dt * 2.4); debris.rotateZ(dt * 3.1); if (debris.position.y < 2) debris.visible = false; if (t < 28 && frame % 3 === 0) emit(tmp2.set(3, 1.3, -.4).applyQuaternion(debris.quaternion).add(debris.position), false, 1, 4, 1.6); }
   if (t > WING_OFF && t < IMPACT) { emit(tmp2.set(.8, 1.2, -.45).applyQuaternion(P.q).add(pp), true, 1.5, 3.2, .35); }
-  if (!c.imp && t >= IMPACT) { c.imp = true; P.mesh.visible = false; boom(c.end.clone().setY(8), 70, 26); boom(c.end.clone().setY(40), 30, 18); sfx.crash(); sfx.pop(); G.shake = 3.2; scorch.position.set(c.end.x, 2, c.end.z); scorch.visible = true; boomLight.position.set(c.end.x, 50, c.end.z); boomLight.intensity = 6; $('cutRed').style.opacity = .55; }
-  if (c.imp) { boomLight.intensity = damp(boomLight.intensity, .8, 1.2, dt); $('cutRed').style.opacity = Math.max(0, parseFloat($('cutRed').style.opacity) - dt * .8); const fp = tmp2.copy(c.end).add(V3(rnd(-18, 18), 6, rnd(-18, 18))).clone(); emit(fp, true, 7, 26, 1.1, 12); if (frame % 2 === 0) emit(fp, false, 7, 42, 7, 16); }
+  if (!c.imp && t >= IMPACT) { c.imp = true; P.mesh.visible = false; impactFx(c.end, fwd.clone(), 118); }
+  if (c.imp && !c.heard && t >= IMPACT + .8) { c.heard = true; sfx.crash(); sfx.pop(); G.shake = 2; } // sound and shock reach the camera late
   G.shake = Math.max(0, G.shake - dt * 1.3);
   // captions + voices
   while (c.lines.length && c.lines[0][0] <= t) { const l = c.lines.shift(), e = $('cutCap'); e.innerHTML = (LBL[l[1]] ? '<small>' + LBL[l[1]] + '</small>' : '') + '<span></span>'; e.lastChild.textContent = l[2]; c.capT = t + Math.max(3, l[2].split(' ').length * .42); sfx.squelch(); speak(l[1], l[2]); }
@@ -1128,8 +1153,8 @@ function tickCut(dt) {
   else if (t < 20.2) { tmp.copy(pp).addScaledVector(fv, -19).addScaledVector(rv, 6).add(V3(0, 4, 0)); camAt(tmp, lookP.clone().addScaledVector(fv, 2), 58); }
   else if (t < 25) { if (!c.s5) c.s5 = pp.clone().addScaledVector(fv, 170).addScaledVector(rv, 75).add(V3(0, 12, 0)); camAt(c.s5, lookP, lerp(30, 42, (t - 20.2) / 4.8)); }
   else if (t < 33) { const an = (t - 25) * .4; tmp.copy(pp).add(V3(Math.cos(an) * 26, 11 + (t - 25) * 1.2, Math.sin(an) * 26)); camAt(tmp, lookP, 54); }
-  else if (t < IMPACT + .8) { if (!c.s7) c.s7 = c.end.clone().add(V3(-410, 7, 310)); camAt(c.s7, t < IMPACT ? lookP : c.end.clone().setY(30), lerp(34, 46, clamp((t - 33) / 6, 0, 1))); }
-  else if (t < 43) { tmp.copy(c.end).add(V3(-210 + (t - 40) * 14, 26 + (t - 40) * 6, 170)); camAt(tmp, c.end.clone().setY(62), 52); }
+  else if (t < IMPACT + .8) { if (!c.s7) { let bestA = 0, bestH = 1e9; for (let a = 0; a < 6.28; a += .524) { let mh = 0; for (let r = 40; r <= 380; r += 40) mh = Math.max(mh, hAt(c.end.x + Math.cos(a) * r, c.end.z + Math.sin(a) * r)); if (mh < bestH) { bestH = mh; bestA = a; } } c.s7 = c.end.clone().add(V3(Math.cos(bestA) * 380, Math.max(10, bestH + 5), Math.sin(bestA) * 380)); c.s8 = bestA; } camAt(c.s7, t < IMPACT ? lookP : c.end.clone().setY(45), t < IMPACT ? lerp(30, 40, clamp((t - 33) / 6, 0, 1)) : 44); }
+  else if (t < 43) { const an = (c.s8 || 0) + (t - 40) * .05; tmp.copy(c.end).add(V3(Math.cos(an) * 240, 22 + (t - 40) * 5, Math.sin(an) * 240)); camAt(tmp, c.end.clone().setY(55), 56); }
   else { tmp.copy(N.pos).add(V3(-34, 15, 44)); camAt(tmp, c.end.clone().setY(6), 54); }
   if (G.shake > 0) { camera.rotateZ((Math.random() - .5) * .05 * G.shake); camera.rotateX((Math.random() - .5) * .025 * G.shake); }
   $('cutBlack').style.opacity = t > 43.4 ? clamp((t - 43.4) / 1.1, 0, 1) : 0;
@@ -1177,7 +1202,7 @@ function loop(now) {
   if (G.state === 'loading') return;
   if (G.state === 'fly') { step(dt); }
   if (G.state === 'cut') { tickCut(Math.min(.25, (now - cutLast) / 1000 || .016)); tickParts(dt); } cutLast = now;
-  if (G.state === 'menu') menuCamera(dt); else if (G.state === 'cut') { /* tickCut owns the camera */ } else if (G.state === 'over' || G.state === 'fly' || G.state === 'pause') updateCamera(dt);
+  if (G.state === 'menu') menuCamera(dt); else if (G.state === 'cut') { /* tickCut owns the camera */ } else if (G.state === 'over' && crashView) { tickParts(dt); $('hud').hidden = true; G.shake = Math.max(0, G.shake - dt * 1.3); camAt(crashView.pos, crashView.at, 50); camera.rotateZ((Math.random() - .5) * .04 * G.shake); } else if (G.state === 'over' || G.state === 'fly' || G.state === 'pause') updateCamera(dt);
   tickFlares(G.state === 'pause' ? 0 : dt); skyU.t.value += dt;
   ringMesh.rotation.y = Math.atan2(camera.position.x - ringMesh.position.x, camera.position.z - ringMesh.position.z);
   if (camera.position.y < 2500) traffic(G.state === 'pause' ? 0 : dt * 6);
@@ -1234,7 +1259,7 @@ function boot() {
   if (!window.THREE) { $('loadTxt').textContent = 'Could not load the 3D engine. Check your connection and reload.'; return; }
   try {
     resize(); drawMapBase();
-    buildGround(); buildRoads(); buildCity(); buildClouds(); buildMarkers(); buildFlares(); buildCutFx();
+    buildGround(); buildRoads(); buildCity(); buildClouds(); buildMarkers(); buildFlares(); buildCutFx(); buildScraps();
     cessna = buildCessna(); hawk = buildHawk(); scene.add(cessna, hawk); hawk.visible = false;
     applyQuality(); setSky('morning'); toMenu();
     $('load').hidden = true; G.state = 'menu'; requestAnimationFrame(loop);
