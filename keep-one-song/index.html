@@ -22,7 +22,7 @@ background:radial-gradient(circle,transparent 0 15%,var(--c) 15% 24%,transparent
 .disc.b{--c:var(--red);width:460px;height:460px;right:-100px;bottom:-40px;animation:spin 52s linear infinite reverse}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.disc{animation:none}.card{animation:none!important}}
-main{position:relative;z-index:1;max-width:760px;margin:0 auto;padding-block:20px 120px;display:flex;flex-direction:column;align-items:center;gap:18px}
+main{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding-block:20px 120px;display:flex;flex-direction:column;align-items:center;gap:18px}
 button{font:inherit;letter-spacing:inherit;color:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 button:disabled{opacity:.4;cursor:not-allowed}
@@ -40,9 +40,10 @@ h2{font:400 clamp(30px,7vw,42px)/1.15 var(--display);margin:0;color:var(--gold);
 .panel{border:1.5px solid var(--gold2);border-radius:8px;background:var(--panel);padding:30px 22px;width:100%;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;margin-top:8vh}
 .panel p{margin:0;max-width:46ch}
 .panel b{color:var(--gold);font-weight:400}
-.yr{font:400 46px/1 var(--display);color:var(--gold);margin:30px 0 4px}
+.yr{font:400 46px/1 var(--display);color:var(--gold);margin:16px 0 0}
 .yr small{display:block;font:400 15px var(--ui);color:var(--muted);letter-spacing:.08em;text-align:center;margin-top:8px}
-.bin{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;width:100%;align-items:start}
+.bin{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;width:100%;max-width:min(1100px,118vh);align-items:start}
+@media (max-width:820px){.bin{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .bin.two{grid-template-columns:repeat(2,minmax(0,1fr));max-width:520px}
 @media (max-width:560px){.bin{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
 .card{display:flex;flex-direction:column;gap:8px;min-width:0;animation:drop .32s ease-out}
@@ -56,16 +57,17 @@ h2{font:400 clamp(30px,7vw,42px)/1.15 var(--display);margin:0;color:var(--gold);
 .sleeve em{width:42%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:var(--l);color:#fff;font:400 clamp(15px,4vw,24px)/1 var(--display);font-style:normal}
 .card.on .sleeve i{animation:spin 3s linear infinite}
 .pp{position:absolute;right:8px;bottom:8px;width:40px;height:40px;border-radius:50%;background:#000c;border:1px solid var(--muted);display:grid;place-items:center;color:var(--gold);font-size:17px}
-.meta{border:1.5px solid var(--line);border-radius:6px;background:var(--panel);padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;flex:1}
-.ttl{color:var(--cream);font-size:20px;line-height:1.1;overflow-wrap:anywhere}
+.meta{border:1.5px solid var(--line);border-radius:6px;background:var(--panel);padding:7px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;flex:1}
+.ttl{color:var(--cream);font-size:18px;line-height:1.1;overflow-wrap:anywhere}
 .art{color:#d8d2c5;font-size:15px;line-height:1.1;overflow-wrap:anywhere}
 .alb{color:var(--muted);font-size:13px;line-height:1.15;overflow-wrap:anywhere}
 .alb:empty{display:none}
 #backdrop{position:fixed;inset:-60px;z-index:0;pointer-events:none;background:center/cover no-repeat;filter:blur(30px) brightness(.42) saturate(1.25);opacity:0;transition:opacity .9s,background-image .9s}
 #backdrop.on{opacity:1}
-.save{background:var(--gold);color:#17110a;border:0;border-radius:4px;padding:6px 26px;min-height:34px;font-size:18px}
+.save{background:var(--gold);color:#17110a;border:0;border-radius:4px;padding:4px 24px;min-height:32px;font-size:17px;margin-top:2px}
 .save:disabled{background:#6d5416}
 .listen{color:var(--muted);font-size:14px;text-underline-offset:3px}
+.acts{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 10px;margin-top:2px}
 .corner{position:fixed;z-index:5;display:flex;gap:8px;align-items:center}
 .tl{top:calc(12px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px))}
 .bl{bottom:calc(12px + env(safe-area-inset-bottom,0px));left:calc(12px + env(safe-area-inset-left,0px))}
@@ -274,8 +276,8 @@ function cardHTML(song,i,label){const h=Math.abs(hash(song.t+song.a)),a=h%360,in
   return `<article class="card" data-i="${i}" hidden>
   <button class="cover" aria-label="Play ${esc(song.t)}"><span class="sleeve" style="--s:linear-gradient(${h%180}deg,hsl(${a} 55% 28%),hsl(${(a+50)%360} 60% 12%));--l:hsl(${(a+160)%360} 60% 42%)"><i><em>${esc(init)}</em></i></span><span class="pp" hidden>▶</span></button>
   <div class="meta"><span class="ttl">${esc(song.t)}</span><span class="art">${esc(song.a)}</span><span class="alb"></span>
-  <button class="save" disabled>${label}</button>
-  <a class="listen" href="https://music.youtube.com/search?q=${q}" target="_blank" rel="noopener">Listen</a></div></article>`}
+  <span class="acts"><button class="save" disabled>${label}</button>
+  <a class="listen" href="https://music.youtube.com/search?q=${q}" target="_blank" rel="noopener">Listen</a></span></div></article>`}
 function dressCard(el,info){if(!info)return;if(info.c&&!el.querySelector('img')){const im=new Image();im.alt='';im.src=info.c;im.onload=()=>{el.querySelector('.sleeve')?.remove();el.querySelector('.cover').prepend(im)}}
   if(info.al)el.querySelector('.alb').textContent=info.al;
   el.querySelector('.pp').hidden=false}
@@ -317,7 +319,7 @@ function playYear(y){leave();view='round';const my=token,songs=ed().data[y];chro
   (async()=>{ // look songs up one at a time so the store API stays happy
     for(let i=0;i<songs.length&&my===token;i++){infos[i]=undefined;const p=itunes(songs[i]);p.then(v=>{infos[i]=v||null;if(my===token)dressCard(els[i],v)});await Promise.race([p,wait(250)])}})();
   (async()=>{for(let i=0;i<els.length&&my===token;i++){
-      els[i].hidden=false;if(round.silent)continue;
+      els[i].hidden=false;els[i].scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});if(round.silent)continue;
       let n=0;while(infos[i]===undefined&&n++<15&&my===token&&!round.silent)await wait(100);
       if(my!==token)return;
       const on=!paused&&playCard(els[i],infos[i]);
