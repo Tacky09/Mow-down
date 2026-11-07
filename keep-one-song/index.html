@@ -75,6 +75,19 @@ h2{font:400 clamp(30px,7vw,42px)/1.15 var(--display);margin:0;color:var(--gold);
 .card.top .res i span{background:var(--gold)}
 .card.top .res b{color:var(--gold)}
 .card.mine .meta{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.rk-head{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:10px}
+.rk-head h2{font:400 clamp(34px,5vw,52px)/1 var(--ui);letter-spacing:.04em;color:var(--gold);text-transform:uppercase}
+.rk-head p{margin:0;font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--line)}
+.results .cover{cursor:default;container-type:inline-size}
+.results .card{animation:none}
+.results .card.mine .cover{border-color:var(--gold);box-shadow:0 0 20px #ffc01e66}
+.results .card.mine .meta{border-color:var(--gold)}
+.results .meta{justify-content:center;min-height:72px}
+.results .tag{font-size:13px;color:var(--gold)}
+.pctover{position:absolute;inset:0;display:grid;place-items:center;background:#0009;font:400 26cqw/1 var(--ui);letter-spacing:0;color:var(--gold);text-shadow:0 3px 12px #000;font-variant-numeric:tabular-nums;animation:pop .45s ease-out both}
+.card.top .pctover{color:#ffe9a8}
+@keyframes pop{from{transform:scale(.55);opacity:0}}
+@media (prefers-reduced-motion:reduce){.pctover{animation:none}}
 .after{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
 .acts{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 10px;margin-top:2px}
 .corner{position:fixed;z-index:5;display:flex;gap:8px;align-items:center}
@@ -343,18 +356,22 @@ function skippable(ms){return new Promise(r=>{let left=ms,last=Date.now(),done=f
 /* predicted share of players who'd keep each song: lists run from the biggest hit down, with a small per-song nudge */
 function predict(y){const songs=ed().data[y];const w=songs.map((s,i)=>{const j=(Math.abs(hash(s.t+'|'+s.a))%1000)/1000;return Math.pow(i+1.4,-1.05)*(0.8+0.4*j)});
   const tot=w.reduce((a,b)=>a+b,0);const p=w.map(v=>Math.round(v/tot*1000)/10);const fix=Math.round((100-p.reduce((a,b)=>a+b,0))*10)/10;p[p.indexOf(Math.max(...p))]=Math.round((p[p.indexOf(Math.max(...p))]+fix)*10)/10;return p}
-function save(y,i){if(round?.saved)return;if(round)round.saved=true;cur().picks[y]=i;persist();syncVotes();
-  const els=[...app.querySelectorAll('.card')],pc=predict(y),hi=Math.max(...pc),top=pc.indexOf(hi);
-  els.forEach((el,k)=>{el.hidden=false;el.querySelector('.save').hidden=true;el.classList.toggle('mine',k===i);el.classList.toggle('top',k===top);
-    const r=document.createElement('div');r.className='res';
-    r.innerHTML=`<span class="tag">${[k===top?'Predicted favorite':'',k===i?'Your pick':''].filter(Boolean).join(' · ')}</span><b>${pc[k].toFixed(1)}%</b><i><span></span></i>`;
-    el.querySelector('.meta').append(r);requestAnimationFrame(()=>requestAnimationFrame(()=>{r.querySelector('i span').style.width=(pc[k]/hi*100)+'%'}))});
-  const h=$('#hint');h.hidden=false;h.textContent=top===i?'You picked the predicted favorite.':`Predicted favorite: ${ed().data[y][top].t}.`;
-  const ys=ed().years,nx=ys[ys.indexOf(y)+1];
-  const box=document.createElement('div');box.className='after';
-  box.innerHTML=`<button class="btn primary" id="next">${nx===undefined?'See your picks':'Next year: '+nx}</button><p class="note">Percentages are predictions of how many players would keep each song.</p>`;
-  app.querySelector('.bin').after(box);const nb=$('#next');nb.focus({preventScroll:true});nb.onclick=()=>advance(y);
-  box.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})}
+function sleeveHTML(song){const h=Math.abs(hash(song.t+song.a)),a=h%360,init=song.t.replace(/[^\p{L}\p{N}]/gu,'').slice(0,2).toUpperCase();
+  return `<span class="sleeve" style="--s:linear-gradient(${h%180}deg,hsl(${a} 55% 28%),hsl(${(a+50)%360} 60% 12%));--l:hsl(${(a+160)%360} 60% 42%)"><i><em>${esc(init)}</em></i></span>`}
+function resultsGrid(y,pick){const pc=predict(y),songs=ed().data[y],top=pc.indexOf(Math.max(...pc));
+  return `<section class="bin results">${songs.map((s,k)=>`<article class="card${k===pick?' mine':''}${k===top?' top':''}" data-i="${k}">
+  <div class="cover">${sleeveHTML(s)}<span class="pctover" style="animation-delay:${k*70}ms">${pc[k].toFixed(1)}%</span></div>
+  <div class="meta"><span class="ttl">${esc(s.t)}</span><span class="art">${esc(s.a)}</span>${k===pick?'<span class="tag">Your pick</span>':k===top?'<span class="tag">Predicted favorite</span>':''}</div></article>`).join('')}</section>`}
+function dressResults(){const my=token;app.querySelectorAll('.results .card').forEach(el=>{const s=ed().data[el.dataset.y||resultsYear][+el.dataset.i];
+  itunes(s).then(v=>{if(my!==token||!v?.c||el.querySelector('img'))return;const im=new Image();im.alt='';im.src=v.c;im.onload=()=>{el.querySelector('.sleeve')?.remove();el.querySelector('.cover').prepend(im)}})})}
+let resultsYear=null,resultsNext=null,resultsAt=0;
+function showResults(y,pick){token++;round=null;view='results';resultsYear=y;resultsAt=performance.now();chrome(true,false);
+  app.innerHTML=`<div class="rk-head"><h2>${y} · Predicted rankings</h2><p>Click to continue</p></div>${resultsGrid(y,pick)}
+  <p class="note">Percentages are predictions of how many players would keep each song.</p>`;
+  dressResults();window.scrollTo({top:0});resultsNext=()=>{resultsNext=null;advance(y)}}
+document.addEventListener('click',e=>{if(view==='results'&&resultsNext&&performance.now()-resultsAt>350&&!e.target.closest('a,.corner,#pause,select'))resultsNext()});
+document.addEventListener('keydown',e=>{if(view==='results'&&resultsNext&&e.key==='Enter'){e.preventDefault();resultsNext()}});
+function save(y,i){if(round?.saved)return;if(round)round.saved=true;cur().picks[y]=i;persist();syncVotes();showResults(y,i)}
 function advance(y){const ys=ed().years,idx=ys.indexOf(y),nx=ys[idx+1];stopAudio();
   if(nx===undefined)return picks();if(nx%10===0)return intermission(nx);playYear(nx)}
 function intermission(nx){leave();view='break';const my=token;chrome(true,false);let n=5;
@@ -401,6 +418,11 @@ function dmDone(){leave();view='dmdone';const c=cur(),s=song(c.champ);chrome(tru
 
 /* rankings */
 async function rankings(tab='year',y){leave();view='rank';const my=token;chrome(true,false);y=y??(ed().years.findLast(v=>cur().picks[v]!==undefined)||ed().years[0]);
+  if(tab==='year'){resultsYear=y;app.innerHTML=`<div class="rk-head"><h2>Predicted rankings</h2></div>
+  <div class="tabs"><button class="tab" id="t1" aria-pressed="true">By year</button><button class="tab" id="t2" aria-pressed="false">Deathmatch winners</button></div>
+  <label class="note" for="ysel">Year</label><select id="ysel">${ed().years.map(v=>`<option ${v===y?'selected':''}>${v}</option>`).join('')}</select>
+  ${resultsGrid(y,cur().picks[y])}<p class="note">Percentages are predictions of how many players would keep each song.</p>`;
+  dressResults();$('#t2').onclick=()=>rankings('dm',y);$('#ysel').onchange=e=>rankings('year',+e.target.value);return}
   app.innerHTML=`<h2 style="margin-top:44px">Rankings</h2><p class="note">Loading votes…</p>`;
   const{list,shared}=await allVotes();if(my!==token)return;
   const k=S.ed,rows=[];let total=0;
