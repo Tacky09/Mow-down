@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Keep One Song</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Limelight&display=swap">
+<style>
+/* Layout: a dark listening room. One centered stage, a 3-up record bin, fixed transport controls in the corners. */
+:root{color-scheme:dark;--bg:#0b0a09;--panel:#151310;--line:#f4ead6;--gold:#ffc01e;--gold2:#c98a2b;--cream:#ffe3a6;--muted:#a79b86;--red:#e0523f;
+--display:"Limelight","Playfair Display",Georgia,serif;--ui:"Bebas Neue","Oswald","Arial Narrow",Impact,sans-serif}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--line);font-family:var(--ui);letter-spacing:.04em;font-size:18px;overflow-x:hidden;
+padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.disc{position:fixed;border-radius:50%;pointer-events:none;z-index:0;opacity:.28;
+background:radial-gradient(circle,transparent 0 15%,var(--c) 15% 24%,transparent 24% 48%,#ffffff14 48% 49%,transparent 49% 69%,#ffffff08 69%)}
+.disc.a{--c:var(--gold);width:520px;height:520px;left:-140px;top:30px;animation:spin 40s linear infinite}
+.disc.b{--c:var(--red);width:460px;height:460px;right:-100px;bottom:-40px;animation:spin 52s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.disc{animation:none}.card{animation:none!important}}
+main{position:relative;z-index:1;max-width:760px;margin:0 auto;padding-block:20px 120px;display:flex;flex-direction:column;align-items:center;gap:18px}
+button{font:inherit;letter-spacing:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed}
+.tabs{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%}
+.tab{flex:1 1 150px;max-width:190px;min-height:40px;border:1.5px solid var(--cream);border-radius:6px;background:#1c1409;color:var(--cream);padding:8px 10px}
+.tab[aria-pressed=true]{background:var(--gold);color:#17110a;border-color:var(--line)}
+h1{font:400 clamp(58px,17vw,92px)/1.05 var(--display);margin:22px 0 10px;text-align:center;letter-spacing:.02em;
+background:linear-gradient(#ffe9bb,#d8963a);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 16px #d8963a66);text-wrap:balance}
+h2{font:400 clamp(30px,7vw,42px)/1.15 var(--display);margin:0;color:var(--gold);text-align:center;text-wrap:balance}
+.stack{display:flex;flex-direction:column;gap:9px;width:min(262px,100%)}
+.btn{min-height:44px;padding:8px 16px;border:1.5px solid var(--line);border-radius:6px;background:#0f0d0a;color:var(--gold);font-size:20px}
+.btn.primary{background:var(--gold);color:#17110a;border-color:var(--gold)}
+.btn:hover:not(:disabled){border-color:var(--gold)}
+.lede{color:var(--muted);text-align:center;margin:0;max-width:44ch;letter-spacing:.05em}
+.panel{border:1.5px solid var(--gold2);border-radius:8px;background:var(--panel);padding:30px 22px;width:100%;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;margin-top:8vh}
+.panel p{margin:0;max-width:46ch}
+.panel b{color:var(--gold);font-weight:400}
+.yr{font:400 46px/1 var(--display);color:var(--gold);margin:30px 0 4px}
+.yr small{display:block;font:400 15px var(--ui);color:var(--muted);letter-spacing:.08em;text-align:center;margin-top:8px}
+.bin{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;width:100%;align-items:start}
+.bin.two{grid-template-columns:repeat(2,minmax(0,1fr));max-width:520px}
+@media (max-width:560px){.bin{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+.card{display:flex;flex-direction:column;gap:8px;min-width:0;animation:drop .32s ease-out}
+.card[hidden]{display:none}
+@keyframes drop{from{transform:translateY(-10px);opacity:.2}}
+.cover{position:relative;display:block;width:100%;aspect-ratio:1;max-width:100%;padding:0;border:3px solid var(--line);border-radius:6px;overflow:hidden;background:#000}
+.card.on .cover{border-color:var(--gold);box-shadow:0 0 18px #ffc01e66}
+.cover img{width:100%;height:100%;object-fit:cover;display:block}
+.sleeve{position:absolute;inset:0;display:grid;place-items:center;background:var(--s)}
+.sleeve i{width:82%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:repeating-radial-gradient(circle,#0c0c0c 0 3px,#1f1f1f 3px 4px);box-shadow:0 4px 18px #0009}
+.sleeve em{width:42%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:var(--l);color:#fff;font:400 clamp(15px,4vw,24px)/1 var(--display);font-style:normal}
+.card.on .sleeve i{animation:spin 3s linear infinite}
+.pp{position:absolute;right:8px;bottom:8px;width:40px;height:40px;border-radius:50%;background:#000c;border:1px solid var(--muted);display:grid;place-items:center;color:var(--gold);font-size:17px}
+.meta{border:1.5px solid var(--line);border-radius:6px;background:var(--panel);padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;flex:1}
+.ttl{color:var(--cream);font-size:20px;line-height:1.1;overflow-wrap:anywhere}
+.art{color:#d8d2c5;font-size:15px;line-height:1.1;overflow-wrap:anywhere}
+.alb{color:var(--muted);font-size:13px;line-height:1.15;overflow-wrap:anywhere}
+.alb:empty{display:none}
+#backdrop{position:fixed;inset:-60px;z-index:0;pointer-events:none;background:center/cover no-repeat;filter:blur(30px) brightness(.42) saturate(1.25);opacity:0;transition:opacity .9s,background-image .9s}
+#backdrop.on{opacity:1}
+.save{background:var(--gold);color:#17110a;border:0;border-radius:4px;padding:6px 26px;min-height:34px;font-size:18px}
+.save:disabled{background:#6d5416}
+.listen{color:var(--muted);font-size:14px;text-underline-offset:3px}
+.corner{position:fixed;z-index:5;display:flex;gap:8px;align-items:center}
+.tl{top:calc(12px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px))}
+.bl{bottom:calc(12px + env(safe-area-inset-bottom,0px));left:calc(12px + env(safe-area-inset-left,0px))}
+.br{bottom:calc(12px + env(safe-area-inset-bottom,0px));right:calc(12px + env(safe-area-inset-right,0px))}
+.round{width:44px;height:44px;border-radius:50%;background:#0f0d0acc;border:1px solid var(--line);font-size:20px;display:grid;place-items:center}
+.pill{min-height:44px;padding:0 14px;border-radius:22px;background:#0f0d0acc;border:1px solid var(--line);font-size:16px}
+.pill[aria-pressed=true]{color:var(--gold);border-color:var(--gold)}
+#vol{width:96px;accent-color:var(--gold)}
+@media (max-width:480px){#vol{display:none}}
+.note{color:var(--muted);font-size:15px;text-align:center;margin:0;max-width:60ch;letter-spacing:.05em}
+.years{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;width:100%}
+.years button{min-height:44px;background:var(--panel);border:1px solid #5a5040;border-radius:5px;color:var(--cream)}
+.years button.done{border-color:var(--gold);color:var(--gold)}
+.dec{width:100%;display:flex;flex-direction:column;gap:8px}
+.dec h3{font:400 24px var(--display);color:var(--gold);margin:12px 0 0}
+.row{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px solid #2c271f}
+.row b{font-weight:400;color:var(--gold);font-variant-numeric:tabular-nums}
+.rank{width:100%;display:flex;flex-direction:column;gap:9px}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) 62px;gap:4px 10px;align-items:baseline}
+.bar .t{min-width:0;overflow-wrap:anywhere}
+.bar .t span{color:var(--muted);font-size:15px}
+.bar .t mark{background:none;color:var(--gold)}
+.bar .p{text-align:right;font-variant-numeric:tabular-nums;color:var(--cream)}
+.bar .fill{grid-column:1/-1;height:6px;background:#2c271f;border-radius:3px;overflow:hidden}
+.bar .fill i{display:block;height:100%;background:var(--gold)}
+select{font:inherit;background:var(--panel);color:var(--cream);border:1px solid var(--cream);border-radius:5px;padding:8px 10px;min-height:44px}
+.big{font:400 96px/1 var(--display);color:var(--gold);font-variant-numeric:tabular-nums}
+#pause{position:fixed;inset:0;z-index:9;background:#000b;display:grid;place-items:center;padding:16px}
+</style>
+</head>
+<body>
+
+<div class="disc a"></div><div class="disc b"></div><div id="backdrop"></div>
+<main id="app" aria-live="polite"></main>
+<div class="corner tl" id="ctl-tl" hidden><button class="round" id="home" aria-label="Main menu">←</button></div>
+<div class="corner bl" id="ctl-bl" hidden><button class="round" id="prev" aria-label="Previous year" title="Previous year">‹</button></div>
+<div class="corner br">
+  <input id="vol" type="range" min="0" max="100" value="60" aria-label="Song volume">
+  <button class="pill" id="amb" aria-pressed="false">Play room music</button>
+</div>
+<div id="pause" hidden><button class="btn primary" id="resume">Resume</button></div>
+
+<script id="d-music" type="text/plain">
+1970|Bridge over Troubled Water~Simon & Garfunkel|Let It Be~The Beatles|Your Song~Elton John|Paranoid~Black Sabbath|War~Edwin Starr|Big Yellow Taxi~Joni Mitchell|Get Up (I Feel Like Being a) Sex Machine~James Brown|ABC~The Jackson 5|Ain't No Mountain High Enough~Diana Ross|Feliz Navidad~José Feliciano
+1971|Imagine~John Lennon|Stairway to Heaven~Led Zeppelin|What's Going On~Marvin Gaye|Maggie May~Rod Stewart|Ain't No Sunshine~Bill Withers|Take Me Home, Country Roads~John Denver|Brown Sugar~The Rolling Stones|Baba O'Riley~The Who|Theme from Shaft~Isaac Hayes|Dum Maro Dum~Asha Bhosle
+1972|Superstition~Stevie Wonder|Rocket Man~Elton John|Lean on Me~Bill Withers|Heart of Gold~Neil Young|Walk on the Wild Side~Lou Reed|Smoke on the Water~Deep Purple|Papa Was a Rollin' Stone~The Temptations|I'll Take You There~The Staple Singers|You're So Vain~Carly Simon|Starman~David Bowie
+1973|Dream On~Aerosmith|Piano Man~Billy Joel|Let's Get It On~Marvin Gaye|Jolene~Dolly Parton|Money~Pink Floyd|Goodbye Yellow Brick Road~Elton John|Midnight Train to Georgia~Gladys Knight & the Pips|Knockin' on Heaven's Door~Bob Dylan|Free Bird~Lynyrd Skynyrd|The Joker~Steve Miller Band
+1974|Sweet Home Alabama~Lynyrd Skynyrd|Waterloo~ABBA|No Woman, No Cry~Bob Marley & the Wailers|Kung Fu Fighting~Carl Douglas|I Will Always Love You~Dolly Parton|Killer Queen~Queen|Rock Your Baby~George McCrae|You Ain't Seen Nothing Yet~Bachman–Turner Overdrive|Cat's in the Cradle~Harry Chapin|Can't Get Enough of Your Love, Babe~Barry White
+1975|Bohemian Rhapsody~Queen|Born to Run~Bruce Springsteen|Wish You Were Here~Pink Floyd|Landslide~Fleetwood Mac|Mamma Mia~ABBA|That's the Way (I Like It)~KC and the Sunshine Band|Love to Love You Baby~Donna Summer|Rhinestone Cowboy~Glen Campbell|One of These Nights~Eagles|Fight the Power~The Isley Brothers
+1976|Dancing Queen~ABBA|Hotel California~Eagles|Go Your Own Way~Fleetwood Mac|(Don't Fear) The Reaper~Blue Öyster Cult|Somebody to Love~Queen|Anarchy in the U.K.~Sex Pistols|More Than a Feeling~Boston|Carry On Wayward Son~Kansas|Fernando~ABBA|Young Hearts Run Free~Candi Staton
+1977|Stayin' Alive~Bee Gees|Dreams~Fleetwood Mac|I Feel Love~Donna Summer|We Will Rock You~Queen|Heroes~David Bowie|Three Little Birds~Bob Marley and the Wailers|Mr. Blue Sky~Electric Light Orchestra|Brick House~Commodores|God Save the Queen~Sex Pistols|Margaritaville~Jimmy Buffett
+1978|September~Earth, Wind & Fire|Le Freak~Chic|I Will Survive~Gloria Gaynor|Heart of Glass~Blondie|Wuthering Heights~Kate Bush|Y.M.C.A.~Village People|Sultans of Swing~Dire Straits|Roxanne~The Police|Don't Stop Me Now~Queen|Rasputin~Boney M.
+1979|Another Brick in the Wall, Part 2~Pink Floyd|Don't Stop 'Til You Get Enough~Michael Jackson|Stay With Me~Miki Matsubara|Rapper's Delight~The Sugarhill Gang|London Calling~The Clash|Highway to Hell~AC/DC|Video Killed the Radio Star~The Buggles|Hot Stuff~Donna Summer|Message in a Bottle~The Police|Gimme! Gimme! Gimme! (A Man After Midnight)~ABBA
+1980|Another One Bites the Dust~Queen|Back in Black~AC/DC|Upside Down~Diana Ross|Celebration~Kool & the Gang|Funkytown~Lipps Inc.|Love Will Tear Us Apart~Joy Division|Ace of Spades~Motörhead|Crazy Train~Ozzy Osbourne|Call Me~Blondie|Could You Be Loved~Bob Marley and the Wailers
+1981|Don't Stop Believin'~Journey|Super Freak~Rick James|In the Air Tonight~Phil Collins|Never Too Much~Luther Vandross|Under Pressure~Queen and David Bowie|Bette Davis Eyes~Kim Carnes|Give It to Me Baby~Rick James|Let's Groove~Earth, Wind & Fire|Ghost Town~The Specials|Tom Sawyer~Rush
+1982|Billie Jean~Michael Jackson|Beat It~Michael Jackson|Eye of the Tiger~Survivor|Africa~Toto|Should I Stay or Should I Go~The Clash|Come On Eileen~Dexys Midnight Runners|Sexual Healing~Marvin Gaye|1999~Prince|The Message~Grandmaster Flash and the Furious Five|Planet Rock~Afrika Bambaataa and the Soulsonic Force
+1983|Sweet Dreams (Are Made of This)~Eurythmics|Every Breath You Take~The Police|Girls Just Want to Have Fun~Cyndi Lauper|Blue Monday~New Order|All Night Long (All Night)~Lionel Richie|Karma Chameleon~Culture Club|Let's Dance~David Bowie|Total Eclipse of the Heart~Bonnie Tyler|Jump~Van Halen|99 Luftballons~Nena
+1984|Purple Rain~Prince and the Revolution|Last Christmas~Wham!|Summer of '69~Bryan Adams|Wake Me Up Before You Go-Go~Wham!|Footloose~Kenny Loggins|Born in the U.S.A.~Bruce Springsteen|Smooth Operator~Sade|Like a Virgin~Madonna|What's Love Got to Do with It~Tina Turner|When Doves Cry~Prince and the Revolution
+1985|Take On Me~a-ha|Running Up That Hill (A Deal with God)~Kate Bush|Everybody Wants to Rule the World~Tears for Fears|Money for Nothing~Dire Straits|Don't You (Forget About Me)~Simple Minds|West End Girls~Pet Shop Boys|We Built This City~Starship|Saving All My Love for You~Whitney Houston|Conga~Miami Sound Machine|Into the Groove~Madonna
+1986|Livin' on a Prayer~Bon Jovi|The Final Countdown~Europe|Kiss~Prince and the Revolution|Walk This Way~Run-DMC featuring Aerosmith|Sledgehammer~Peter Gabriel|True Colors~Cyndi Lauper|La Isla Bonita~Madonna|Nasty~Janet Jackson|You Give Love a Bad Name~Bon Jovi|Walk Like an Egyptian~The Bangles
+1987|Never Gonna Give You Up~Rick Astley|I Wanna Dance with Somebody (Who Loves Me)~Whitney Houston|Sweet Child o' Mine~Guns N' Roses|With or Without You~U2|Bad Boys~Inner Circle|Paid in Full~Eric B. & Rakim|La Bamba~Los Lobos|Pour Some Sugar on Me~Def Leppard|Bad~Michael Jackson|(I've Had) The Time of My Life~Bill Medley and Jennifer Warnes
+1988|Fast Car~Tracy Chapman|Straight Outta Compton~N.W.A|Every Rose Has Its Thorn~Poison|One~Metallica|Buffalo Stance~Neneh Cherry|Wild Thing~Tone Lōc|It Takes Two~Rob Base and DJ E-Z Rock|Don't Worry, Be Happy~Bobby McFerrin|Orinoco Flow~Enya|One Moment in Time~Whitney Houston
+1989|Like a Prayer~Madonna|Love Shack~The B-52's|Fight the Power~Public Enemy|Pump Up the Jam~Technotronic|Free Fallin'~Tom Petty|Personal Jesus~Depeche Mode|Back to Life (However Do You Want Me)~Soul II Soul|Ice Ice Baby~Vanilla Ice|The Dance~Garth Brooks|Lambada~Kaoma
+1990|Vogue~Madonna|U Can't Touch This~MC Hammer|Can I Kick It?~A Tribe Called Quest|Hold On~Wilson Phillips|Poison~Bell Biv DeVoe|Thunderstruck~AC/DC|Enjoy the Silence~Depeche Mode|Gonna Make You Sweat (Everybody Dance Now)~C+C Music Factory|Cherry Pie~Warrant|Wind of Change~Scorpions
+1991|Smells Like Teen Spirit~Nirvana|Losing My Religion~R.E.M.|Black or White~Michael Jackson|Enter Sandman~Metallica|November Rain~Guns N' Roses|Under the Bridge~Red Hot Chili Peppers|(Everything I Do) I Do It for You~Bryan Adams|The Show Must Go On~Queen|Check the Rhime~A Tribe Called Quest|Motownphilly~Boyz II Men
+1992|I Will Always Love You~Whitney Houston|Creep~Radiohead|End of the Road~Boyz II Men|Baby Got Back~Sir Mix-a-Lot|Jump~Kris Kross|Nuthin' but a 'G' Thang~Dr. Dre feat. Snoop Dogg|Killing in the Name~Rage Against the Machine|What's Up?~4 Non Blondes|Weak~SWV|Rhythm Is a Dancer~Snap!
+1993|What Is Love~Haddaway|Electric Relaxation~A Tribe Called Quest|Linger~The Cranberries|Heart-Shaped Box~Nirvana|C.R.E.A.M.~Wu-Tang Clan|Insane in the Brain~Cypress Hill|Gin and Juice~Snoop Dogg|Hero~Mariah Carey|The Sign~Ace of Base|Crazy~Aerosmith
+1994|Basket Case~Green Day|Black Hole Sun~Soundgarden|Live Forever~Oasis|Juicy~The Notorious B.I.G.|Regulate~Warren G feat. Nate Dogg|Waterfalls~TLC|Zombie~The Cranberries|Cotton Eye Joe~Rednex|Can You Feel the Love Tonight~Elton John|N.Y. State of Mind~Nas
+1995|Wonderwall~Oasis|Gangsta's Paradise~Coolio feat. L.V.|Fantasy~Mariah Carey|Don't Speak~No Doubt|California Love~2Pac feat. Dr. Dre|I Got 5 on It~Luniz feat. Michael Marshall|You Are Not Alone~Michael Jackson|Dear Mama~2Pac|Boombastic~Shaggy|This Is How We Do It~Montell Jordan
+1996|Wannabe~Spice Girls|Killing Me Softly with His Song~Fugees|No Diggity~Blackstreet feat. Dr. Dre|Pony~Ginuwine|Firestarter~The Prodigy|Virtual Insanity~Jamiroquai|Lovefool~The Cardigans|I Believe I Can Fly~R. Kelly|Return of the Mack~Mark Morrison|Hit 'Em Up~2Pac
+1997|Bitter Sweet Symphony~The Verve|My Heart Will Go On~Celine Dion|Barbie Girl~Aqua|Mo Money Mo Problems~The Notorious B.I.G.|Torn~Natalie Imbruglia|Everybody (Backstreet's Back)~Backstreet Boys|All My Life~K-Ci & JoJo|Song 2~Blur|Everlong~Foo Fighters|Hypnotize~The Notorious B.I.G.
+1998|Believe~Cher|...Baby One More Time~Britney Spears|Iris~Goo Goo Dolls|I Don't Want to Miss a Thing~Aerosmith|Are You That Somebody?~Aaliyah|Blue (Da Ba Dee)~Eiffel 65|Music Sounds Better with You~Stardust|Doo Wop (That Thing)~Lauryn Hill|Hard Knock Life (Ghetto Anthem)~Jay-Z|Ruff Ryders' Anthem~DMX
+1999|Smooth~Santana feat. Rob Thomas|No Scrubs~TLC|I Want It That Way~Backstreet Boys|Livin' la Vida Loca~Ricky Martin|Still D.R.E.~Dr. Dre feat. Snoop Dogg|All Star~Smash Mouth|Scar Tissue~Red Hot Chili Peppers|Canned Heat~Jamiroquai|My Name Is~Eminem|Say My Name~Destiny's Child
+2000|In the End~Linkin Park|Yellow~Coldplay|Ms. Jackson~Outkast|Bye Bye Bye~NSYNC|Lady (Hear Me Tonight)~Modjo|The Real Slim Shady~Eminem|It Wasn't Me~Shaggy feat. Rikrok|One More Time~Daft Punk|Oops!... I Did It Again~Britney Spears|Stan~Eminem feat. Dido
+2001|What's Luv?~Fat Joe feat. Ashanti & Ja Rule|Aerials~System of a Down|Whenever, Wherever~Shakira|Get Ur Freak On~Missy Elliott|Harder, Better, Faster, Stronger~Daft Punk|Chop Suey!~System of a Down|How You Remind Me~Nickelback|Family Affair~Mary J. Blige|Clint Eastwood~Gorillaz|Drops of Jupiter (Tell Me)~Train
+2002|Lose Yourself~Eminem|Hot in Herre~Nelly|Complicated~Avril Lavigne|'Till I Collapse~Eminem|The Scientist~Coldplay|Without Me~Eminem|A Thousand Miles~Vanessa Carlton|Foolish~Ashanti|Dilemma~Nelly feat. Kelly Rowland|Cry Me a River~Justin Timberlake
+2003|Crazy in Love~Beyoncé feat. Jay-Z|Hey Ya!~Outkast|Seven Nation Army~The White Stripes|In da Club~50 Cent|Toxic~Britney Spears|Numb~Linkin Park|Bring Me to Life~Evanescence|P.I.M.P.~50 Cent|Mr. Brightside~The Killers|Where Is the Love?~The Black Eyed Peas
+2004|Yeah!~Usher feat. Lil Jon & Ludacris|Gasolina~Daddy Yankee|Drop It Like It's Hot~Snoop Dogg feat. Pharrell|American Idiot~Green Day|Goodies~Ciara feat. Petey Pablo|My Boo~Usher & Alicia Keys|Duality~Slipknot|Somebody Told Me~The Killers|Jesus Walks~Kanye West|If I Ain't Got You~Alicia Keys
+2005|Gold Digger~Kanye West feat. Jamie Foxx|Hung Up~Madonna|Feel Good Inc.~Gorillaz|Hate It or Love It~The Game feat. 50 Cent|1 Thing~Amerie|Love~Keyshia Cole|Pump It~The Black Eyed Peas|Sugar, We're Goin Down~Fall Out Boy|Temperature~Sean Paul|Bad Day~Daniel Powter
+2006|Hips Don't Lie~Shakira feat. Wyclef Jean|Crazy~Gnarls Barkley|Rehab~Amy Winehouse|SexyBack~Justin Timberlake|Welcome to the Black Parade~My Chemical Romance|Big Girls Don't Cry~Fergie|Promiscuous~Nelly Furtado feat. Timbaland|Irreplaceable~Beyoncé|Life Is a Highway~Rascal Flatts|Smack That~Akon feat. Eminem
+2007|Umbrella~Rihanna feat. Jay-Z|Stronger~Kanye West|Paper Planes~M.I.A.|Apologize~Timbaland feat. OneRepublic|Crank That (Soulja Boy)~Soulja Boy|Low~Flo Rida feat. T-Pain|Beautiful Girls~Sean Kingston|Flashing Lights~Kanye West feat. Dwele|What I've Done~Linkin Park|Love Song~Sara Bareilles
+2008|Psychosocial~Slipknot|Poker Face~Lady Gaga|Viva la Vida~Coldplay|Heartless~Kanye West|Love Story~Taylor Swift|Halo~Beyoncé|Day 'n' Nite~Kid Cudi|American Boy~Estelle feat. Kanye West|Closer~Ne-Yo|Disturbia~Rihanna
+2009|Bad Romance~Lady Gaga|Empire State of Mind~Jay-Z featuring Alicia Keys|Party in the U.S.A.~Miley Cyrus|Fireflies~Owl City|Best I Ever Had~Drake|I Gotta Feeling~The Black Eyed Peas|Tik Tok~Kesha|21 Guns~Green Day|Drop the World~Lil Wayne featuring Eminem|Forever~Drake feat. Kanye West, Lil Wayne & Eminem
+2010|Rolling in the Deep~Adele|Love the Way You Lie~Eminem featuring Rihanna|Just the Way You Are~Bruno Mars|Baby~Justin Bieber feat. Ludacris|Only Girl (In the World)~Rihanna|Waka Waka (This Time for Africa)~Shakira featuring Freshlyground|Grenade~Bruno Mars|Airplanes~B.o.B feat. Hayley Williams|Runaway~Kanye West feat. Pusha T|Pumped Up Kicks~Foster the People
+2011|Someone Like You~Adele|Party Rock Anthem~LMFAO featuring Lauren Bennett and GoonRock|Midnight City~M83|N****s in Paris~Jay-Z & Kanye West|Moves like Jagger~Maroon 5 featuring Christina Aguilera|On the Floor~Jennifer Lopez feat. Pitbull|What Makes You Beautiful~One Direction|A Thousand Years~Christina Perri|I Need a Doctor~Dr. Dre feat. Eminem & Skylar Grey|Somebody That I Used to Know~Gotye featuring Kimbra
+2012|Swimming Pools (Drank)~Kendrick Lamar|Diamonds~Rihanna|Locked Out of Heaven~Bruno Mars|Pyramids~Frank Ocean|Gangnam Style~PSY|Skyfall~Adele|Love Sosa~Chief Keef|Thinkin Bout You~Frank Ocean|Bangarang~Skrillex feat. Sirah|Clarity~Zedd featuring Foxes
+2013|Happy~Pharrell Williams|Get Lucky~Daft Punk featuring Pharrell Williams and Nile Rodgers|Mirrors~Justin Timberlake|Wake Me Up~Avicii|Counting Stars~OneRepublic|All of Me~John Legend|Dark Horse~Katy Perry featuring Juicy J|Hold On, We're Going Home~Drake feat. Majid Jordan|Do I Wanna Know?~Arctic Monkeys|Rap God~Eminem
+2014|Uptown Funk~Mark Ronson featuring Bruno Mars|Shake It Off~Taylor Swift|Bang Bang~Jessie J, Ariana Grande & Nicki Minaj|Chandelier~Sia|All About That Bass~Meghan Trainor|Hot N***a~Bobby Shmurda|Sugar~Maroon 5|Fancy~Iggy Azalea feat. Charli XCX|Rather Be~Clean Bandit featuring Jess Glynne|No Role Modelz~J. Cole
+2015|Hotline Bling~Drake|Panda~Desiigner|90210~Travis Scott feat. Kacy Hill|Lean On~Major Lazer & DJ Snake featuring MØ|Can't Feel My Face~The Weeknd|See You Again~Wiz Khalifa featuring Charlie Puth|Stressed Out~Twenty One Pilots|Alright~Kendrick Lamar|The Less I Know the Better~Tame Impala|The Hills~The Weeknd
+2016|One Dance~Drake featuring Wizkid and Kyla|Closer~The Chainsmokers featuring Halsey|Starboy~The Weeknd featuring Daft Punk|Black Beatles~Rae Sremmurd featuring Gucci Mane|Goosebumps~Travis Scott featuring Kendrick Lamar|Bad and Boujee~Migos feat. Lil Uzi Vert|Redbone~Childish Gambino|Congratulations~Post Malone feat. Quavo|Heathens~Twenty One Pilots|I Feel It Coming~The Weeknd feat. Daft Punk
+2017|Despacito~Luis Fonsi featuring Daddy Yankee|Gucci Gang~Lil Pump|HUMBLE.~Kendrick Lamar|Rockstar~Post Malone featuring 21 Savage|Havana~Camila Cabello featuring Young Thug|That's What I Like~Bruno Mars|XO TOUR Llif3~Lil Uzi Vert|Feel It Still~Portugal. The Man|Shape of You~Ed Sheeran|Save That Sh*t~Lil Peep
+2018|God's Plan~Drake|Little Dark Age~MGMT|SAD!~XXXTENTACION|SICKO MODE~Travis Scott featuring Drake|Lucid Dreams~Juice WRLD|Sunflower~Post Malone & Swae Lee|Plug Walk~Rich The Kid|This Is America~Childish Gambino|Old Town Road~Lil Nas X|High Hopes~Panic! at the Disco
+2019|Bad Guy~Billie Eilish|Blinding Lights~The Weeknd|The Box~Roddy Ricch|Señorita~Shawn Mendes & Camila Cabello|Circles~Post Malone|Lose You to Love Me~Selena Gomez|Con Calma~Daddy Yankee featuring Snow|BOP~DaBaby|Highest in the Room~Travis Scott|Talk~Khalid
+2020|Heat Waves~Glass Animals|Savage Love (Laxed – Siren Beat)~Jawsh 685 & Jason Derulo|Levitating~Dua Lipa|Save Your Tears~The Weeknd|Dákiti~Bad Bunny & Jhay Cortez|How You Like That~BLACKPINK|Heartbreak Anniversary~GIVĒON|Rockstar~DaBaby featuring Roddy Ricch|Life Is Good~Future feat. Drake|Positions~Ariana Grande
+2021|Off the Grid~Kanye West|Leave the Door Open~Silk Sonic|Praise God~Kanye West|Montero (Call Me by Your Name)~Lil Nas X|Kiss Me More~Doja Cat featuring SZA|Peaches~Justin Bieber featuring Daniel Caesar and Giveon|Fair Trade~Drake feat. Travis Scott|Industry Baby~Lil Nas X feat. Jack Harlow|Good 4 U~Olivia Rodrigo|Enemy~Imagine Dragons & JID
+2022|As It Was~Harry Styles|Is There Someone Else?~The Weeknd|WAIT FOR U~Future|Calm Down~Rema|Bad Habit~Steve Lacy|Golden Hour~JVKE|Tití Me Preguntó~Bad Bunny|Here With Me~d4vd|Kill Bill~SZA|I Ain't Worried~OneRepublic
+2023|Sprinter~Dave & Central Cee|Seven~Jung Kook featuring Latto|Ella Baila Sola~Eslabon Armado & Peso Pluma|TQG~KAROL G & Shakira|Paint the Town Red~Doja Cat|First Person Shooter~Drake feat. J. Cole|FE!N~Travis Scott feat. Playboi Carti|Water~Tyla|Boy's a Liar Pt. 2~PinkPantheress & Ice Spice|I Remember Everything~Zach Bryan featuring Kacey Musgraves
+2024|Espresso~Sabrina Carpenter|Not Like Us~Kendrick Lamar|A Bar Song (Tipsy)~Shaboozey|Timeless~The Weeknd & Playboi Carti|Birds of a Feather~Billie Eilish|Stargazing~Myles Smith|APT.~ROSÉ & Bruno Mars|Die with a Smile~Lady Gaga & Bruno Mars|Too Sweet~Hozier|Million Dollar Baby~Tommy Richman
+2025|Cry for Me~The Weeknd|Ordinary~Alex Warren|DtMF~Bad Bunny|Abracadabra~Lady Gaga|Manchild~Sabrina Carpenter|Nokia~Drake|Baile Inolvidable~Bad Bunny|Where Is My Husband!~RAYE|Daisies~Justin Bieber|Sugar on My Tongue~Tyler, the Creator
+</script>
+<script id="d-rap" type="text/plain">
+1980|More Bounce to the Ounce~Zapp|Upside Down~Diana Ross|Celebration~Kool & the Gang|Funkytown~Lipps Inc.|Love T.K.O.~Teddy Pendergrass|Could You Be Loved~Bob Marley and the Wailers|Call Me~Blondie|Just the Two of Us~Grover Washington Jr. feat. Bill Withers|Master Blaster (Jammin')~Stevie Wonder|The Breaks~Kurtis Blow
+1981|She's a Bad Mama Jama~Carl Carlton|Super Freak~Rick James|Square Biz~Teena Marie|Never Too Much~Luther Vandross|Controversy~Prince|Give It to Me Baby~Rick James|Let's Groove~Earth, Wind & Fire|Endless Love~Diana Ross & Lionel Richie|Don't You Want Me~The Human League|Genius of Love~Tom Tom Club
+1982|Billie Jean~Michael Jackson|Beat It~Michael Jackson|Atomic Dog~George Clinton|Truly~Lionel Richie|Sexual Healing~Marvin Gaye|1999~Prince|The Message~Grandmaster Flash and the Furious Five|Planet Rock~Afrika Bambaataa and the Soulsonic Force|Thriller~Michael Jackson|Forget Me Nots~Patrice Rushen
+1983|Sweet Dreams (Are Made of This)~Eurythmics|Juicy Fruit~Mtume|Girls Just Want to Have Fun~Cyndi Lauper|Blue Monday~New Order|All Night Long (All Night)~Lionel Richie|Karma Chameleon~Culture Club|Let's Dance~David Bowie|Total Eclipse of the Heart~Bonnie Tyler|Candy Girl~New Edition|Ain't Nobody~Rufus & Chaka Khan
+1984|Purple Rain~Prince and the Revolution|Last Christmas~Wham!|Lovergirl~Teena Marie|Cool It Now~New Edition|Smooth Operator~Sade|Like a Virgin~Madonna|What's Love Got to Do with It~Tina Turner|When Doves Cry~Prince and the Revolution|I Feel for You~Chaka Khan|Let's Hear It for the Boy~Deniece Williams
+1985|Take On Me~a-ha|Running Up That Hill (A Deal with God)~Kate Bush|Everybody Wants to Rule the World~Tears for Fears|Don't You (Forget About Me)~Simple Minds|West End Girls~Pet Shop Boys|A Love Bizarre~Sheila E. feat. Prince|Saving All My Love for You~Whitney Houston|Conga~Miami Sound Machine|Into the Groove~Madonna|How Will I Know~Whitney Houston
+1986|Kiss~Prince and the Revolution|Walk This Way~Run-DMC featuring Aerosmith|Candy~Cameo|True Colors~Cyndi Lauper|La Isla Bonita~Madonna|Nasty~Janet Jackson|As We Lay~Shirley Murdock|Control~Janet Jackson|Word Up!~Cameo|The Rain~Oran "Juice" Jones
+1987|Never Gonna Give You Up~Rick Astley|I Wanna Dance with Somebody (Who Loves Me)~Whitney Houston|The Way You Make Me Feel~Michael Jackson|Paid in Full~Eric B. & Rakim|I Want Her~Keith Sweat|Bad~Michael Jackson|(I've Had) The Time of My Life~Bill Medley and Jennifer Warnes|Push It~Salt-N-Pepa|Smooth Criminal~Michael Jackson|I Need Love~LL Cool J
+1988|Fast Car~Tracy Chapman|Straight Outta Compton~N.W.A|Buffalo Stance~Neneh Cherry|Wild Thing~Tone Lōc|It Takes Two~Rob Base and DJ E-Z Rock|Can You Stand the Rain~New Edition|One Moment in Time~Whitney Houston|My Prerogative~Bobby Brown|Straight Up~Paula Abdul|Parents Just Don't Understand~DJ Jazzy Jeff & The Fresh Prince
+1989|Like a Prayer~Madonna|Me Myself and I~De La Soul|Fight the Power~Public Enemy|Pump Up the Jam~Technotronic|Back to Life (However Do You Want Me)~Soul II Soul|Ice Ice Baby~Vanilla Ice|Here and Now~Luther Vandross|Miss You Much~Janet Jackson|Bust a Move~Young MC|Just a Friend~Biz Markie
+1990|Vogue~Madonna|U Can't Touch This~MC Hammer|Can I Kick It?~A Tribe Called Quest|Thieves in the Temple~Prince|Poison~Bell Biv DeVoe|Vision of Love~Mariah Carey|It's a Shame (My Sister)~Monie Love feat. True Image|Giving You the Benefit~Pebbles|Feels Good~Tony! Toni! Toné!|The Power~Snap!
+1991|Black or White~Michael Jackson|Summertime~DJ Jazzy Jeff & the Fresh Prince|Scenario~A Tribe Called Quest feat. Leaders of the New School|Emotions~Mariah Carey|Motownphilly~Boyz II Men|I Love Your Smile~Shanice|Diamonds and Pearls~Prince & The New Power Generation|Check the Rhime~A Tribe Called Quest|Remember the Time~Michael Jackson|O.P.P.~Naughty by Nature
+1992|I Will Always Love You~Whitney Houston|End of the Road~Boyz II Men|Baby Got Back~Sir Mix-a-Lot|Jump~Kris Kross|Nuthin' but a 'G' Thang~Dr. Dre feat. Snoop Dogg|My Lovin' (You're Never Gonna Get It)~En Vogue|No Ordinary Love~Sade|Protect Ya Neck~Wu-Tang Clan|Weak~SWV|It Was a Good Day~Ice Cube
+1993|What Is Love~Haddaway|Electric Relaxation~A Tribe Called Quest|C.R.E.A.M.~Wu-Tang Clan|Shoop~Salt-N-Pepa|Gin and Juice~Snoop Dogg|Can We Talk~Tevin Campbell|Dreamlover~Mariah Carey|Who Am I (What's My Name?)~Snoop Dogg|Bump n' Grind~R. Kelly|93 'Til Infinity~Souls of Mischief
+1994|Juicy~The Notorious B.I.G.|Regulate~Warren G feat. Nate Dogg|Waterfalls~TLC|Fantastic Voyage~Coolio|Creep~TLC|Big Poppa~The Notorious B.I.G.|I Wanna Be Down~Brandy|Flava in Ya Ear~Craig Mack|N.Y. State of Mind~Nas|My Life~Mary J. Blige
+1995|Gangsta's Paradise~Coolio feat. L.V.|Fantasy~Mariah Carey|Dear Mama~2Pac|California Love~2Pac feat. Dr. Dre|You Are Not Alone~Michael Jackson|I Got 5 on It~Luniz feat. Michael Marshall|Always Be My Baby~Mariah Carey|This Is How We Do It~Montell Jordan|Liquid Swords~GZA|Runnin'~The Pharcyde
+1996|Twisted~Keith Sweat|Killing Me Softly with His Song~Fugees|No Diggity~Blackstreet feat. Dr. Dre|If I Ruled the World (Imagine That)~Nas feat. Lauryn Hill|Virtual Insanity~Jamiroquai|Ready or Not~Fugees|Hit 'Em Up~2Pac|Return of the Mack~Mark Morrison|Pony~Ginuwine|I Believe I Can Fly~R. Kelly
+1997|My Heart Will Go On~Celine Dion|Feel So Good~Mase|Mo Money Mo Problems~The Notorious B.I.G.|Everybody (Backstreet's Back)~Backstreet Boys|Honey~Mariah Carey|Hypnotize~The Notorious B.I.G.|I'll Be Missing You~Puff Daddy & Faith Evans feat. 112|You Make Me Wanna...~Usher|All My Life~K-Ci & JoJo|The Rain (Supa Dupa Fly)~Missy Elliott
+1998|Still Not a Player~Big Pun|...Baby One More Time~Britney Spears|Are You That Somebody?~Aaliyah|Hard Knock Life (Ghetto Anthem)~Jay-Z|Music Sounds Better with You~Stardust|Doo Wop (That Thing)~Lauryn Hill|Rosa Parks~Outkast|Changes~2Pac feat. Talent|Ruff Ryders' Anthem~DMX|Nobody Does It Better~Nate Dogg feat. Warren G
+1999|Still D.R.E.~Dr. Dre feat. Snoop Dogg|No Scrubs~TLC|I Want It That Way~Backstreet Boys|Forgot About Dre~Dr. Dre feat. Eminem|Genie in a Bottle~Christina Aguilera|Hot Boyz~Missy Elliott|Canned Heat~Jamiroquai|My Name Is~Eminem|Say My Name~Destiny's Child|Hip-Hop~dead prez
+2000|Ms. Jackson~Outkast|Bye Bye Bye~NSYNC|Music~Madonna|The Real Slim Shady~Eminem|It Wasn't Me~Shaggy feat. Rikrok|One More Time~Daft Punk|Black Helicopters~Non Phixion|Try Again~Aaliyah|Stan~Eminem feat. Dido|So Fresh, So Clean~Outkast
+2001|What's Luv?~Fat Joe feat. Ashanti & Ja Rule|Fallin'~Alicia Keys|Whenever, Wherever~Shakira|Get Ur Freak On~Missy Elliott|Family Affair~Mary J. Blige|Clint Eastwood~Gorillaz|Survivor~Destiny's Child|U Remind Me~Usher|Izzo (H.O.V.A.)~Jay-Z|Differences~Ginuwine
+2002|Lose Yourself~Eminem|Hot in Herre~Nelly|Rock Your Body~Justin Timberlake|'Till I Collapse~Eminem|Without Me~Eminem|A Thousand Miles~Vanessa Carlton|Foolish~Ashanti|Dilemma~Nelly feat. Kelly Rowland|Cry Me a River~Justin Timberlake|Get Busy~Sean Paul
+2003|Crazy in Love~Beyoncé feat. Jay-Z|Hey Ya!~Outkast|In da Club~50 Cent|Toxic~Britney Spears|21 Questions~50 Cent|P.I.M.P.~50 Cent|Roses~Outkast|Where Is the Love?~The Black Eyed Peas|Baby Boy~Beyoncé feat. Sean Paul|Slow Jamz~Twista feat. Kanye West & Jamie Foxx
+2004|Yeah!~Usher feat. Lil Jon & Ludacris|Gasolina~Daddy Yankee|Drop It Like It's Hot~Snoop Dogg feat. Pharrell|Like Toy Soldiers~Eminem|Mockingbird~Eminem|Jesus Walks~Kanye West|Lean Back~Terror Squad|Confessions Part II~Usher|Rapp Snitch Knishes~MF DOOM feat. Mr. Fantastik|Let Me Love You~Mario
+2005|Gold Digger~Kanye West feat. Jamie Foxx|Pump It~The Black Eyed Peas|Feel Good Inc.~Gorillaz|We Belong Together~Mariah Carey|1 Thing~Amerie|Love~Keyshia Cole|Temperature~Sean Paul|Hate It or Love It~The Game feat. 50 Cent|So Sick~Ne-Yo|Run It!~Chris Brown feat. Juelz Santana
+2006|Hips Don't Lie~Shakira feat. Wyclef Jean|Crazy~Gnarls Barkley|Smack That~Akon feat. Eminem|SexyBack~Justin Timberlake|Promiscuous~Nelly Furtado feat. Timbaland|Irreplaceable~Beyoncé|Say It Right~Nelly Furtado|What You Know~T.I.|Hustlin'~Rick Ross|You~Lloyd feat. Lil Wayne
+2007|Umbrella~Rihanna feat. Jay-Z|Stronger~Kanye West|Paper Planes~M.I.A.|Can't Tell Me Nothing~Kanye West|Crank That (Soulja Boy)~Soulja Boy|Low~Flo Rida feat. T-Pain|Apologize~Timbaland feat. OneRepublic|I Wonder~Kanye West|Flashing Lights~Kanye West feat. Dwele|Sensual Seduction~Snoop Dogg
+2008|Kiss Me Thru the Phone~Soulja Boy Tell 'Em feat. Sammie|Whatever You Like~T.I.|A Milli~Lil Wayne|Day 'n' Nite~Kid Cudi|Halo~Beyoncé|American Boy~Estelle feat. Kanye West|Dead and Gone~T.I. feat. Justin Timberlake|Disturbia~Rihanna|Lollipop~Lil Wayne feat. Static Major|Heartless~Kanye West
+2009|Bad Romance~Lady Gaga|Empire State of Mind~Jay-Z featuring Alicia Keys|Drop the World~Lil Wayne featuring Eminem|You're a Jerk~New Boyz|Forever~Drake feat. Kanye West, Lil Wayne & Eminem|Un-thinkable (I'm Ready)~Alicia Keys|Down~Jay Sean featuring Lil Wayne|Rude Boy~Rihanna|Best I Ever Had~Drake|Birthday Sex~Jeremih
+2010|Rolling in the Deep~Adele|Love the Way You Lie~Eminem featuring Rihanna|Just the Way You Are~Bruno Mars|Super Bass~Nicki Minaj|Only Girl (In the World)~Rihanna|Runaway~Kanye West feat. Pusha T|Grenade~Bruno Mars|Airplanes~B.o.B feat. Hayley Williams|Black and Yellow~Wiz Khalifa|Not Afraid~Eminem
+2011|Work Out~J. Cole|I Need a Doctor~Dr. Dre feat. Eminem & Skylar Grey|Otis~Kanye West & JAY-Z|No Church in the Wild~Jay-Z & Kanye West feat. Frank Ocean|N****s in Paris~Jay-Z & Kanye West|She Will~Lil Wayne feat. Drake|The Motto~Drake feat. Lil Wayne|Look at Me Now~Chris Brown feat. Lil Wayne & Busta Rhymes|Headlines~Drake|Marvin's Room~Drake
+2012|Diamonds~Rihanna|B***h, Don't Kill My Vibe~Kendrick Lamar|Dreams and Nightmares~Meek Mill|Oldie~Odd Future|Love Sosa~Chief Keef|Thinkin Bout You~Frank Ocean|Mercy~Kanye West feat. Big Sean, Pusha T & 2 Chainz|Pyramids~Frank Ocean|Swimming Pools (Drank)~Kendrick Lamar|F**kin' Problems~A$AP Rocky feat. Drake, 2 Chainz & Kendrick Lamar
+2013|Happy~Pharrell Williams|Get Lucky~Daft Punk featuring Pharrell Williams and Nile Rodgers|Hold On, We're Going Home~Drake feat. Majid Jordan|Gas Pedal~Sage the Gemini feat. Iamsu!|All Me~Drake feat. 2 Chainz & Big Sean|Love Me~Lil Wayne feat. Drake & Future|Holy Grail~Jay-Z feat. Justin Timberlake|Mirrors~Justin Timberlake|3005~Childish Gambino|Started from the Bottom~Drake
+2014|Bang Bang~Jessie J, Ariana Grande & Nicki Minaj|Sober~Childish Gambino|2 On~Tinashe feat. ScHoolboy Q|Often~The Weeknd|Apparently~J. Cole|Hot N***a~Bobby Shmurda|0 to 100 / The Catch Up~Drake|Fancy~Iggy Azalea feat. Charli XCX|No Role Modelz~J. Cole|Trap Queen~Fetty Wap
+2015|Hotline Bling~Drake|679~Fetty Wap feat. Monty|Panda~Desiigner|90210~Travis Scott feat. Kacy Hill|Stick Talk~Future|See You Again~Wiz Khalifa featuring Charlie Puth|Jumpman~Drake & Future|Alright~Kendrick Lamar|Antidote~Travis Scott|The Hills~The Weeknd
+2016|One Dance~Drake featuring Wizkid and Kyla|Broccoli~DRAM feat. Lil Yachty|Starboy~The Weeknd featuring Daft Punk|Black Beatles~Rae Sremmurd featuring Gucci Mane|Goosebumps~Travis Scott featuring Kendrick Lamar|Bad and Boujee~Migos feat. Lil Uzi Vert|Redbone~Childish Gambino|Congratulations~Post Malone feat. Quavo|Money Longer~Lil Uzi Vert|Nights~Frank Ocean
+2017|F**k Love~XXXTENTACION feat. Trippie Redd|GUMMO~6ix9ine|HUMBLE.~Kendrick Lamar|Rockstar~Post Malone featuring 21 Savage|Passionfruit~Drake|XO TOUR Llif3~Lil Uzi Vert|See You Again~Tyler, the Creator feat. Kali Uchis|Jocelyn Flores~XXXTENTACION|Mask Off~Future|Dark Red~Steve Lacy
+2018|God's Plan~Drake|Self Care~Mac Miller|SAD!~XXXTENTACION|SICKO MODE~Travis Scott featuring Drake|Sunflower~Post Malone & Swae Lee|Drip Too Hard~Lil Baby & Gunna|Praise the Lord (Da Shine)~A$AP Rocky feat. Skepta|Call Out My Name~The Weeknd|Lucid Dreams~Juice WRLD|Pure Cocaine~Lil Baby
+2019|EARFQUAKE~Tyler, the Creator|Blinding Lights~The Weeknd|The Box~Roddy Ricch|BOP~DaBaby|Circles~Post Malone|Ransom~Lil Tecca|Make No Sense~YoungBoy Never Broke Again|Dior~Pop Smoke|Highest in the Room~Travis Scott|Robbery~Juice WRLD
+2020|New Tank~Playboi Carti|Levitating~Dua Lipa|Save Your Tears~The Weeknd|Heartbreak Anniversary~GIVĒON|For the Night~Pop Smoke feat. Lil Baby & DaBaby|WHATS POPPIN (Remix)~Jack Harlow feat. DaBaby, Tory Lanez & Lil Wayne|Savage (Remix)~Megan Thee Stallion feat. Beyoncé|Positions~Ariana Grande|Life Is Good~Future feat. Drake|Go Crazy~Chris Brown & Young Thug
+2021|Knife Talk~Drake|Leave the Door Open~Silk Sonic|Praise God~Kanye West|Yebba's Heartbreak~Drake & Yebba|Kiss Me More~Doja Cat featuring SZA|Peaches~Justin Bieber featuring Daniel Caesar and Giveon|Off the Grid~Kanye West|Family Ties~Baby Keem & Kendrick Lamar|Industry Baby~Lil Nas X feat. Jack Harlow|Fair Trade~Drake feat. Travis Scott
+2022|Surround Sound~JID feat. 21 Savage & Baby Tate|Jimmy Cooks~Drake|Is There Someone Else?~The Weeknd|Eazy~The Game & Kanye West|Bad Habit~Steve Lacy|The Heart Part 5~Kendrick Lamar|Tití Me Preguntó~Bad Bunny|Just Wanna Rock~Lil Uzi Vert|Romantic Homicide~d4vd|Kill Bill~SZA
+2023|Sprinter~Dave & Central Cee|Paint the Town Red~Doja Cat|First Person Shooter~Drake feat. J. Cole|FE!N~Travis Scott feat. Playboi Carti|Water~Tyla|TQG~KAROL G & Shakira|All My Life~Lil Durk feat. J. Cole|Agora Hills~Doja Cat|Boy's a Liar Pt. 2~PinkPantheress & Ice Spice|Lose Control~Teddy Swims
+2024|euphoria~Kendrick Lamar|Not Like Us~Kendrick Lamar|Timeless~The Weeknd & Playboi Carti|Like That~Future, Metro Boomin & Kendrick Lamar|BAND4BAND~Central Cee & Lil Baby|Die with a Smile~Lady Gaga & Bruno Mars|Saturn~SZA|Family Matters~Drake|TGIF~GloRilla|Million Dollar Baby~Tommy Richman
+2025|Chains & Whips~Clipse feat. Kendrick Lamar|DtMF~Bad Bunny|DIE TRYING~PARTYNEXTDOOR, Drake & Yebba|Folded~Kehlani|Nokia~Drake|1995~Freddie Gibbs & The Alchemist|Sugar on My Tongue~Tyler, the Creator|Bodies~Offset & JID|twilight zone~Ariana Grande|RATHER LIE~Playboi Carti & The Weeknd
+</script>
+
+<script>
+const $=s=>document.querySelector(s), app=$('#app');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const parse=id=>{const o={};$(id).textContent.trim().split('\n').forEach(l=>{const[y,...s]=l.split('|');o[y]=s.map(x=>{const[t,a]=x.split('~');return{t,a}})});return o};
+const ED={music:{label:'All genres',data:parse('#d-music')},rap:{label:'Rap / Pop / R&B',data:parse('#d-rap')}};
+for(const e of Object.values(ED))e.years=Object.keys(e.data).map(Number);
+
+/* saved state */
+const KEY='keep-one-song-v1';
+let S={ed:'music',seenTip:false,music:{picks:{},champ:null,dm:null},rap:{picks:{},champ:null,dm:null}};
+try{const r=JSON.parse(localStorage.getItem(KEY));if(r)S={...S,...r}}catch{}
+const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch{}};
+const cur=()=>S[S.ed], ed=()=>ED[S.ed];
+
+/* shared votes: lights up where the viewer supports it */
+let db=null,uid=null;
+(async()=>{try{if(!window.claude?.use)return;db=await claude.use('db');const u=await claude.use('user');uid=await u?.id?.()||null;if(!uid)db=null;if(db)syncVotes()}catch{db=null}})();
+async function syncVotes(){if(!db)return;try{await db.doc('votes/'+uid).set({music:{picks:S.music.picks,champ:S.music.champ},rap:{picks:S.rap.picks,champ:S.rap.champ}})}catch{}}
+async function allVotes(){const me={music:{picks:S.music.picks,champ:S.music.champ},rap:{picks:S.rap.picks,champ:S.rap.champ}};
+  if(!db)return{list:[me],shared:false};
+  try{const q=await db.collection('votes').get();const list=q.docs.filter(d=>d.id!==uid).map(d=>d.data()).filter(Boolean);list.push(me);return{list,shared:true}}catch{return{list:[me],shared:false}}}
+
+/* audio */
+const audio=new Audio();audio.preload='auto';let vol=.6,paused=false;audio.volume=vol;
+let lookupsBlocked=false;const cache={};
+try{Object.assign(cache,JSON.parse(localStorage.getItem(KEY+'-it2'))||{})}catch{}
+const saveCache=()=>{try{localStorage.setItem(KEY+'-it2',JSON.stringify(cache))}catch{}};
+const cleanA=a=>a.split(/ feat\.| featuring | & | and /i)[0];
+const cleanT=t=>t.replace(/\(.*?\)/g,'').replace(/\*/g,'').trim();
+let cbN=0;
+function itunes(song){const k=song.t+'|'+song.a;if(cache[k]!==undefined)return Promise.resolve(cache[k]);if(lookupsBlocked)return Promise.resolve(null);
+  return new Promise(res=>{const cb='itcb'+(++cbN),sc=document.createElement('script');let done=false;
+    const fin=v=>{if(done)return;done=true;delete window[cb];sc.remove();res(v)};
+    const to=setTimeout(()=>{fin(null)},5000);
+    window[cb]=j=>{clearTimeout(to);const w=cleanA(song.a).toLowerCase().split(' ')[0];const hit=(j.results||[]).find(r=>r.previewUrl&&r.artistName.toLowerCase().includes(w))||(j.results||[]).find(r=>r.previewUrl);
+      const v=hit?{p:hit.previewUrl,c:hit.artworkUrl100.replace('100x100','600x600'),al:(hit.collectionName||'').replace(/ - (Single|EP)$/,'')}:null;cache[k]=v;saveCache();fin(v)};
+    sc.onerror=()=>{clearTimeout(to);lookupsBlocked=true;fin(null)};
+    sc.src='https://itunes.apple.com/search?media=music&entity=song&limit=8&country=US&term='+encodeURIComponent(cleanT(song.t)+' '+cleanA(song.a))+'&callback='+cb;
+    document.head.append(sc)})}
+function stopAudio(){audio.pause();cardsOff();duck(false)}
+function cardsOff(){document.querySelectorAll('.card.on').forEach(c=>{c.classList.remove('on');const p=c.querySelector('.pp');if(p)p.textContent='▶'})}
+
+/* room music: a quiet synth pad made in the browser */
+let ac,pad,padOn=false;
+function startPad(){ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume();if(pad)return;
+  pad=ac.createGain();pad.gain.value=0;pad.connect(ac.destination);
+  const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=620;f.connect(pad);
+  [110,164.81,220,261.63].forEach((hz,i)=>{const o=ac.createOscillator(),g=ac.createGain(),l=ac.createOscillator(),lg=ac.createGain();o.type='sawtooth';o.frequency.value=hz;o.detune.value=i*3-4;g.gain.value=.05;l.frequency.value=.07+i*.03;lg.gain.value=.03;l.connect(lg).connect(g.gain);o.connect(g).connect(f);o.start();l.start()})}
+function duck(d){if(pad)pad.gain.setTargetAtTime(padOn&&!d?.16*vol:0,ac.currentTime,.4)}
+$('#amb').onclick=()=>{padOn=!padOn;startPad();duck(!audio.paused);$('#amb').setAttribute('aria-pressed',padOn);$('#amb').textContent=padOn?'Mute room music':'Play room music'};
+$('#vol').oninput=e=>{vol=e.target.value/100;audio.volume=vol;duck(!audio.paused)};
+
+/* cards */
+const hash=s=>[...s].reduce((h,c)=>(h*31+c.charCodeAt(0))|0,7);
+function cardHTML(song,i,label){const h=Math.abs(hash(song.t+song.a)),a=h%360,init=song.t.replace(/[^\p{L}\p{N}]/gu,'').slice(0,2).toUpperCase();
+  const q=encodeURIComponent(cleanT(song.t)+' '+cleanA(song.a));
+  return `<article class="card" data-i="${i}" hidden>
+  <button class="cover" aria-label="Play ${esc(song.t)}"><span class="sleeve" style="--s:linear-gradient(${h%180}deg,hsl(${a} 55% 28%),hsl(${(a+50)%360} 60% 12%));--l:hsl(${(a+160)%360} 60% 42%)"><i><em>${esc(init)}</em></i></span><span class="pp" hidden>▶</span></button>
+  <div class="meta"><span class="ttl">${esc(song.t)}</span><span class="art">${esc(song.a)}</span><span class="alb"></span>
+  <button class="save" disabled>${label}</button>
+  <a class="listen" href="https://music.youtube.com/search?q=${q}" target="_blank" rel="noopener">Listen</a></div></article>`}
+function dressCard(el,info){if(!info)return;if(info.c&&!el.querySelector('img')){const im=new Image();im.alt='';im.src=info.c;im.onload=()=>{el.querySelector('.sleeve')?.remove();el.querySelector('.cover').prepend(im)}}
+  if(info.al)el.querySelector('.alb').textContent=info.al;
+  el.querySelector('.pp').hidden=false}
+function playCard(el,info,clipMs){cardsOff();if(!info?.p)return false;el.classList.add('on');if(info.c){const b=$('#backdrop');b.style.backgroundImage='url("'+info.c+'")';b.classList.add('on')}el.querySelector('.pp').textContent='❚❚';audio.src=info.p;audio.currentTime=0;audio.play().catch(()=>{});duck(true);return true}
+function bindCover(el,getInfo){const go=e=>{e.stopPropagation();const info=getInfo();if(!info?.p)return;if(el.classList.contains('on')&&!audio.paused){stopAudio()}else playCard(el,info)};el.querySelector('.cover').onclick=go}
+audio.onended=()=>{cardsOff();duck(false)};
+
+/* screens */
+let view='home',token=0,round=null;
+const chrome=(top,prev)=>{$('#ctl-tl').hidden=!top;$('#ctl-bl').hidden=!prev};
+function leave(){token++;$('#backdrop').classList.remove('on');stopAudio();round=null;$('#pause').hidden=true;paused=false}
+function home(){leave();view='home';chrome(false,false);const c=cur(),n=Object.keys(c.picks).length,tot=ed().years.length,res=n&&n<tot;
+  app.innerHTML=`<div class="tabs">${Object.entries(ED).map(([k,e])=>`<button class="tab" data-e="${k}" aria-pressed="${k===S.ed}">${esc(e.label)}</button>`).join('')}</div>
+  <h1>Music</h1><p class="lede">Save one song from every year, ${ed().years[0]} to ${ed().years.at(-1)}.</p>
+  <div class="stack">${res?`<button class="btn primary" id="go-res">Resume ${nextYear()}</button>`:''}
+  <button class="btn ${res?'':'primary'}" id="go-new">New</button>
+  <button class="btn" id="go-dm" ${n<2?'disabled':''}>${c.champ?'Deathmatch results':c.dm?'Resume deathmatch':'Deathmatch'}</button>
+  <button class="btn" id="go-yr">Skip to year</button>
+  <button class="btn" id="go-rank">Rankings</button>
+  ${n?'<button class="btn" id="go-picks">Your picks</button>':''}</div>
+  ${n<2?'<p class="note">Save at least two songs to unlock Deathmatch.</p>':''}`;
+  app.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{S.ed=b.dataset.e;persist();home()});
+  $('#go-new').onclick=()=>n?confirmNew():start();
+  $('#go-res')&&($('#go-res').onclick=()=>playYear(nextYear()));
+  $('#go-dm').onclick=()=>deathmatch();$('#go-yr').onclick=years;$('#go-rank').onclick=()=>rankings();
+  $('#go-picks')&&($('#go-picks').onclick=picks)}
+const nextYear=()=>ed().years.find(y=>!cur().picks[y])??ed().years[0];
+function confirmNew(){leave();chrome(true,false);app.innerHTML=`<div class="panel"><h2>Start over?</h2><p>This clears your ${Object.keys(cur().picks).length} saved songs in ${esc(ed().label)}.</p><div class="stack"><button class="btn primary" id="y">Clear and start</button><button class="btn" id="n">Keep my picks</button></div></div>`;
+  $('#y').onclick=()=>{Object.assign(cur(),{picks:{},champ:null,dm:null});persist();syncVotes();start()};$('#n').onclick=home}
+function start(){if(S.seenTip)return playYear(ed().years[0]);leave();chrome(true,false);
+  app.innerHTML=`<div class="panel"><h2>Did you know?</h2><p>Click to skip a preview. Hold left click to skip silently.</p><p>Once all cards appear, click a cover to play or pause.</p><p>Choose <b>Save</b> to keep that song. Space pauses.</p><button class="btn primary" id="c" autofocus>Continue</button></div>`;
+  $('#c').onclick=()=>{S.seenTip=true;persist();playYear(ed().years[0])}}
+
+function playYear(y){leave();view='round';const my=token,songs=ed().data[y];chrome(true,y>ed().years[0]);
+  app.innerHTML=`<div class="yr">${y}</div><p class="note" id="hint" hidden></p><section class="bin">${songs.map((s,i)=>cardHTML(s,i,'Save')).join('')}</section>`;
+  const els=[...app.querySelectorAll('.card')],infos=[];round={year:y,skip:null,silent:false,my};
+  $('#prev').onclick=()=>playYear(ed().years[ed().years.indexOf(y)-1]);
+  els.forEach((el,i)=>{bindCover(el,()=>infos[i]);el.querySelector('.save').onclick=e=>{e.stopPropagation();save(y,i)}});
+  (async()=>{ // look songs up one at a time so the store API stays happy
+    for(let i=0;i<songs.length&&my===token;i++){infos[i]=undefined;const p=itunes(songs[i]);p.then(v=>{infos[i]=v||null;if(my===token)dressCard(els[i],v)});await Promise.race([p,wait(250)])}})();
+  (async()=>{for(let i=0;i<els.length&&my===token;i++){
+      els[i].hidden=false;if(round.silent)continue;
+      let n=0;while(infos[i]===undefined&&n++<15&&my===token&&!round.silent)await wait(100);
+      if(my!==token)return;
+      const on=!paused&&playCard(els[i],infos[i]);
+      await skippable(on?6000:550);
+      if(my!==token)return;if(on&&i<els.length-1)stopAudio()}
+    if(my!==token)return;round.ready=true;els.forEach(e=>{e.querySelector('.save').disabled=false});
+    if(infos.every(v=>!v)){const h=$('#hint');h.hidden=false;h.textContent='Previews and covers could not load here. Use Listen to hear a song.'}
+    const picked=cur().picks[y];if(picked!==undefined)els[picked]?.querySelector('.save').focus()})()}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+function skippable(ms){return new Promise(r=>{let left=ms,last=Date.now(),done=false;const fin=()=>{if(done)return;done=true;clearInterval(t);if(round)round.skip=null;r()};
+  if(round)round.skip=fin;const t=setInterval(()=>{const n=Date.now();if(!paused)left-=n-last;last=n;if(left<=0||!round)fin()},60)})}
+function save(y,i){cur().picks[y]=i;persist();syncVotes();const ys=ed().years,idx=ys.indexOf(y),nx=ys[idx+1];stopAudio();
+  if(nx===undefined)return picks();if(nx%10===0)return intermission(nx);playYear(nx)}
+function intermission(nx){leave();view='break';const my=token;chrome(true,false);let n=5;
+  app.innerHTML=`<div class="panel"><h2>Intermission</h2><p>The ${String(nx-10).slice(2)}s are done. Next up, the ${String(nx).slice(2)}s.</p><div class="big" id="n">${n}</div><button class="btn primary" id="c">Continue</button></div>`;
+  const go=()=>{if(my===token)playYear(nx)};$('#c').onclick=go;
+  (async()=>{while(n>0){await wait(1000);if(my!==token)return;n--;$('#n').textContent=n}go()})()}
+
+/* skip & hold during reveal */
+let holdT=null;
+document.addEventListener('pointerdown',e=>{if(view!=='round'||!round||round.ready||e.target.closest('.corner,a'))return;
+  holdT=setTimeout(()=>{holdT=null;round.silent=true;stopAudio();round.skip?.()},350)});
+document.addEventListener('pointerup',e=>{if(!holdT)return;clearTimeout(holdT);holdT=null;if(view==='round'&&round&&!round.ready&&!e.target.closest('.corner,a'))round.skip?.()});
+function togglePause(){if(view!=='round'&&view!=='dm')return;paused=!paused;$('#pause').hidden=!paused;if(paused)audio.pause();else if(audio.src&&document.querySelector('.card.on'))audio.play().catch(()=>{})}
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.target.closest('button,a,input,select')){e.preventDefault();togglePause()}});
+$('#resume').onclick=togglePause;
+$('#home').onclick=home;
+
+function years(){leave();view='years';chrome(true,false);
+  app.innerHTML=`<h2 style="margin-top:44px">Skip to year</h2><div class="years">${ed().years.map(y=>`<button data-y="${y}" class="${cur().picks[y]!==undefined?'done':''}">${y}</button>`).join('')}</div><p class="note">Gold years already have a saved song.</p>`;
+  app.querySelectorAll('[data-y]').forEach(b=>b.onclick=()=>{S.seenTip=true;persist();playYear(+b.dataset.y)})}
+function picks(){leave();view='picks';chrome(true,false);const c=cur(),by={};
+  for(const y of ed().years){if(c.picks[y]===undefined)continue;(by[y-y%10]??=[]).push(y)}
+  app.innerHTML=`<h2 style="margin-top:44px">Your picks</h2><p class="note">${Object.keys(c.picks).length} of ${ed().years.length} years saved in ${esc(ed().label)}.</p>
+  <div class="stack"><button class="btn primary" id="dm" ${Object.keys(c.picks).length<2?'disabled':''}>Deathmatch</button><button class="btn" id="rk">Rankings</button></div>
+  ${Object.entries(by).map(([d,ys])=>`<section class="dec"><h3>${d}s</h3>${ys.map(y=>{const s=ed().data[y][c.picks[y]];return`<div class="row"><b>${y}</b><span>${esc(s.t)} <span class="art">· ${esc(s.a)}</span></span></div>`}).join('')}</section>`).join('')}`;
+  $('#dm').onclick=()=>deathmatch();$('#rk').onclick=()=>rankings()}
+
+/* deathmatch: your picks fight in pairs until one is left */
+function deathmatch(){leave();const c=cur();if(c.champ!==null&&c.champ!==undefined)return dmDone();
+  if(!c.dm){const f=Object.keys(c.picks).map(Number);for(let i=f.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[f[i],f[j]]=[f[j],f[i]]}c.dm={now:f,next:[]};persist()}
+  dmRound()}
+function dmRound(){leave();view='dm';const my=token,c=cur(),d=c.dm;if(d.now.length<2){d.next.push(...d.now);d.now=d.next;d.next=[];if(d.now.length===1){c.champ=d.now[0];c.dm=null;persist();syncVotes();return dmDone()}shuffle(d.now);persist()}
+  const a=d.now[0],b=d.now[1],sa=song(a),sb=song(b),left=d.now.length+d.next.length;chrome(true,false);
+  app.innerHTML=`<div class="yr" style="font-size:34px">Deathmatch<small>${left} songs left</small></div><section class="bin two">${cardHTML(sa,0,'Keep')}${cardHTML(sb,1,'Keep')}</section>`;
+  const els=[...app.querySelectorAll('.card')],infos=[];
+  [sa,sb].forEach((s,i)=>{els[i].hidden=false;els[i].querySelector('.save').disabled=false;bindCover(els[i],()=>infos[i]);itunes(s).then(v=>{infos[i]=v;if(my===token)dressCard(els[i],v)});
+    els[i].querySelector('.save').onclick=()=>{const w=i?b:a;d.now.splice(0,2);d.next.push(w);persist();dmRound()}})}
+const shuffle=f=>{for(let i=f.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[f[i],f[j]]=[f[j],f[i]]}};
+const song=y=>ed().data[y][cur().picks[y]];
+function dmDone(){leave();view='dmdone';const c=cur(),s=song(c.champ);chrome(true,false);
+  app.innerHTML=`<div class="panel"><h2>Last one standing</h2><p class="yr" style="margin:0">${c.champ}</p><p class="ttl" style="font-size:30px">${esc(s.t)}</p><p class="art" style="font-size:20px">${esc(s.a)}</p>
+  <div class="stack"><button class="btn primary" id="again">Run it again</button><button class="btn" id="rk">Deathmatch rankings</button></div></div>`;
+  $('#again').onclick=()=>{c.champ=null;c.dm=null;persist();syncVotes();deathmatch()};$('#rk').onclick=()=>rankings('dm')}
+
+/* rankings */
+async function rankings(tab='year',y){leave();view='rank';const my=token;chrome(true,false);y=y??(ed().years.findLast(v=>cur().picks[v]!==undefined)||ed().years[0]);
+  app.innerHTML=`<h2 style="margin-top:44px">Rankings</h2><p class="note">Loading votes…</p>`;
+  const{list,shared}=await allVotes();if(my!==token)return;
+  const k=S.ed,rows=[];let total=0;
+  if(tab==='year'){const n={};for(const v of list){const p=v?.[k]?.picks?.[y];if(p!==undefined&&ed().data[y][p]){n[p]=(n[p]||0)+1;total++}}
+    ed().data[y].forEach((s,i)=>rows.push({s,n:n[i]||0,mine:cur().picks[y]===i,lab:''}))}
+  else{const n={};for(const v of list){const e=v?.[k];if(e?.champ==null||!e.picks)continue;const id=e.champ+':'+e.picks[e.champ];n[id]=(n[id]||0)+1;total++}
+    for(const[id,c]of Object.entries(n)){const[yy,i]=id.split(':');const s=ed().data[yy]?.[i];if(s)rows.push({s,n:c,mine:cur().champ==yy&&cur().picks[yy]==i,lab:yy})}}
+  rows.sort((a,b)=>b.n-a.n);
+  app.innerHTML=`<h2 style="margin-top:44px">${shared?'Global rankings':'Local rankings'}</h2>
+  ${shared?'':'<p class="note">This view shows your own picks only.</p>'}
+  <div class="tabs"><button class="tab" id="t1" aria-pressed="${tab==='year'}">By year</button><button class="tab" id="t2" aria-pressed="${tab==='dm'}">Deathmatch winners</button></div>
+  ${tab==='year'?`<label class="note" for="ysel">Year</label><select id="ysel">${ed().years.map(v=>`<option ${v===y?'selected':''}>${v}</option>`).join('')}</select>`:''}
+  <p class="note">${total.toLocaleString()} ${total===1?'vote':'votes'}</p>
+  <section class="rank">${rows.length?rows.map(r=>{const p=total?r.n/total*100:0;return`<div class="bar"><div class="t">${r.lab?r.lab+' · ':''}${esc(r.s.t)} <span>${esc(r.s.a)}</span>${r.mine?' <mark>(Your vote)</mark>':''}</div><div class="p">${p.toFixed(1)}%</div><div class="fill"><i style="width:${p}%"></i></div></div>`}).join(''):'<p class="note">No deathmatch winners yet. Finish one to appear here.</p>'}</section>`;
+  $('#t1').onclick=()=>rankings('year',y);$('#t2').onclick=()=>rankings('dm',y);$('#ysel')&&($('#ysel').onchange=e=>rankings('year',+e.target.value))}
+
+home();
+</script>
+
+<script>
+/* unlock audio on the first tap so later previews can play on phones */
+(function(){const silent="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+let done=false;addEventListener('pointerdown',()=>{if(done)return;done=true;try{if(!audio.src){audio.src=silent;audio.play().then(()=>audio.pause()).catch(()=>{})}}catch{}},{capture:true});})();
+</script>
+</body>
+</html>
