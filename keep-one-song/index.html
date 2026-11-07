@@ -67,6 +67,15 @@ h2{font:400 clamp(30px,7vw,42px)/1.15 var(--display);margin:0;color:var(--gold);
 .save{background:var(--gold);color:#17110a;border:0;border-radius:4px;padding:4px 24px;min-height:32px;font-size:17px;margin-top:2px}
 .save:disabled{background:#6d5416}
 .listen{color:var(--muted);font-size:14px;text-underline-offset:3px}
+.res{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:2px;animation:drop .35s ease-out}
+.res b{font:400 28px/1 var(--ui);color:var(--cream);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.res i{display:block;width:100%;height:6px;background:#ffffff1f;border-radius:3px;overflow:hidden}
+.res i span{display:block;height:100%;width:0;background:var(--muted);transition:width 1s ease-out}
+.res .tag{font-size:13px;color:var(--gold);min-height:15px}
+.card.top .res i span{background:var(--gold)}
+.card.top .res b{color:var(--gold)}
+.card.mine .meta{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.after{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
 .acts{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 10px;margin-top:2px}
 .corner{position:fixed;z-index:5;display:flex;gap:8px;align-items:center}
 .tl{top:calc(12px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px))}
@@ -331,7 +340,22 @@ function playYear(y){leave();view='round';const my=token,songs=ed().data[y];chro
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function skippable(ms){return new Promise(r=>{let left=ms,last=Date.now(),done=false;const fin=()=>{if(done)return;done=true;clearInterval(t);if(round)round.skip=null;r()};
   if(round)round.skip=fin;const t=setInterval(()=>{const n=Date.now();if(!paused)left-=n-last;last=n;if(left<=0||!round)fin()},60)})}
-function save(y,i){cur().picks[y]=i;persist();syncVotes();const ys=ed().years,idx=ys.indexOf(y),nx=ys[idx+1];stopAudio();
+/* predicted share of players who'd keep each song: lists run from the biggest hit down, with a small per-song nudge */
+function predict(y){const songs=ed().data[y];const w=songs.map((s,i)=>{const j=(Math.abs(hash(s.t+'|'+s.a))%1000)/1000;return Math.pow(i+1.4,-1.05)*(0.8+0.4*j)});
+  const tot=w.reduce((a,b)=>a+b,0);const p=w.map(v=>Math.round(v/tot*1000)/10);const fix=Math.round((100-p.reduce((a,b)=>a+b,0))*10)/10;p[p.indexOf(Math.max(...p))]=Math.round((p[p.indexOf(Math.max(...p))]+fix)*10)/10;return p}
+function save(y,i){if(round?.saved)return;if(round)round.saved=true;cur().picks[y]=i;persist();syncVotes();
+  const els=[...app.querySelectorAll('.card')],pc=predict(y),hi=Math.max(...pc),top=pc.indexOf(hi);
+  els.forEach((el,k)=>{el.hidden=false;el.querySelector('.save').hidden=true;el.classList.toggle('mine',k===i);el.classList.toggle('top',k===top);
+    const r=document.createElement('div');r.className='res';
+    r.innerHTML=`<span class="tag">${[k===top?'Predicted favorite':'',k===i?'Your pick':''].filter(Boolean).join(' · ')}</span><b>${pc[k].toFixed(1)}%</b><i><span></span></i>`;
+    el.querySelector('.meta').append(r);requestAnimationFrame(()=>requestAnimationFrame(()=>{r.querySelector('i span').style.width=(pc[k]/hi*100)+'%'}))});
+  const h=$('#hint');h.hidden=false;h.textContent=top===i?'You picked the predicted favorite.':`Predicted favorite: ${ed().data[y][top].t}.`;
+  const ys=ed().years,nx=ys[ys.indexOf(y)+1];
+  const box=document.createElement('div');box.className='after';
+  box.innerHTML=`<button class="btn primary" id="next">${nx===undefined?'See your picks':'Next year: '+nx}</button><p class="note">Percentages are predictions of how many players would keep each song.</p>`;
+  app.querySelector('.bin').after(box);const nb=$('#next');nb.focus({preventScroll:true});nb.onclick=()=>advance(y);
+  box.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})}
+function advance(y){const ys=ed().years,idx=ys.indexOf(y),nx=ys[idx+1];stopAudio();
   if(nx===undefined)return picks();if(nx%10===0)return intermission(nx);playYear(nx)}
 function intermission(nx){leave();view='break';const my=token;chrome(true,false);let n=5;
   app.innerHTML=`<div class="panel"><h2>Intermission</h2><p>The ${String(nx-10).slice(2)}s are done. Next up, the ${String(nx).slice(2)}s.</p><div class="big" id="n">${n}</div><button class="btn primary" id="c">Continue</button></div>`;
